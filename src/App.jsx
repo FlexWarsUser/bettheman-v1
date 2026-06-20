@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 const MOCK_USERS = [
@@ -22,11 +22,26 @@ function App() {
   const [partialAmount, setPartialAmount] = useState({});
   const [bidAmount, setBidAmount] = useState({});
 
+  const betsRef = useRef([]);
+
+  useEffect(() => {
+    betsRef.current = allBets;
+  }, [allBets]);
+
   const fetchBets = async () => {
     try {
       const res = await fetch('/api/bets');
-      const data = await res.json();
-      setAllBets(data);
+      const serverBets = await res.json();
+
+      const merged = (serverBets || []).map(serverBet => {
+        const existing = betsRef.current.find(b => b.id === serverBet.id);
+        return {
+          ...serverBet,
+          layerBids: existing?.layerBids || serverBet.layerBids || []
+        };
+      });
+
+      setAllBets(merged);
     } catch (e) {
       console.error(e);
     }
@@ -34,7 +49,7 @@ function App() {
 
   useEffect(() => {
     fetchBets();
-    const interval = setInterval(fetchBets, 1500);
+    const interval = setInterval(fetchBets, 2000);
     return () => clearInterval(interval);
   }, []);
 
@@ -85,44 +100,87 @@ function App() {
     const bid = parseFloat(amount);
     if (!bid || bid <= 0) return alert('Enter a valid amount');
 
-    const bet = allBets.find(b => b.id === betId);
-    if (!bet) return;
-
-    if (!bet.layerBids) bet.layerBids = [];
-    bet.layerBids.push({
-      layerId: currentUser.id,
-      layerName: currentUser.name,
-      amount: bid,
-      timestamp: new Date()
+    const updatedBets = allBets.map(b => {
+      if (b.id === betId) {
+        return {
+          ...b,
+          layerBids: [
+            ...(b.layerBids || []),
+            {
+              layerId: currentUser.id,
+              layerName: currentUser.name,
+              amount: bid,
+              timestamp: new Date()
+            }
+          ]
+        };
+      }
+      return b;
     });
+
+    setAllBets(updatedBets);
+
+    setTimeout(() => {
+      fetchBets();
+    }, 300);
 
     alert(`Bid of £${bid} placed`);
     setBidAmount({ ...bidAmount, [betId]: '' });
-    fetchBets();
   };
 
-  // ==================== FILTERS & SORTING ====================
-  const now = new Date();
+  // ==================== FILTERS ====================
+  const sortByNewest = (a, b) => new Date(b.createdAt) - new Date(a.createdAt);
 
-  // Remove expired bets from Layer view (older than 2 hours for now)
-  const isExpired = (bet) => {
-    if (!bet.createdAt) return false;
-    const created = new Date(bet.createdAt);
-    const hoursDiff = (now - created) / (1000 * 60 * 60);
-    return hoursDiff > 2;
+  const getTotalMatched = (b) => {
+    if (!b) return 0;
+    const house = parseFloat(b.houseAmount) || 0;
+    const layers = Array.isArray(b.layerBids)
+      ? b.layerBids.reduce((sum, bid) => sum + (parseFloat(bid.amount) || 0), 0)
+      : 0;
+    return house + layers;
   };
 
-  const pendingBets = allBets.filter(b => b.status === 'pending');
-  const actionedBets = allBets.filter(b => b.status !== 'pending');
+  const getLayableAmount = (b) => {
+    if (!b) return 0;
+    const matched = getTotalMatched(b);
+    return Math.max(0, parseFloat(b.stake) - matched);
+  };
 
-  const myPendingBets = allBets.filter(b => b.punterId === currentUser.id && b.status === 'pending');
-  const myActiveBets = allBets.filter(b => b.punterId === currentUser.id && b.status === 'accepted');
-  const mySettledBets = allBets.filter(b => b.punterId === currentUser.id && b.status === 'rejected');
+  const isFullyLaid = (b) => getLayableAmount(b) <= 0;
 
-  // Layers only see non-expired bets that are accepted or rejected
+  // Punter
+  const myPendingBets = allBets
+    .filter(b => b && b.punterId === currentUser.id && getLayableAmount(b) > 0)
+    .sort(sortByNewest);
+
+  const myActiveBets = allBets
+    .filter(b => b && b.punterId === currentUser.id && isFullyLaid(b))
+    .sort(sortByNewest);
+
+  const mySettledBets = allBets
+    .filter(b => b && b.punterId === currentUser.id && b.status === 'rejected')
+    .sort(sortByNewest);
+
+  // Admin
+  const pendingBets = allBets.filter(b => b && b.status === 'pending').sort(sortByNewest);
+  const actionedBets = allBets.filter(b => b && b.status !== 'pending').sort(sortByNewest);
+
+  // Layer
   const betsForLayers = allBets
-    .filter(b => (b.status === 'accepted' || b.status === 'rejected') && !isExpired(b))
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Newest first
+    .filter(b =>
+      b &&
+      (b.status === 'accepted' || b.status === 'rejected') &&
+      b.punterId !== currentUser.id &&
+      getLayableAmount(b) > 0
+    )
+    .sort(sortByNewest);
+
+  const myActiveLays = allBets.filter(b =>
+    b &&
+    Array.isArray(b.layerBids) &&
+    b.layerBids.some(bid => bid.layerId === currentUser.id) &&
+    isFullyLaid(b)
+  );
 
   const formatTime = (dateString) => {
     if (!dateString) return '';
@@ -130,18 +188,14 @@ function App() {
   };
 
   const getHouseStatusLabel = (b) => {
+    if (!b) return '';
+    if (isFullyLaid(b)) return 'Fully Laid';
+    if (b.status === 'rejected') return 'Rejected';
     if (b.status === 'accepted' && b.houseAction === 'Partial') {
       return `Partially Accepted (£${b.houseAmount})`;
     }
     if (b.status === 'accepted') return 'Fully Accepted';
-    if (b.status === 'rejected') return 'Rejected';
     return b.status;
-  };
-
-  const getLayableAmount = (b) => {
-    if (b.status === 'rejected') return b.stake;
-    if (b.houseAmount && b.houseAmount > 0) return b.stake - b.houseAmount;
-    return b.stake;
   };
 
   return (
@@ -186,7 +240,7 @@ function App() {
           {myActiveBets.length === 0 ? <p>No active bets.</p> : myActiveBets.map(b => (
             <div key={b.id} style={{background:'rgba(255,255,255,0.1)', padding:'12px', margin:'8px 0', borderRadius:'8px'}}>
               <strong>{b.event}</strong> — {b.selection} @ {b.odds} — £{b.stake}<br />
-              <small style={{color: '#0f0'}}>{getHouseStatusLabel(b)} • {formatTime(b.actionedAt)}</small>
+              <small style={{color: '#0f0'}}>{getHouseStatusLabel(b)}</small>
             </div>
           ))}
 
@@ -194,7 +248,7 @@ function App() {
           {mySettledBets.length === 0 ? <p>No settled bets.</p> : mySettledBets.map(b => (
             <div key={b.id} style={{background:'rgba(255,0,0,0.1)', padding:'12px', margin:'8px 0', borderRadius:'8px', border: '1px solid #ff4444'}}>
               <strong>{b.event}</strong> — {b.selection} @ {b.odds} — £{b.stake}<br />
-              <small style={{color: '#ff6666'}}>{getHouseStatusLabel(b)} • {formatTime(b.actionedAt)}</small>
+              <small style={{color: '#ff6666'}}>{getHouseStatusLabel(b)}</small>
             </div>
           ))}
         </>
@@ -222,14 +276,14 @@ function App() {
             <div key={b.id} style={{background:'rgba(255,255,255,0.05)', padding:'12px', margin:'8px 0', borderRadius:'8px'}}>
               <strong>{b.event}</strong> — {b.selection} @ {b.odds} — £{b.stake} (Punter: {b.punterName})<br />
               <small style={{color: b.status === 'accepted' ? '#0f0' : '#f66'}}>
-                {getHouseStatusLabel(b)} • {formatTime(b.actionedAt)}
+                {getHouseStatusLabel(b)}
               </small>
             </div>
           ))}
         </>
       )}
 
-      {/* LAYER VIEW - NEWEST FIRST + NO EXPIRED BETS */}
+      {/* LAYER VIEW */}
       {activeTab === 'layer' && currentUser.canLay && (
         <>
           <h2>Available Bets to Lay</h2>
@@ -251,6 +305,19 @@ function App() {
               </div>
             );
           })}
+
+          {/* My Active Lays - Neutral for now (pro-rata pending) */}
+          <h2 style={{ marginTop: '40px' }}>My Active Lays</h2>
+          {myActiveLays.length === 0 ? (
+            <p>No active lays yet.</p>
+          ) : (
+            myActiveLays.map(b => (
+              <div key={b.id} style={{background:'rgba(0,200,255,0.1)', padding:'12px', margin:'8px 0', borderRadius:'8px'}}>
+                <strong>{b.event}</strong> — {b.selection} @ {b.odds} — £{b.stake}<br />
+                <small style={{color: '#0af'}}>You have placed bids on this bet (pro-rata allocation pending)</small>
+              </div>
+            ))
+          )}
         </>
       )}
 
@@ -261,4 +328,4 @@ function App() {
   );
 }
 
-export default App;
+export default App
