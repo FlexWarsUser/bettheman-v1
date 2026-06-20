@@ -36,24 +36,52 @@ function App() {
       const merged = (serverBets || []).map(serverBet => {
         const existing = betsRef.current.find(b => b.id === serverBet.id);
 
+        const layerBids = existing?.layerBids?.length > 0 
+          ? existing.layerBids 
+          : serverBet.layerBids || [];
+
         const houseTimeLeft = serverBet.houseTimerEnd 
           ? Math.floor((serverBet.houseTimerEnd - Date.now()) / 1000) 
           : null;
 
-        const isInLayerPhase = 
-          serverBet.status === 'accepted' || 
-          serverBet.status === 'rejected' || 
-          (houseTimeLeft !== null && houseTimeLeft <= 0);
+        const hasHouseActed = serverBet.houseAction === 'Accepted' || 
+                              serverBet.houseAction === 'Partial' || 
+                              serverBet.houseAction === 'Rejected';
+
+        const isInLayerPhase = hasHouseActed || 
+                              serverBet.status === 'rejected' || 
+                              (houseTimeLeft !== null && houseTimeLeft <= 0);
 
         let layerTimerEnd = serverBet.layerTimerEnd || existing?.layerTimerEnd;
         if (isInLayerPhase && !layerTimerEnd) {
           layerTimerEnd = Date.now() + 30000;
         }
 
+        const remainingAfterHouse = getLayableAmountForLayers(serverBet);
+        const totalLayerBids = layerBids.reduce((sum, bid) => sum + (parseFloat(bid.amount) || 0), 0);
+        const actualResidual = Math.max(0, remainingAfterHouse - totalLayerBids);
+
+        let residualHouseTimerEnd = serverBet.residualHouseTimerEnd || existing?.residualHouseTimerEnd;
+
+        const layerTimeLeftVal = layerTimerEnd ? Math.floor((layerTimerEnd - Date.now()) / 1000) : null;
+        const layerPhaseExpired = layerTimeLeftVal !== null && layerTimeLeftVal <= 0;
+
+        if (layerPhaseExpired && actualResidual > 0 && !residualHouseTimerEnd) {
+          residualHouseTimerEnd = Date.now() + 30000;
+        }
+
+        let finalHouseAmount = serverBet.houseAmount;
+        if (existing && existing.houseAmount) {
+          finalHouseAmount = existing.houseAmount;
+        }
+
         return {
           ...serverBet,
+          houseAmount: finalHouseAmount,
           layerTimerEnd,
-          layerBids: existing?.layerBids || serverBet.layerBids || []
+          residualHouseTimerEnd,
+          layerBids,
+          actualResidualAfterLayers: actualResidual
         };
       });
 
@@ -99,6 +127,13 @@ function App() {
   };
 
   const handleHouseAction = async (betId, action, amount = null) => {
+    const currentBet = allBets.find(b => b.id === betId);
+    if (!currentBet) return;
+
+    const currentLayerBids = currentBet.layerBids || [];
+    const previousHouseAmount = getEffectiveHouseAmount(currentBet);
+    const residualAmount = currentBet.actualResidualAfterLayers || getLayableAmountForLayers(currentBet);
+
     if (action === 'Partial') {
       const partialValue = parseFloat(amount);
       if (!partialValue || partialValue <= 0) {
@@ -113,26 +148,52 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, amount: amount ? parseFloat(amount) : null })
       });
-      fetchBets();
+
+      let newHouseAmount = previousHouseAmount;
+
+      if (action === 'Accepted') {
+        newHouseAmount = previousHouseAmount + residualAmount;
+      } else if (action === 'Partial') {
+        newHouseAmount = previousHouseAmount + parseFloat(amount);
+      }
+
+      const updatedBets = allBets.map(b => {
+        if (b.id === betId) {
+          return {
+            ...b,
+            houseAmount: newHouseAmount,
+            layerBids: currentLayerBids,
+            houseAction: action
+          };
+        }
+        return b;
+      });
+
+      setAllBets(updatedBets);
+      betsRef.current = updatedBets;
+
+      setTimeout(() => {
+        fetchBets();
+      }, 6000);
+
     } catch (err) {
       alert('Action failed');
     }
   };
 
-  // Layer actions
   const handleLayerBid = async (betId, amount) => {
     const bid = parseFloat(amount);
     if (!bid || bid <= 0) return alert('Enter a valid amount');
 
     const updatedBets = allBets.map(b => {
       if (b.id === betId) {
-        return {
-          ...b,
-          layerBids: [
-            ...(b.layerBids || []),
-            { layerId: currentUser.id, layerName: currentUser.name, amount: bid, timestamp: new Date() }
-          ]
-        };
+        const newBids = [...(b.layerBids || []), { 
+          layerId: currentUser.id, 
+          layerName: currentUser.name, 
+          amount: bid, 
+          timestamp: new Date() 
+        }];
+        return { ...b, layerBids: newBids };
       }
       return b;
     });
@@ -152,13 +213,13 @@ function App() {
 
     const updatedBets = allBets.map(b => {
       if (b.id === betId) {
-        return {
-          ...b,
-          layerBids: [
-            ...(b.layerBids || []),
-            { layerId: currentUser.id, layerName: currentUser.name, amount: remaining, timestamp: new Date() }
-          ]
-        };
+        const newBids = [...(b.layerBids || []), { 
+          layerId: currentUser.id, 
+          layerName: currentUser.name, 
+          amount: remaining, 
+          timestamp: new Date() 
+        }];
+        return { ...b, layerBids: newBids };
       }
       return b;
     });
@@ -171,13 +232,14 @@ function App() {
   const handleLayerReject = (betId) => {
     const updatedBets = allBets.map(b => {
       if (b.id === betId) {
-        return {
-          ...b,
-          layerBids: [
-            ...(b.layerBids || []),
-            { layerId: currentUser.id, layerName: currentUser.name, amount: 0, rejected: true, timestamp: new Date() }
-          ]
-        };
+        const newBids = [...(b.layerBids || []), { 
+          layerId: currentUser.id, 
+          layerName: currentUser.name, 
+          amount: 0, 
+          rejected: true, 
+          timestamp: new Date() 
+        }];
+        return { ...b, layerBids: newBids };
       }
       return b;
     });
@@ -197,6 +259,12 @@ function App() {
   const getLayerTimeLeft = (b) => {
     if (!b?.layerTimerEnd) return null;
     const remaining = Math.floor((b.layerTimerEnd - Date.now()) / 1000);
+    return remaining > 0 ? remaining : 0;
+  };
+
+  const getResidualHouseTimeLeft = (b) => {
+    if (!b?.residualHouseTimerEnd) return null;
+    const remaining = Math.floor((b.residualHouseTimerEnd - Date.now()) / 1000);
     return remaining > 0 ? remaining : 0;
   };
 
@@ -241,16 +309,30 @@ function App() {
     .filter(b => b && b.punterId === currentUser.id && isFullyLaid(b))
     .sort(sortByNewest);
 
-  // Settled = only finally rejected (not fully laid)
   const mySettledBets = allBets
-    .filter(b => b && b.punterId === currentUser.id && b.status === 'rejected' && !isFullyLaid(b))
+    .filter(b => {
+      if (!b || b.punterId !== currentUser.id) return false;
+      if (b.status !== 'rejected') return false;
+      if (isFullyLaid(b)) return false;
+      const layerTime = getLayerTimeLeft(b);
+      const layerPhaseFinished = layerTime === null || layerTime === 0;
+      return layerPhaseFinished;
+    })
     .sort(sortByNewest);
 
   // Admin
   const pendingBets = allBets.filter(b => {
-    if (!b || b.status !== 'pending') return false;
+    if (!b) return false;
     const timeLeft = getHouseTimeLeft(b);
-    return timeLeft === null || timeLeft > 0;
+    const originalPending = b.status === 'pending' && (timeLeft === null || timeLeft > 0);
+
+    const layerTimeLeft = getLayerTimeLeft(b);
+    const layerHasExpired = layerTimeLeft !== null && layerTimeLeft <= 0;
+
+    const residualTimeLeft = getResidualHouseTimeLeft(b);
+    const hasValidResidual = residualTimeLeft !== null && residualTimeLeft > 0 && layerHasExpired;
+
+    return originalPending || hasValidResidual;
   }).sort(sortByNewest);
 
   const actionedBets = allBets.filter(b => b && b.status !== 'pending').sort(sortByNewest);
@@ -262,22 +344,25 @@ function App() {
       const alreadyActed = b.layerBids?.some(bid => bid.layerId === currentUser.id);
       if (alreadyActed) return false;
 
+      const hasHouseActed = b.houseAction === 'Accepted' || 
+                            b.houseAction === 'Partial' || 
+                            b.houseAction === 'Rejected';
+
       const timeLeft = getHouseTimeLeft(b);
       const houseTimerExpired = timeLeft !== null && timeLeft === 0;
-      const remaining = getLayableAmountForLayers(b);
 
-      return (
-        (b.status === 'accepted' || b.status === 'rejected' || houseTimerExpired) &&
-        remaining > 0
-      );
+      const remaining = getLayableAmountForLayers(b);
+      const layerTimeLeft = getLayerTimeLeft(b);
+      const layerActive = layerTimeLeft !== null && layerTimeLeft > 0;
+
+      return (hasHouseActed || houseTimerExpired) && remaining > 0 && layerActive;
     })
     .sort(sortByNewest);
 
   const myActiveLays = allBets.filter(b =>
     b &&
     Array.isArray(b.layerBids) &&
-    b.layerBids.some(bid => bid.layerId === currentUser.id) &&
-    isFullyLaid(b)
+    b.layerBids.some(bid => bid.layerId === currentUser.id)
   ).sort(sortByNewest);
 
   const formatTime = (dateString) => {
@@ -287,12 +372,20 @@ function App() {
 
   const getHouseStatusLabel = (b) => {
     if (!b) return '';
+
+    if (activeTab === 'punter') {
+      if (isFullyLaid(b)) return 'Fully Laid';
+      if (b.status === 'rejected' && !isFullyLaid(b)) return 'Rejected';
+      return b.status;
+    }
+
+    const houseTotal = getEffectiveHouseAmount(b);
+
+    if (b.houseAction === 'Rejected') return 'Rejected by House';
+    if (b.houseAction === 'Partial') return `Partially Laid by House (£${houseTotal})`;
+    if (b.houseAction === 'Accepted') return `Fully Laid by House (£${houseTotal})`;
     if (isFullyLaid(b)) return 'Fully Laid';
     if (b.status === 'rejected') return 'Rejected';
-    if (b.status === 'accepted' && b.houseAction === 'Partial') {
-      return `Partially Accepted (£${b.houseAmount})`;
-    }
-    if (b.status === 'accepted') return 'Fully Accepted';
     return b.status;
   };
 
@@ -338,7 +431,8 @@ function App() {
           {myActiveBets.length === 0 ? <p>No active bets.</p> : myActiveBets.map(b => (
             <div key={b.id} style={{background:'rgba(255,255,255,0.1)', padding:'12px', margin:'8px 0', borderRadius:'8px'}}>
               <strong>{b.event}</strong> — {b.selection} @ {b.odds} — £{b.stake}<br />
-              <small style={{color: '#0f0'}}>{getHouseStatusLabel(b)}</small>
+              <small style={{color: '#0f0'}}>{getHouseStatusLabel(b)}</small><br />
+              <small style={{color: '#aaa'}}>Submitted: {formatTime(b.createdAt)}</small>
             </div>
           ))}
 
@@ -346,7 +440,8 @@ function App() {
           {mySettledBets.length === 0 ? <p>No settled bets.</p> : mySettledBets.map(b => (
             <div key={b.id} style={{background:'rgba(255,0,0,0.1)', padding:'12px', margin:'8px 0', borderRadius:'8px', border: '1px solid #ff4444'}}>
               <strong>{b.event}</strong> — {b.selection} @ {b.odds} — £{b.stake}<br />
-              <small style={{color: '#ff6666'}}>{getHouseStatusLabel(b)}</small>
+              <small style={{color: '#ff6666'}}>{getHouseStatusLabel(b)}</small><br />
+              <small style={{color: '#aaa'}}>Submitted: {formatTime(b.createdAt)}</small>
             </div>
           ))}
         </>
@@ -358,10 +453,15 @@ function App() {
           <h2>Pending Bets (House Timer)</h2>
           {pendingBets.length === 0 ? <p>No pending bets.</p> : pendingBets.map(b => {
             const timeLeft = getHouseTimeLeft(b);
+            const residualTimeLeft = getResidualHouseTimeLeft(b);
+            const residualAmount = b.actualResidualAfterLayers || getLayableAmountForLayers(b);
+            const isResidual = residualTimeLeft !== null && residualTimeLeft > 0;
+
             return (
               <div key={b.id} style={{background:'rgba(255,255,255,0.1)', padding:'15px', margin:'12px 0', borderRadius:'8px'}}>
                 <strong>{b.event}</strong><br />
-                {b.selection} @ {b.odds} — £{b.stake} (Punter: {b.punterName})<br /><br />
+                {b.selection} @ {b.odds} — £{b.stake} (Punter: {b.punterName})<br />
+                <small style={{color: '#aaa'}}>Submitted: {formatTime(b.createdAt)}</small><br /><br />
 
                 {timeLeft !== null && timeLeft > 0 && (
                   <div style={{ color: timeLeft < 10 ? '#ff4444' : '#ffaa00', fontWeight: 'bold', marginBottom: '12px' }}>
@@ -369,7 +469,19 @@ function App() {
                   </div>
                 )}
 
-                <button onClick={() => handleHouseAction(b.id, 'Accepted')} style={{marginRight:'8px', background:'lime', color:'black', padding:'8px 16px'}}>Accept Full</button>
+                {isResidual && (
+                  <div style={{ color: '#ffaa00', fontWeight: 'bold', marginBottom: '12px' }}>
+                    ⏱ Residual after Layers: {residualTimeLeft}s<br />
+                    <span style={{color: '#ff6666'}}>Residual amount: £{residualAmount}</span>
+                  </div>
+                )}
+
+                <button 
+                  onClick={() => handleHouseAction(b.id, 'Accepted')} 
+                  style={{marginRight:'8px', background:'lime', color:'black', padding:'8px 16px'}}
+                >
+                  {isResidual ? 'Accept Residual Amount' : 'Accept Full Stake'}
+                </button>
                 <button onClick={() => handleHouseAction(b.id, 'Rejected')} style={{marginRight:'8px', padding:'8px 16px'}}>Reject</button>
 
                 <div style={{marginTop: '12px'}}>
@@ -384,9 +496,10 @@ function App() {
           {actionedBets.length === 0 ? <p>No actioned bets.</p> : actionedBets.map(b => (
             <div key={b.id} style={{background:'rgba(255,255,255,0.05)', padding:'12px', margin:'8px 0', borderRadius:'8px'}}>
               <strong>{b.event}</strong> — {b.selection} @ {b.odds} — £{b.stake} (Punter: {b.punterName})<br />
-              <small style={{color: b.status === 'accepted' ? '#0f0' : '#f66'}}>
+              <small style={{color: '#0f0'}}>
                 {getHouseStatusLabel(b)}
-              </small>
+              </small><br />
+              <small style={{color: '#aaa'}}>Submitted: {formatTime(b.createdAt)}</small>
             </div>
           ))}
         </>
@@ -434,12 +547,36 @@ function App() {
           })}
 
           <h2 style={{ marginTop: '40px' }}>My Active Lays</h2>
-          {myActiveLays.length === 0 ? <p>No active lays yet.</p> : myActiveLays.map(b => (
-            <div key={b.id} style={{background:'rgba(0,200,255,0.1)', padding:'12px', margin:'8px 0', borderRadius:'8px'}}>
-              <strong>{b.event}</strong> — {b.selection} @ {b.odds} — £{b.stake}<br />
-              <small style={{color: '#0af'}}>You have placed bids on this bet (pro-rata allocation pending)</small>
-            </div>
-          ))}
+          {myActiveLays.length === 0 ? <p>No active lays yet.</p> : myActiveLays.map(b => {
+            const myBid = b.layerBids?.find(bid => bid.layerId === currentUser.id);
+            const layerTimeLeft = getLayerTimeLeft(b);
+            const layerPhaseEnded = layerTimeLeft !== null && layerTimeLeft <= 0;
+
+            const remainingAfterHouse = getLayableAmountForLayers(b);
+            const totalLayerBids = b.layerBids?.reduce((sum, bid) => sum + (parseFloat(bid.amount) || 0), 0) || 0;
+            const wasOversubscribed = totalLayerBids > remainingAfterHouse;
+
+            let statusText = "Bid placed (waiting for Layer phase to end)";
+            if (layerPhaseEnded && myBid) {
+              statusText = wasOversubscribed 
+                ? `Your bid £${myBid.amount} (Pro-rata applied)` 
+                : `Confirmed: £${myBid.amount}`;
+            }
+
+            return (
+              <div key={b.id} style={{background:'rgba(0,200,255,0.1)', padding:'12px', margin:'8px 0', borderRadius:'8px'}}>
+                <strong>{b.event}</strong> — {b.selection} @ {b.odds} — £{b.stake}<br />
+                <small>Punter: <strong>{b.punterName}</strong></small><br />
+                {myBid && (
+                  <small style={{color: layerPhaseEnded ? (wasOversubscribed ? '#ffaa00' : '#0f0') : '#aaa'}}>
+                    {statusText}
+                  </small>
+                )}
+                <br />
+                <small style={{color: '#aaa'}}>Bid placed: {formatTime(myBid?.timestamp)}</small>
+              </div>
+            );
+          })}
         </>
       )}
 
