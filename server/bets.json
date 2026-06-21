@@ -1,0 +1,183 @@
+[
+  {
+    "id": 1782041118614,
+    "event": "LEEDS V CITY",
+    "selection": "DRAW",
+    "odds": "4/1",
+    "stake": "500",
+    "punterId": 1,
+    "punterName": "Alex Rivera",
+    "houseTimerEnd": 1782041148587,
+    "status": "fully_laid",
+    "houseAction": "Partial",
+    "houseAmount": 600,
+    "layerBids": [],
+    "allocationComplete": true,
+    "createdAt": "2026-06-21T11:25:18.614Z"
+  },
+  {
+    "id": 1782041164497,
+    "event": "LEEDS V CITY",
+    "selection": "DRAW",
+    "odds": "3/1",
+    "stake": "500",
+    "punterId": 1,
+    "punterName": "Alex Rivera",
+    "houseTimerEnd": 1782041194492,
+    "status": "fully_laid",
+    "houseAction": "Partial",
+    "houseAmount": 600,
+    "layerBids": [],
+    "allocationComplete": true,
+    "createdAt": "2026-06-21T11:26:04.497Z"
+  },
+  {
+    "id": 1782041700567,
+    "event": "1230",
+    "selection": "CUNT",
+    "odds": "3/1",
+    "stake": "300",
+    "punterId": 1,
+    "punterName": "Alex Rivera",
+    "houseTimerEnd": 1782041730555,
+    "status": "fully_laid",
+    "houseAction": "Partial",
+    "houseAmount": 300,
+    "layerBids": [
+      {
+        "layerId": 3,
+        "layerName": "Sam Patel",
+        "amount": 75,
+        "timestamp": "2026-06-21T11:35:18.763Z",
+        "allocatedAmount": 50,
+        "originalBid": 75
+      },
+      {
+        "layerId": 5,
+        "layerName": "Morgan Lee",
+        "amount": 75,
+        "timestamp": "2026-06-21T11:35:27.660Z",
+        "allocatedAmount": 50,
+        "originalBid": 75
+      }
+    ],
+    "allocationComplete": true,
+    "createdAt": "2026-06-21T11:35:00.567Z",
+    "layerTimerEnd": 1782041740060
+  },
+  {
+    "id": 1782042245206,
+    "event": "LEEDS V ARSENAL",
+    "selection": "DRAW ",
+    "odds": "3/1",
+    "stake": "500",
+    "punterId": 1,
+    "punterName": "Alex Rivera",
+    "houseTimerEnd": 1782042275178,
+    "status": "pending",
+    "houseAction": "Partial",
+    "houseAmount": 500,
+    "layerBids": [],
+    "allocationComplete": false,
+    "createdAt": "2026-06-21T11:44:05.206Z",
+    "layerTimerEnd": 1782042319895
+  },
+  {
+    "id": 1782042546335,
+    "event": "LEEDS V  CITY",
+    "selection": "DRAW",
+    "odds": "4/1",
+    "stake": "300",
+    "punterId": 1,
+    "punterName": "Alex Rivera",
+    "houseTimerEnd": 1782042576311,
+    "status": "pending",
+    "houseAction": "Partial",
+    "houseAmount": 200,
+    "layerBids": [
+      {
+        "layerId": 3,
+        "layerName": "Sam Patel",
+        "amount": 75,
+        "timestamp": "2026-06-21T11:49:28.177Z"
+      },
+      {
+        "layerId": 5,
+        "layerName": "Morgan Lee",
+        "amount": 75,
+        "timestamp": "2026-06-21T11:49:36.040Z"
+      }
+    ],
+    "allocationComplete": false,
+    "createdAt": "2026-06-21T11:49:06.335Z",
+    "layerTimerEnd": 1782042582457
+  },
+  {
+    "id": 1782042757587,
+    "event": "1250",
+    "selection": "HELLO",
+    "odds": "3/1",
+    "stake": "300",
+    "punterId": 1,
+    "punterName": "Alex Rivera",
+    "houseTimerEnd": 1782042787562,
+    "status": "fully_laid",
+    "houseAction": "Partial",
+    "houseAmount": 200,
+    "layerBids": [
+      {
+        "layerId": 3,
+        "layerName": "Sam Patel",
+        "amount": 75,
+        "timestamp": "2026-06-21T11:52:54.405Z",
+        "allocatedAmount": 50,
+        "originalBid": 75
+      },
+      {
+        "layerId": 5,
+        "layerName": "Morgan Lee",
+        "amount": 75,
+        "timestamp": "2026-06-21T11:53:02.437Z",
+        "allocatedAmount": 50,
+        "originalBid": 75
+      }
+    ],
+    "allocationComplete": true,
+    "createdAt": "2026-06-21T11:52:37.587Z",
+    "layerTimerEnd": 1782042793886
+  },
+  {
+    "id": 1782043006414,
+    "event": "1330",
+    "selection": "LIAM",
+    "odds": "3/1",
+    "stake": "300",
+    "punterId": 1,
+    "punterName": "Alex Rivera",
+    "houseTimerEnd": 1782043036389,
+    "status": "fully_laid",
+    "houseAction": "Partial",
+    "houseAmount": 200,
+    "layerBids": [
+      {
+        "layerId": 3,
+        "layerName": "Sam Patel",
+        "amount": 75,
+        "timestamp": "2026-06-21T11:57:07.377Z",
+        "allocatedAmount": 50,
+        "originalBid": 75
+      },
+      {
+        "layerId": 5,
+        "layerName": "Morgan Lee",
+        "amount": 75,
+        "timestamp": "2026-06-21T11:57:14.345Z",
+        "allocatedAmount": 50,
+        "originalBid": 75
+      }
+    ],
+    "allocationComplete": true,
+    "createdAt": "2026-06-21T11:56:46.414Z",
+    "layerTimerEnd": 1782043048674
+  }
+]
