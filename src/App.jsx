@@ -58,7 +58,9 @@ function App() {
   const [currentUser, setCurrentUser] = useState(MOCK_USERS[0]);
   const [bet, setBet] = useState({ event: '', selection: '', odds: '', stake: '' });
   const [message, setMessage] = useState('');
+  const [layerMessage, setLayerMessage] = useState('');
   const [allBets, setAllBets] = useState([]);
+  const [processedBidsByUser, setProcessedBidsByUser] = useState({});
   const [partialAmount, setPartialAmount] = useState({});
   const [bidAmount, setBidAmount] = useState({});
   const [showBidConfirm, setShowBidConfirm] = useState(null);
@@ -131,8 +133,14 @@ function App() {
         }),
       });
       if (res.ok) {
-        setAllBets(prev => prev.filter(b => b.id !== betId));
-        setBidAmount(prev => { const n = {...prev}; delete n[betId]; return n; });
+        setLayerMessage('Bid submitted successfully - awaiting apportioning');
+        setTimeout(() => setLayerMessage(''), 5000);
+        
+        setProcessedBidsByUser(prev => ({
+          ...prev,
+          [currentUser.id]: new Set([...(prev[currentUser.id] || []), betId])
+        }));
+        
         fetchBets();
       } else {
         alert('Layer action failed');
@@ -149,7 +157,8 @@ function App() {
 
   const confirmLayerBid = async () => {
     if (!showBidConfirm) return;
-    await performLayerAction(showBidConfirm.betId, showBidConfirm.amount);
+    const { betId, amount } = showBidConfirm;
+    await performLayerAction(betId, amount);
     setShowBidConfirm(null);
   };
 
@@ -158,7 +167,7 @@ function App() {
     if (!bet) return;
     const remaining = Math.max(0, parseFloat(bet.stake) - (parseFloat(bet.houseAmount) || 0));
     if (remaining <= 0) return;
-    if (!window.confirm(`Accept full £${remaining}?`)) return;
+    if (!window.confirm(`Accept full remaining £${remaining}?`)) return;
     await performLayerAction(betId, remaining);
   };
 
@@ -177,8 +186,19 @@ function App() {
     }
   };
 
+  const isExpired = (b) => {
+    if (!b.layerTimerEnd) return false;
+    return new Date(b.layerTimerEnd).getTime() < Date.now();
+  };
+
   const pendingReview = allBets.filter(b => b.phase === 'house_review').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  const layerBidding = allBets.filter(b => b.phase === 'layer_bidding' && currentUser && b.punterId !== currentUser.id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const layerBidding = allBets.filter(b => 
+    b.phase === 'layer_bidding' && 
+    currentUser && 
+    b.punterId !== currentUser.id && 
+    !(processedBidsByUser[currentUser.id] && processedBidsByUser[currentUser.id].has(b.id)) &&
+    !isExpired(b)
+  ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const activeBets = allBets.filter(b => b.houseAmount > 0 || b.phase === 'finalized' || b.status === 'active' || ['Accepted', 'Partial'].includes(b.houseAction)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const settledBets = allBets.filter(b => b.phase === 'settled').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const rejectedBets = allBets.filter(b => b.status === 'rejected' && b.punterId === currentUser.id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -327,6 +347,7 @@ function App() {
       {activeTab === 'layer' && currentUser?.canLay && (
         <div>
           <h2>Bets Available to Lay</h2>
+          {layerMessage && <p style={{ color: '#28a745', fontWeight: 'bold', textAlign: 'center', marginBottom: '15px' }}>{layerMessage}</p>}
           {layerBidding.length === 0 && <p>No bets available for you to lay.</p>}
           {layerBidding.map(b => {
             const remaining = getLayableAmount(b);
@@ -361,6 +382,16 @@ function App() {
               </div>
             );
           })}
+
+          <CollapsibleSection title="Lays in Process" defaultOpen={true}>
+            {allBets.filter(b => b.layerBids && b.layerBids.some(l => l.layerId === currentUser.id)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(b => (
+              <div key={b.id} style={{ background: '#e6f7e6', border: '1px solid #28a745', padding: '14px', margin: '8px 0', borderRadius: '8px' }}>
+                <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
+                <div style={{ color: '#555' }}>{b.selection} @ {b.odds} — £{b.stake}</div>
+                <div style={{ marginTop: '8px', color: '#006400', fontWeight: '600' }}>Bid Submitted - Awaiting Apportioning</div>
+              </div>
+            ))}
+          </CollapsibleSection>
         </div>
       )}
 

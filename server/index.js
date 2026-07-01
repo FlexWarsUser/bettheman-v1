@@ -45,9 +45,7 @@ app.post("/api/bets/:id/action", (req, res) => {
   const { action, amount } = req.body;
 
   const betIndex = bets.findIndex(b => b.id === parseInt(id));
-  if (betIndex === -1) {
-    return res.status(404).json({ success: false });
-  }
+  if (betIndex === -1) return res.status(404).json({ success: false });
 
   const bet = bets[betIndex];
 
@@ -57,16 +55,14 @@ app.post("/api/bets/:id/action", (req, res) => {
     bet.status = 'accepted';
     bet.phase = 'finalized';
     bet.acceptedAt = new Date().toISOString();
+    bet.layerTimerEnd = null;
   } else if (action === 'Partial') {
     bet.houseAction = 'Partial';
-    bet.houseAmount = parseFloat(amount);
+    bet.houseAmount = parseFloat(amount || 0);
     bet.phase = 'layer_bidding';
     bet.layerTimerEnd = new Date(Date.now() + 30 * 1000).toISOString();
   } else if (action === 'Rejected') {
     bet.houseAction = 'Rejected';
-    bet.phase = 'layer_bidding';
-    bet.layerTimerEnd = new Date(Date.now() + 30 * 1000).toISOString();
-  } else if (action === 'timeout_to_layers') {
     bet.phase = 'layer_bidding';
     bet.layerTimerEnd = new Date(Date.now() + 30 * 1000).toISOString();
   }
@@ -81,15 +77,13 @@ app.post("/api/bets/:id/layer-bid", (req, res) => {
   const { layerId, layerName, amount } = req.body;
 
   const betIndex = bets.findIndex(b => b.id === parseInt(id));
-  if (betIndex === -1) {
-    return res.status(404).json({ success: false });
-  }
+  if (betIndex === -1) return res.status(404).json({ success: false });
 
   const bet = bets[betIndex];
 
   if (!bet.layerBids) bet.layerBids = [];
   bet.layerBids.push({
-    layerId,
+    layerId: parseInt(layerId),
     layerName,
     amount: parseFloat(amount),
     bidAt: new Date().toISOString()
