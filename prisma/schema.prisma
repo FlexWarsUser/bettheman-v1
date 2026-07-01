@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  canLay    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime? @updatedAt @default(now())
+}
+
+model Bet {
+  id                  Int      @id @default(autoincrement())
+  punterId            Int
+  punterName          String
+  event               String
+  selection           String
+  odds                String
+  stake               Float
+  status              String   @default("pending")
+  phase               String   @default("house_review")
+  houseAction         String?
+  houseAmount         Float    @default(0)
+  allocationComplete  Boolean  @default(false)
+  houseTimerEnd       DateTime?
+  layerBids           Json?    @default("[]")
+  actions             Json?    @default("[]")
+  createdAt           DateTime @default(now())
+}
