@@ -7,13 +7,14 @@
     "dev": "nodemon index.js"
   },
   "dependencies": {
-    "@prisma/client": "^7.9.0",
+    "@prisma/client": "^5.22.0",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^4.19.2",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "nodemon": "^3.1.4",
+    "prisma": "^5.22.0"
   }
 }
