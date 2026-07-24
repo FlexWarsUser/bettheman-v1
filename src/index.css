@@ -1,63 +1,93 @@
-console.log("🚀 Starting BetTheMan Server...");
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
-const express = require("express");
-const cors = require("cors");
-const http = require("http");
-const { Server } = require("socket.io");
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  color: white;
+  min-height: 100vh;
+}
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+.app {
+  max-width: 480px;
+  margin: 40px auto;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
 
-app.use(cors());
-app.use(express.json());
+h1 {
+  font-size: 2.5rem;
+  margin-bottom: 8px;
+  color: #00ff88;
+}
 
-let bets = [];
+p {
+  margin-bottom: 30px;
+  opacity: 0.9;
+}
 
-app.post("/api/bets", (req, res) => {
-  const newBet = { 
-    id: Date.now(), 
-    ...req.body, 
-    status: "pending", 
-    houseAction: null,
-    houseAmount: null,
-    createdAt: new Date() 
-  };
-  bets.push(newBet);
-  console.log("🆕 New Bet Received:", newBet);
-  io.emit("newBetForHouse", newBet);
-  res.json({ success: true, bet: newBet });
-});
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 
-app.get("/api/bets", (req, res) => {
-  res.json(bets);
-});
+div {
+  text-align: left;
+}
 
-// New: House Action Endpoint
-app.post("/api/bets/:id/action", (req, res) => {
-  const { id } = req.params;
-  const { action, amount } = req.body;
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: #ccc;
+}
 
-  const bet = bets.find(b => b.id === parseInt(id));
-  if (!bet) {
-    return res.status(404).json({ success: false, message: "Bet not found" });
-  }
+input {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  font-size: 1rem;
+}
 
-  bet.houseAction = action;
-  bet.houseAmount = amount || bet.stake;
-  bet.status = action === 'Rejected' ? 'rejected' : 'accepted';
+input::placeholder {
+  color: #aaa;
+}
 
-  console.log(`🏠 House ${action} bet ${id}`, bet);
-  io.emit("betUpdated", bet);
+input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.3);
+}
 
-  res.json({ success: true, bet });
-});
+button {
+  margin-top: 10px;
+  padding: 16px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  background: #00ff88;
+  color: #0f0c29;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
 
-io.on("connection", (socket) => {
-  console.log("🔌 Client connected:", socket.id);
-});
+button:hover {
+  background: #00cc6a;
+  transform: translateY(-2px);
+}
 
-const PORT = 3001;
-server.listen(PORT, () => {
-  console.log(`✅ SUCCESS! BetTheMan Server is LIVE on http://localhost:${PORT}`);
-});
+button:active {
+  transform: scale(0.98);
+}
