@@ -13,7 +13,7 @@ const server = http.createServer(app);
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "*";
 const io = new Server(server, {
-  cors: { origin: FRONTEND_URL === "*" ? "*" : FRONTEND_URL, methods: ["GET", "POST"] }
+  cors: { origin: FRONTEND_URL === "*" ? "*" : FRONTEND_URL, methods: ["GET", "POST", "DELETE"] }
 });
 
 app.use(cors({ origin: FRONTEND_URL === "*" ? true : FRONTEND_URL }));
@@ -137,6 +137,18 @@ async function processExpiredTimers() {
 setInterval(processExpiredTimers, 2000);
 
 app.get("/api/health", (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+
+app.delete("/api/bets", async (req, res) => {
+  try {
+    await prisma.bet.deleteMany({});
+    io.emit("betUpdated", { type: "bulk", bets: [] });
+    console.log("🗑 All bets cleared");
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 app.post("/api/bets", async (req, res) => {
   try {
