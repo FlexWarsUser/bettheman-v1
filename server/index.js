@@ -1,104 +1,315 @@
 console.log("🚀 Starting BetTheMan Server...");
 
+require("dotenv").config({ path: require("path").join(__dirname, "..", ".env") });
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
+const { PrismaClient } = require("@prisma/client");
 
+const prisma = new PrismaClient();
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { 
-  cors: { origin: "*" } 
+
+const FRONTEND_URL = process.env.FRONTEND_URL || "*";
+const io = new Server(server, {
+  cors: { origin: FRONTEND_URL === "*" ? "*" : FRONTEND_URL, methods: ["GET", "POST"] }
 });
 
-app.use(cors());
+app.use(cors({ origin: FRONTEND_URL === "*" ? true : FRONTEND_URL }));
 app.use(express.json());
 
-let bets = [];
-
-app.post("/api/bets", (req, res) => {
-  const newBet = {
-    id: Date.now(),
-    ...req.body,
-    status: "pending",
-    phase: "house_review",
-    houseAction: null,
-    houseAmount: null,
-    acceptedAt: null,
-    houseTimerEnd: new Date(Date.now() + 30 * 1000).toISOString(),
-    layerTimerEnd: null,
-    createdAt: new Date().toISOString(),
-    layerBids: []
+function serializeBet(bet) {
+  if (!bet) return null;
+  return {
+    ...bet,
+    id: Number(bet.id),
+    stake: Number(bet.stake),
+    houseAmount: Number(bet.houseAmount || 0),
+    residualStake: bet.residualStake != null ? Number(bet.residualStake) : null,
+    layerBids: Array.isArray(bet.layerBids)
+      ? bet.layerBids
+      : (typeof bet.layerBids === "string" ? JSON.parse(bet.layerBids || "[]") : []),
+    houseTimerEnd: bet.houseTimerEnd ? bet.houseTimerEnd.toISOString() : null,
+    layerTimerEnd: bet.layerTimerEnd ? bet.layerTimerEnd.toISOString() : null,
+    houseActedAt: bet.houseActedAt ? bet.houseActedAt.toISOString() : null,
+    acceptedAt: bet.acceptedAt ? bet.acceptedAt.toISOString() : null,
+    createdAt: bet.createdAt ? bet.createdAt.toISOString() : null,
   };
-  bets.push(newBet);
-  console.log("🆕 New Bet Received:", newBet);
-  io.emit("newBetForHouse", newBet);
-  res.json({ success: true, bet: newBet });
-});
+}
 
-app.get("/api/bets", (req, res) => {
-  res.json(bets);
-});
+function applyProRata(layerBids, remaining) {
+  const active = (layerBids || []).filter(b => !b.rejected);
+  const totalBids = active.reduce((sum, b) => sum + parseFloat(b.amount || 0), 0);
+  if (totalBids <= 0) return { bids: layerBids || [], totalLaid: 0 };
 
-app.post("/api/bets/:id/action", (req, res) => {
-  const { id } = req.params;
-  const { action, amount } = req.body;
-
-  const betIndex = bets.findIndex(b => b.id === parseInt(id));
-  if (betIndex === -1) return res.status(404).json({ success: false });
-
-  const bet = bets[betIndex];
-
-  if (action === 'Accepted') {
-    bet.houseAction = 'Accepted';
-    bet.houseAmount = parseFloat(bet.stake);
-    bet.status = 'accepted';
-    bet.phase = 'finalized';
-    bet.acceptedAt = new Date().toISOString();
-    bet.layerTimerEnd = null;
-  } else if (action === 'Partial') {
-    bet.houseAction = 'Partial';
-    bet.houseAmount = parseFloat(amount || 0);
-    bet.phase = 'layer_bidding';
-    bet.layerTimerEnd = new Date(Date.now() + 30 * 1000).toISOString();
-  } else if (action === 'Rejected') {
-    bet.houseAction = 'Rejected';
-    bet.phase = 'layer_bidding';
-    bet.layerTimerEnd = new Date(Date.now() + 30 * 1000).toISOString();
-  }
-
-  console.log(`🏠 House ${action} bet ${id}`, bet);
-  io.emit("betUpdated", bet);
-  res.json({ success: true, bet });
-});
-
-app.post("/api/bets/:id/layer-bid", (req, res) => {
-  const { id } = req.params;
-  const { layerId, layerName, amount } = req.body;
-
-  const betIndex = bets.findIndex(b => b.id === parseInt(id));
-  if (betIndex === -1) return res.status(404).json({ success: false });
-
-  const bet = bets[betIndex];
-
-  if (!bet.layerBids) bet.layerBids = [];
-  bet.layerBids.push({
-    layerId: parseInt(layerId),
-    layerName,
-    amount: parseFloat(amount),
-    bidAt: new Date().toISOString()
+  const scale = Math.min(1, remaining / totalBids);
+  let runningTotal = 0;
+  const updated = (layerBids || []).map((bid) => {
+    if (bid.rejected) return bid;
+    const idx = active.indexOf(bid);
+    if (idx === active.length - 1) {
+      const actualLaid = Math.round((remaining - runningTotal) * 100) / 100;
+      console.log(`[PRO-RATA] Layer ${bid.layerName}: Bid £${bid.amount} → Apportioned £${actualLaid.toFixed(2)}`);
+      return { ...bid, actualLaid };
+    }
+    const actualLaid = Math.round(parseFloat(bid.amount) * scale * 100) / 100;
+    runningTotal += actualLaid;
+    console.log(`[PRO-RATA] Layer ${bid.layerName}: Bid £${bid.amount} → Apportioned £${actualLaid.toFixed(2)} (scale=${scale.toFixed(4)})`);
+    return { ...bid, actualLaid };
   });
 
-  console.log(`Layer bid on bet ${id}`, bet.layerBids);
-  io.emit("betUpdated", bet);
-  res.json({ success: true, bet });
+  const totalLaid = updated.filter(b => !b.rejected).reduce((s, b) => s + (b.actualLaid || 0), 0);
+  console.log(`[PRO-RATA TOTAL] Layers laid: £${totalLaid.toFixed(2)}`);
+  return { bids: updated, totalLaid };
+}
+
+async function processExpiredTimers() {
+  const now = new Date();
+  let changed = false;
+
+  const layerBets = await prisma.bet.findMany({
+    where: { phase: "layer_bidding", layerTimerEnd: { lte: now } }
+  });
+
+  for (const bet of layerBets) {
+    const houseLaid = Number(bet.houseAmount || 0);
+    const stake = Number(bet.stake);
+    const remainingForLayers = Math.max(0, stake - houseLaid);
+    const currentBids = Array.isArray(bet.layerBids) ? bet.layerBids : [];
+
+    console.log(`[TIMER] Bet ${bet.id} expired. RemainingForLayers: £${remainingForLayers}`);
+
+    const { bids, totalLaid } = applyProRata(currentBids, remainingForLayers);
+
+    if (totalLaid >= remainingForLayers - 0.01) {
+      await prisma.bet.update({
+        where: { id: bet.id },
+        data: {
+          status: "accepted",
+          phase: "finalized",
+          acceptedAt: now,
+          layerBids: bids,
+          layerTimerEnd: null,
+        }
+      });
+    } else {
+      const residual = Math.round((remainingForLayers - totalLaid) * 100) / 100;
+      await prisma.bet.update({
+        where: { id: bet.id },
+        data: {
+          phase: "house_residual",
+          residualStake: residual,
+          houseTimerEnd: new Date(now.getTime() + 30 * 1000),
+          layerBids: bids,
+          layerTimerEnd: null,
+        }
+      });
+      console.log(`[RESIDUAL] £${residual} to House for bet ${bet.id}`);
+    }
+    changed = true;
+  }
+
+  const residualBets = await prisma.bet.findMany({
+    where: { phase: "house_residual", houseTimerEnd: { lte: now } }
+  });
+
+  for (const bet of residualBets) {
+    const houseLaid = Number(bet.houseAmount || 0);
+    const layersLaid = (Array.isArray(bet.layerBids) ? bet.layerBids : [])
+      .reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
+
+    const data = { phase: "finalized", houseTimerEnd: null };
+    if (houseLaid + layersLaid === 0) {
+      data.status = "rejected";
+      data.houseAction = "Rejected";
+    }
+    await prisma.bet.update({ where: { id: bet.id }, data });
+    changed = true;
+  }
+
+  if (changed) {
+    const all = await prisma.bet.findMany({ orderBy: { createdAt: "desc" } });
+    io.emit("betUpdated", { type: "bulk", bets: all.map(serializeBet) });
+  }
+}
+
+setInterval(processExpiredTimers, 2000);
+
+app.get("/api/health", (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+
+app.post("/api/bets", async (req, res) => {
+  try {
+    const now = new Date();
+    const bet = await prisma.bet.create({
+      data: {
+        punterId: parseInt(req.body.punterId),
+        punterName: req.body.punterName || "Unknown",
+        event: req.body.event,
+        selection: req.body.selection,
+        odds: String(req.body.odds),
+        stake: parseFloat(req.body.stake),
+        status: "pending",
+        phase: "house_review",
+        houseAmount: 0,
+        houseTimerEnd: new Date(now.getTime() + 30 * 1000),
+        layerTimerEnd: new Date(now.getTime() + 30 * 1000),
+        layerBids: [],
+      }
+    });
+    const serialized = serializeBet(bet);
+    console.log("🆕 New Bet:", serialized.id, serialized.event);
+    io.emit("betUpdated", serialized);
+    res.json({ success: true, bet: serialized });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get("/api/bets", async (req, res) => {
+  try {
+    const bets = await prisma.bet.findMany({ orderBy: { createdAt: "desc" } });
+    res.json(bets.map(serializeBet));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/bets/:id/action", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { action, amount } = req.body;
+    const bet = await prisma.bet.findUnique({ where: { id } });
+    if (!bet) return res.status(404).json({ success: false });
+
+    const now = new Date();
+    let data = {};
+
+    if (action === "Accepted") {
+      const current = Number(bet.houseAmount || 0);
+      const add = parseFloat(amount) || (Number(bet.stake) - current);
+      data = {
+        houseAmount: Math.min(Number(bet.stake), current + add),
+        status: "accepted",
+        phase: "finalized",
+        acceptedAt: now,
+        houseActedAt: bet.houseActedAt || now,
+        houseAction: "Accepted",
+        houseTimerEnd: null,
+        layerTimerEnd: null,
+      };
+    } else if (action === "Partial") {
+      const current = Number(bet.houseAmount || 0);
+      const add = parseFloat(amount) || 0;
+      data = {
+        houseAmount: current + add,
+        houseAction: "Partial",
+        houseActedAt: bet.houseActedAt || now,
+      };
+      if (bet.phase === "house_residual") {
+        const layerTotal = (Array.isArray(bet.layerBids) ? bet.layerBids : [])
+          .filter(b => !b.rejected)
+          .reduce((s, b) => s + (parseFloat(b.actualLaid) || parseFloat(b.amount) || 0), 0);
+        if (current + add + layerTotal >= Number(bet.stake) - 0.01) {
+          data.houseAmount = Number(bet.stake);
+          data.status = "accepted";
+          data.phase = "finalized";
+          data.acceptedAt = now;
+          data.houseTimerEnd = null;
+        }
+      } else {
+        data.phase = "layer_bidding";
+        data.layerTimerEnd = new Date(now.getTime() + 30 * 1000);
+      }
+    } else if (action === "Rejected") {
+      data = { houseAction: "Rejected" };
+      if (bet.phase === "house_residual") {
+        data.phase = "finalized";
+        data.houseTimerEnd = null;
+        const houseLaid = Number(bet.houseAmount || 0);
+        const layersLaid = (Array.isArray(bet.layerBids) ? bet.layerBids : [])
+          .reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
+        if (houseLaid + layersLaid === 0) data.status = "rejected";
+      } else {
+        data.phase = "layer_bidding";
+        data.layerTimerEnd = new Date(now.getTime() + 30 * 1000);
+      }
+    }
+
+    const updated = await prisma.bet.update({ where: { id }, data });
+    const serialized = serializeBet(updated);
+    console.log(`🏠 House ${action} bet ${id} - HouseAmount: £${serialized.houseAmount}`);
+    io.emit("betUpdated", serialized);
+    res.json({ success: true, bet: serialized });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/bets/:id/layer-bid", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { layerId, layerName, amount, action = "bid" } = req.body;
+    const bet = await prisma.bet.findUnique({ where: { id } });
+    if (!bet) return res.status(404).json({ success: false });
+
+    let layerBids = Array.isArray(bet.layerBids) ? [...bet.layerBids] : [];
+
+    if (action === "reject") {
+      const existing = layerBids.findIndex(b => b.layerId === parseInt(layerId));
+      if (existing !== -1) {
+        layerBids[existing] = { ...layerBids[existing], rejected: true, amount: 0, bidAt: new Date().toISOString() };
+      } else {
+        layerBids.push({
+          layerId: parseInt(layerId),
+          layerName,
+          amount: 0,
+          rejected: true,
+          bidAt: new Date().toISOString()
+        });
+      }
+      const updated = await prisma.bet.update({ where: { id }, data: { layerBids } });
+      console.log(`Layer ${layerName} rejected bet ${id}`);
+      const serialized = serializeBet(updated);
+      io.emit("betUpdated", serialized);
+      return res.json({ success: true, bet: serialized });
+    }
+
+    const existing = layerBids.findIndex(b => b.layerId === parseInt(layerId));
+    if (existing !== -1) {
+      layerBids[existing] = {
+        ...layerBids[existing],
+        amount: parseFloat(amount),
+        rejected: false,
+        bidAt: new Date().toISOString()
+      };
+    } else {
+      layerBids.push({
+        layerId: parseInt(layerId),
+        layerName,
+        amount: parseFloat(amount),
+        rejected: false,
+        bidAt: new Date().toISOString()
+      });
+    }
+
+    const updated = await prisma.bet.update({ where: { id }, data: { layerBids } });
+    console.log(`Layer bid on bet ${id}`, layerBids);
+    const serialized = serializeBet(updated);
+    io.emit("betUpdated", serialized);
+    res.json({ success: true, bet: serialized });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 io.on("connection", (socket) => {
-  console.log("🔌 Client connected:", socket.id);
+  console.log("Client connected:", socket.id);
 });
 
-const PORT = 3001;
-server.listen(PORT, () => {
-  console.log(`✅ SUCCESS! BetTheMan Server is LIVE on http://localhost:${PORT}`);
-});
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => console.log(`✅ Server LIVE on port ${PORT}`));
