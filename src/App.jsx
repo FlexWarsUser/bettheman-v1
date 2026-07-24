@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 
+const API = import.meta.env.VITE_API_URL || "https://bettheman-v1-production.up.railway.app";
+
 const MOCK_USERS = [
   { id: 1, name: "Alex Rivera", canLay: true },
   { id: 2, name: "Jordan Hale", canLay: false },
@@ -66,7 +68,7 @@ function App() {
 
   const fetchBets = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/bets');
+      const res = await fetch(`${API}/api/bets`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) setAllBets(data);
@@ -84,7 +86,7 @@ function App() {
     e.preventDefault();
     setMessage('');
     try {
-      const res = await fetch('http://localhost:3001/api/bets', {
+      const res = await fetch(`${API}/api/bets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...bet, punterId: currentUser.id, punterName: currentUser.name }),
@@ -109,7 +111,7 @@ function App() {
     try {
       const body = { action };
       if (amount) body.amount = parseFloat(amount);
-      await fetch(`http://localhost:3001/api/bets/${betId}/action`, {
+      await fetch(`${API}/api/bets/${betId}/action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -122,7 +124,7 @@ function App() {
 
   const performLayerAction = async (betId, amount, action = 'bid') => {
     try {
-      const res = await fetch(`http://localhost:3001/api/bets/${betId}/layer-bid`, {
+      const res = await fetch(`${API}/api/bets/${betId}/layer-bid`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -206,7 +208,6 @@ function App() {
 
   const settledBets = allBets.filter(b => b.phase === 'settled').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-  // Punter: only truly un-laid bets
   const rejectedBets = allBets.filter(b => {
     if (b.punterId !== currentUser.id) return false;
     const houseLaid = parseFloat(b.houseAmount) || 0;
@@ -313,19 +314,6 @@ function App() {
                     House: £{houseLaid.toFixed(2)}
                     {b.houseAction && ` (${b.houseAction})`}
                   </div>
-                  {b.layerBids && b.layerBids.filter(l => !l.rejected && (l.actualLaid || l.amount)).length > 0 && (
-                    <div style={{ fontSize: '13px', color: '#555', marginTop: '4px' }}>
-                      Layers:
-                      <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-                        {b.layerBids.filter(l => !l.rejected).map((l, i) => (
-                          <li key={i}>
-                            {l.layerName}: bid £{l.amount}
-                            {l.actualLaid !== undefined ? ` → apportioned £${parseFloat(l.actualLaid).toFixed(2)}` : ''}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
                   {(houseLaid + layersLaid) === 0 && (
                     <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>No stake was accepted by House or Layers</div>
                   )}
@@ -449,12 +437,10 @@ function App() {
             }).length === 0 && <p style={{ color: '#666' }}>No residual bets waiting.</p>}
           </CollapsibleSection>
 
-          {/* Only true residual rejections (or final zero-laid) */}
           <CollapsibleSection title="Rejected / Not Accepted Bets" defaultOpen={true}>
             {allBets
               .filter(b => {
                 if (b.status === 'rejected') return true;
-                // residual rejected and never later accepted
                 if (b.houseAction === 'Rejected' && b.phase === 'finalized') return true;
                 return false;
               })
@@ -477,13 +463,6 @@ function App() {
                     {layersLaid > 0 && (
                       <div style={{ fontSize: '13px', color: '#006400', marginTop: '4px' }}>
                         Layers laid: £{layersLaid.toFixed(2)}
-                      </div>
-                    )}
-                    {b.layerBids && b.layerBids.filter(l => !l.rejected).length > 0 && (
-                      <div style={{ fontSize: '12px', marginTop: '4px' }}>
-                        Layers: {b.layerBids.filter(l => !l.rejected).map(l => 
-                          `${l.layerName} £${l.amount}${l.actualLaid !== undefined ? ` → £${parseFloat(l.actualLaid).toFixed(2)}` : ''}`
-                        ).join(', ')}
                       </div>
                     )}
                     {(houseLaid + layersLaid) === 0 && (
