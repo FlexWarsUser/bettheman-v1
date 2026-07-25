@@ -481,7 +481,15 @@ function App() {
 
           <CollapsibleSection title="Rejected / Not Accepted Bets" defaultOpen={true}>
             {allBets
-              .filter(b => b.status === 'rejected' || (b.houseAction === 'Rejected' && b.phase === 'finalized'))
+              .filter(b => {
+                const houseLaid = parseFloat(b.houseAmount) || 0;
+                const layersLaid = (b.layerBids || []).reduce((sum, l) => sum + (parseFloat(l.actualLaid) || 0), 0);
+                const totalLaid = houseLaid + layersLaid;
+                if (totalLaid > 0.01) return false;
+                if (b.status === 'rejected') return true;
+                if (b.phase === 'finalized' && totalLaid <= 0.01) return true;
+                return false;
+              })
               .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
               .map(b => {
                 const houseLaid = parseFloat(b.houseAmount) || 0;

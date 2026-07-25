@@ -19,7 +19,6 @@ const io = new Server(server, {
 app.use(cors({ origin: FRONTEND_URL === "*" ? true : FRONTEND_URL }));
 app.use(express.json());
 
-// Layer user ids that can lay (matches MOCK_USERS canLay: true)
 const LAYER_IDS = [1, 3, 5];
 
 function serializeBet(bet) {
@@ -46,14 +45,28 @@ function applyProRata(layerBids, remaining) {
   const totalBids = active.reduce((sum, b) => sum + parseFloat(b.amount || 0), 0);
   if (totalBids <= 0) return { bids: layerBids || [], totalLaid: 0 };
 
-  const scale = Math.min(1, remaining / totalBids);
+  // Under-subscribed: each layer gets their full bid
+  if (totalBids < remaining - 0.01) {
+    const updated = (layerBids || []).map((bid) => {
+      if (bid.rejected) return bid;
+      const actualLaid = Math.round(parseFloat(bid.amount) * 100) / 100;
+      console.log(`[PRO-RATA] Layer ${bid.layerName}: Bid £${bid.amount} → Apportioned £${actualLaid.toFixed(2)} (under-subscribed)`);
+      return { ...bid, actualLaid };
+    });
+    const totalLaid = updated.filter(b => !b.rejected).reduce((s, b) => s + (b.actualLaid || 0), 0);
+    console.log(`[PRO-RATA TOTAL] Layers laid: £${totalLaid.toFixed(2)}`);
+    return { bids: updated, totalLaid };
+  }
+
+  // Over-subscribed or exact: scale down pro-rata
+  const scale = remaining / totalBids;
   let runningTotal = 0;
   const updated = (layerBids || []).map((bid) => {
     if (bid.rejected) return bid;
     const idx = active.indexOf(bid);
     if (idx === active.length - 1) {
       const actualLaid = Math.round((remaining - runningTotal) * 100) / 100;
-      console.log(`[PRO-RATA] Layer ${bid.layerName}: Bid £${bid.amount} → Apportioned £${actualLaid.toFixed(2)}`);
+      console.log(`[PRO-RATA] Layer ${bid.layerName}: Bid £${bid.amount} → Apportioned £${actualLaid.toFixed(2)} (scale=${scale.toFixed(4)})`);
       return { ...bid, actualLaid };
     }
     const actualLaid = Math.round(parseFloat(bid.amount) * scale * 100) / 100;
@@ -71,7 +84,6 @@ async function processExpiredTimers() {
   const now = new Date();
   let changed = false;
 
-  // Layer bidding timer expiry
   const layerBets = await prisma.bet.findMany({
     where: { phase: "layer_bidding", layerTimerEnd: { lte: now } }
   });
@@ -114,7 +126,6 @@ async function processExpiredTimers() {
     changed = true;
   }
 
-  // House residual timer expiry
   const residualBets = await prisma.bet.findMany({
     where: { phase: "house_residual", houseTimerEnd: { lte: now } }
   });
@@ -322,11 +333,9 @@ app.post("/api/bets/:id/layer-bid", async (req, res) => {
       }
     }
 
-    // Save the bid/reject first
     let updated = await prisma.bet.update({ where: { id }, data: { layerBids } });
     console.log(`Layer ${action} on bet ${id}`, layerBids);
 
-    // Early residual: all layers acted and still not fully covered
     if (bet.phase === "layer_bidding") {
       const actedIds = layerBids.map(b => b.layerId);
       const relevantLayers = LAYER_IDS.filter(lid => lid !== bet.punterId);
@@ -342,19 +351,32 @@ app.post("/api/bets/:id/layer-bid", async (req, res) => {
         const { bids, totalLaid } = applyProRata(layerBids, remaining);
         const residual = Math.round((remaining - totalLaid) * 100) / 100;
 
-        updated = await prisma.bet.update({
-          where: { id },
-          data: {
-            phase: "house_residual",
-            residualStake: residual,
-            houseTimerEnd: new Date(Date.now() + 30 * 1000),
-            layerBids: bids,
-            layerTimerEnd: null,
-          }
-        });
-        console.log(`[EARLY RESIDUAL] £${residual} to House for bet ${id} (all layers acted)`);
+        if (residual <= 0.01) {
+          updated = await prisma.bet.update({
+            where: { id },
+            data: {
+              status: "accepted",
+              phase: "finalized",
+              acceptedAt: new Date(),
+              layerBids: bids,
+              layerTimerEnd: null,
+            }
+          });
+          console.log(`[EARLY FULL] Bet ${id} fully covered. Laid: £${totalLaid.toFixed(2)}`);
+        } else {
+          updated = await prisma.bet.update({
+            where: { id },
+            data: {
+              phase: "house_residual",
+              residualStake: residual,
+              houseTimerEnd: new Date(Date.now() + 30 * 1000),
+              layerBids: bids,
+              layerTimerEnd: null,
+            }
+          });
+          console.log(`[EARLY RESIDUAL] £${residual} to House for bet ${id} (all layers acted)`);
+        }
       } else if (allLayersActed && activeBidsTotal >= remaining - 0.01) {
-        // Fully covered by layers → finalize now
         const { bids, totalLaid } = applyProRata(layerBids, remaining);
         updated = await prisma.bet.update({
           where: { id },
