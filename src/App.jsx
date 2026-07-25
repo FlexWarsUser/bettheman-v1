@@ -34,15 +34,15 @@ function CollapsibleSection({ title, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div style={{ marginBottom: '25px' }}>
-      <div 
-        onClick={() => setOpen(!open)} 
-        style={{ 
-          background: '#252540', 
-          padding: '12px 16px', 
-          borderRadius: '8px', 
-          cursor: 'pointer', 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+      <div
+        onClick={() => setOpen(!open)}
+        style={{
+          background: '#252540',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
           fontWeight: '600',
           fontSize: '15px',
@@ -87,11 +87,17 @@ function App() {
   const clearAllBets = async () => {
     if (!window.confirm("Delete ALL bets? This cannot be undone.")) return;
     try {
-      await fetch(`${API}/api/bets`, { method: "DELETE" });
+      const res = await fetch(`${API}/api/bets`, { method: "DELETE" });
+      if (!res.ok) {
+        const text = await res.text();
+        alert(`Clear failed: ${res.status} ${text}`);
+        return;
+      }
       setAllBets([]);
       setMessage("All bets cleared");
+      setTimeout(fetchBets, 500);
     } catch (e) {
-      alert("Failed to clear bets");
+      alert("Failed to clear bets: " + e.message);
     }
   };
 
@@ -148,11 +154,7 @@ function App() {
         }),
       });
       if (res.ok) {
-        if (action === 'reject') {
-          setLayerMessage('Bet rejected');
-        } else {
-          setLayerMessage('Bid submitted successfully - awaiting apportioning');
-        }
+        setLayerMessage(action === 'reject' ? 'Bet rejected' : 'Bid submitted - awaiting apportioning');
         setTimeout(() => setLayerMessage(''), 4000);
         fetchBets();
       } else {
@@ -170,8 +172,7 @@ function App() {
 
   const confirmLayerBid = async () => {
     if (!showBidConfirm) return;
-    const { betId, amount } = showBidConfirm;
-    await performLayerAction(betId, amount, 'bid');
+    await performLayerAction(showBidConfirm.betId, showBidConfirm.amount, 'bid');
     setShowBidConfirm(null);
   };
 
@@ -181,9 +182,9 @@ function App() {
   };
 
   const handleLayerAcceptFull = async (betId) => {
-    const bet = allBets.find(b => b.id === betId);
-    if (!bet) return;
-    const remaining = Math.max(0, parseFloat(bet.stake) - (parseFloat(bet.houseAmount) || 0));
+    const b = allBets.find(x => x.id === betId);
+    if (!b) return;
+    const remaining = Math.max(0, parseFloat(b.stake) - (parseFloat(b.houseAmount) || 0));
     if (remaining <= 0) return;
     if (!window.confirm(`Accept full remaining £${remaining}?`)) return;
     await performLayerAction(betId, remaining);
@@ -198,17 +199,16 @@ function App() {
     if (str.includes('/')) {
       const [n] = str.split('/');
       return (s * parseFloat(n)).toFixed(2);
-    } else {
-      const o = parseFloat(str);
-      return o > 1 ? (s * (o - 1)).toFixed(2) : '0.00';
     }
+    const o = parseFloat(str);
+    return o > 1 ? (s * (o - 1)).toFixed(2) : '0.00';
   };
 
   const pendingReview = allBets.filter(b => b.phase === 'house_review').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  
-  const layerBidding = allBets.filter(b => 
-    (b.phase === 'layer_bidding' || b.phase === 'house_residual') && 
-    currentUser && 
+
+  const layerBidding = allBets.filter(b =>
+    (b.phase === 'layer_bidding' || b.phase === 'house_residual') &&
+    currentUser &&
     b.punterId !== currentUser.id &&
     !(b.layerBids || []).some(l => l.layerId === currentUser.id)
   ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -226,9 +226,16 @@ function App() {
     const houseLaid = parseFloat(b.houseAmount) || 0;
     const layersLaid = (b.layerBids || []).reduce((sum, l) => sum + (parseFloat(l.actualLaid) || 0), 0);
     if (houseLaid + layersLaid > 0) return false;
-    if (b.status === 'rejected' || (b.phase === 'finalized' && houseLaid + layersLaid === 0)) return true;
-    return false;
+    return b.status === 'rejected' || (b.phase === 'finalized' && houseLaid + layersLaid === 0);
   }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const residualBets = allBets.filter(b => {
+    if (b.phase !== 'house_residual') return false;
+    const houseLaid = parseFloat(b.houseAmount) || 0;
+    const layerTotal = (b.layerBids || []).reduce((sum, bid) => sum + (parseFloat(bid.actualLaid) || parseFloat(bid.amount) || 0), 0);
+    const residual = Math.max(0, Math.round((parseFloat(b.residualStake) || (parseFloat(b.stake) - houseLaid - layerTotal)) * 100) / 100);
+    return residual >= 0.01;
+  });
 
   const card = { background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '14px', margin: '8px 0', borderRadius: '8px' };
   const cardGreen = { ...card, border: '1px solid #2d6a4f' };
@@ -241,8 +248,8 @@ function App() {
       <h1 style={{ textAlign: 'center', marginBottom: '30px', color: '#00ff88' }}>BetTheMan</h1>
 
       <div style={{ textAlign: 'center', marginBottom: '25px' }}>
-        <select 
-          value={currentUser.id} 
+        <select
+          value={currentUser.id}
           onChange={(e) => setCurrentUser(MOCK_USERS.find(u => u.id === parseInt(e.target.value)))}
           style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px 12px', borderRadius: '6px' }}
         >
@@ -252,7 +259,7 @@ function App() {
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '30px' }}>
         {['punter', 'house', 'layer'].map(tab => (
-          <button 
+          <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             style={{
@@ -293,8 +300,8 @@ function App() {
           {message && <p style={{ textAlign: 'center', marginTop: '15px', fontWeight: 'bold', color: '#00ff88' }}>{message}</p>}
 
           <CollapsibleSection title="Pending Bets" defaultOpen={true}>
-            {allBets.filter(b => 
-              b.punterId === currentUser.id && 
+            {allBets.filter(b =>
+              b.punterId === currentUser.id &&
               (b.status === 'pending' || b.phase === 'house_review' || b.phase === 'layer_bidding') &&
               b.phase !== 'finalized' &&
               !(parseFloat(b.houseAmount) > 0)
@@ -351,7 +358,6 @@ function App() {
           <CollapsibleSection title="Not Accepted / Rejected" defaultOpen={true}>
             {rejectedBets.map(b => {
               const houseLaid = parseFloat(b.houseAmount) || 0;
-              const layersLaid = (b.layerBids || []).reduce((sum, l) => sum + (parseFloat(l.actualLaid) || 0), 0);
               return (
                 <div key={b.id} style={cardRed}>
                   <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
@@ -360,9 +366,6 @@ function App() {
                   <div style={{ fontSize: '13px', color: '#b0b0b0', marginTop: '8px' }}>
                     House: £{houseLaid.toFixed(2)}{b.houseAction && ` (${b.houseAction})`}
                   </div>
-                  {(houseLaid + layersLaid) === 0 && (
-                    <div style={{ fontSize: '12px', color: '#777', marginTop: '4px' }}>No stake was accepted</div>
-                  )}
                 </div>
               );
             })}
@@ -371,70 +374,10 @@ function App() {
       )}
             {activeTab === 'house' && (
         <div>
-          <h2 style={{ color: '#00ff88' }}>Pending House Review</h2>
-          <button
-            onClick={clearAllBets}
-            style={{ background: '#dc3545', color: 'white', padding: '10px 16px', borderRadius: '8px', border: 'none', marginBottom: '16px', cursor: 'pointer', fontWeight: '600' }}
-          >
-            Clear All Bets (testing)
-          </button>
-
-          {pendingReview.length === 0 && <p style={muted}>No bets waiting.</p>}
-          {pendingReview.map(b => {
-            const exposure = getExposure(b.stake, b.odds);
-            return (
-              <div key={b.id} style={cardYellow}>
-                <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-                <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
-                <div style={{ color: '#999' }}>by {b.punterName}</div>
-                <div style={{ marginTop: '6px', color: '#ff6b6b', fontWeight: '600' }}>Exposure: £{exposure}</div>
-                {b.houseTimerEnd && (
-                  <div style={{ marginTop: '6px' }}>Time left: <Countdown endTime={b.houseTimerEnd} /></div>
-                )}
-                <div style={{ marginTop: '12px', display: 'flex', gap: '6px' }}>
-                  <button onClick={() => handleHouseAction(b.id, 'Accepted')} style={{ background: '#2d6a4f', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Accept Full</button>
-                  <button onClick={() => handleHouseAction(b.id, 'Rejected')} style={{ background: '#7f1d1d', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Reject</button>
-                </div>
-                <div style={{ marginTop: '10px', display: 'flex', gap: '6px' }}>
-                  <button onClick={() => handleHouseAction(b.id, 'Partial', (parseFloat(b.stake) * 0.1).toFixed(2))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>10%</button>
-                  <button onClick={() => handleHouseAction(b.id, 'Partial', (parseFloat(b.stake) * 0.25).toFixed(2))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>25%</button>
-                  <button onClick={() => handleHouseAction(b.id, 'Partial', (parseFloat(b.stake) * 0.5).toFixed(2))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>50%</button>
-                </div>
-                <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
-                  <input type="number" placeholder="Partial amount" value={partialAmount[b.id] || ''} onChange={e => setPartialAmount({...partialAmount, [b.id]: e.target.value})} style={{ flex: 1, padding: '9px', background: '#1a1a2e', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: '6px' }} />
-                  <button onClick={() => handleHouseAction(b.id, 'Partial', partialAmount[b.id])} style={{ background: '#d4a017', color: '#0f0c29', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>Accept Partial</button>
-                </div>
-              </div>
-            );
-          })}
-
-          <CollapsibleSection title="Active Lays" defaultOpen={true}>
-            {activeBets.filter(b => parseFloat(b.houseAmount) > 0).map(b => (
-              <div key={b.id} style={cardGreen}>
-                <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-                <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
-                <div style={{ marginTop: '4px', color: '#00ff88', fontWeight: '600' }}>
-                  {parseFloat(b.houseAmount) === parseFloat(b.stake)
-                    ? 'Laid in Full'
-                    : `Partially Laid (£${b.houseAmount} of £${b.stake})`}
-                </div>
-                <div style={{ fontSize: '12px', color: '#999' }}>
-                  Accepted: {(b.houseActedAt || b.acceptedAt)
-                    ? new Date(b.houseActedAt || b.acceptedAt).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) + ' UTC'
-                    : 'N/A'}
-                </div>
-              </div>
-            ))}
-          </CollapsibleSection>
-
+          {/* RESIDUAL ALWAYS AT THE TOP */}
           <CollapsibleSection title="🔄 Residual Bets (House Second Look)" defaultOpen={true}>
-            {allBets.filter(b => {
-              if (b.phase !== 'house_residual') return false;
-              const houseLaid = parseFloat(b.houseAmount) || 0;
-              const layerTotal = (b.layerBids || []).reduce((sum, bid) => sum + (parseFloat(bid.actualLaid) || parseFloat(bid.amount) || 0), 0);
-              const residual = Math.max(0, Math.round((parseFloat(b.residualStake) || (parseFloat(b.stake) - houseLaid - layerTotal)) * 100) / 100);
-              return residual >= 0.01;
-            }).map(b => {
+            {residualBets.length === 0 && <p style={muted}>No residual bets waiting.</p>}
+            {residualBets.map(b => {
               const houseLaid = parseFloat(b.houseAmount) || 0;
               const layerTotal = (b.layerBids || []).reduce((sum, bid) => sum + (parseFloat(bid.actualLaid) || parseFloat(bid.amount) || 0), 0);
               const residual = Math.max(0, Math.round((parseFloat(b.residualStake) || (parseFloat(b.stake) - houseLaid - layerTotal)) * 100) / 100);
@@ -470,7 +413,7 @@ function App() {
                     </button>
                   </div>
                   <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
-                    <input type="number" placeholder="Partial residual amount" value={partialAmount[b.id] || ''} onChange={e => setPartialAmount({...partialAmount, [b.id]: e.target.value})} style={{ flex: 1, padding: '9px', background: '#1a1a2e', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: '6px' }} />
+                    <input type="number" placeholder="Partial residual amount" value={partialAmount[b.id] || ''} onChange={e => setPartialAmount({ ...partialAmount, [b.id]: e.target.value })} style={{ flex: 1, padding: '9px', background: '#1a1a2e', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: '6px' }} />
                     <button onClick={() => handleHouseAction(b.id, 'Partial', partialAmount[b.id])} style={{ background: '#d4a017', color: '#0f0c29', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>
                       Accept Partial Residual
                     </button>
@@ -478,22 +421,67 @@ function App() {
                 </div>
               );
             })}
-            {allBets.filter(b => {
-              if (b.phase !== 'house_residual') return false;
-              const houseLaid = parseFloat(b.houseAmount) || 0;
-              const layerTotal = (b.layerBids || []).reduce((sum, bid) => sum + (parseFloat(bid.actualLaid) || parseFloat(bid.amount) || 0), 0);
-              const residual = Math.max(0, Math.round((parseFloat(b.residualStake) || (parseFloat(b.stake) - houseLaid - layerTotal)) * 100) / 100);
-              return residual >= 0.01;
-            }).length === 0 && <p style={muted}>No residual bets waiting.</p>}
+          </CollapsibleSection>
+
+          <h2 style={{ color: '#00ff88' }}>Pending House Review</h2>
+          <button
+            onClick={clearAllBets}
+            style={{ background: '#dc3545', color: 'white', padding: '10px 16px', borderRadius: '8px', border: 'none', marginBottom: '16px', cursor: 'pointer', fontWeight: '600' }}
+          >
+            Clear All Bets (testing)
+          </button>
+
+          {pendingReview.length === 0 && <p style={muted}>No bets waiting.</p>}
+          {pendingReview.map(b => {
+            const exposure = getExposure(b.stake, b.odds);
+            return (
+              <div key={b.id} style={cardYellow}>
+                <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
+                <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
+                <div style={{ color: '#999' }}>by {b.punterName}</div>
+                <div style={{ marginTop: '6px', color: '#ff6b6b', fontWeight: '600' }}>Exposure: £{exposure}</div>
+                {b.houseTimerEnd && (
+                  <div style={{ marginTop: '6px' }}>Time left: <Countdown endTime={b.houseTimerEnd} /></div>
+                )}
+                <div style={{ marginTop: '12px', display: 'flex', gap: '6px' }}>
+                  <button onClick={() => handleHouseAction(b.id, 'Accepted')} style={{ background: '#2d6a4f', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Accept Full</button>
+                  <button onClick={() => handleHouseAction(b.id, 'Rejected')} style={{ background: '#7f1d1d', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Reject</button>
+                </div>
+                <div style={{ marginTop: '10px', display: 'flex', gap: '6px' }}>
+                  <button onClick={() => handleHouseAction(b.id, 'Partial', (parseFloat(b.stake) * 0.1).toFixed(2))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>10%</button>
+                  <button onClick={() => handleHouseAction(b.id, 'Partial', (parseFloat(b.stake) * 0.25).toFixed(2))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>25%</button>
+                  <button onClick={() => handleHouseAction(b.id, 'Partial', (parseFloat(b.stake) * 0.5).toFixed(2))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>50%</button>
+                </div>
+                <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
+                  <input type="number" placeholder="Partial amount" value={partialAmount[b.id] || ''} onChange={e => setPartialAmount({ ...partialAmount, [b.id]: e.target.value })} style={{ flex: 1, padding: '9px', background: '#1a1a2e', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: '6px' }} />
+                  <button onClick={() => handleHouseAction(b.id, 'Partial', partialAmount[b.id])} style={{ background: '#d4a017', color: '#0f0c29', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>Accept Partial</button>
+                </div>
+              </div>
+            );
+          })}
+
+          <CollapsibleSection title="Active Lays" defaultOpen={true}>
+            {activeBets.filter(b => parseFloat(b.houseAmount) > 0).map(b => (
+              <div key={b.id} style={cardGreen}>
+                <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
+                <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
+                <div style={{ marginTop: '4px', color: '#00ff88', fontWeight: '600' }}>
+                  {parseFloat(b.houseAmount) === parseFloat(b.stake)
+                    ? 'Laid in Full'
+                    : `Partially Laid (£${b.houseAmount} of £${b.stake})`}
+                </div>
+                <div style={{ fontSize: '12px', color: '#999' }}>
+                  Accepted: {(b.houseActedAt || b.acceptedAt)
+                    ? new Date(b.houseActedAt || b.acceptedAt).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) + ' UTC'
+                    : 'N/A'}
+                </div>
+              </div>
+            ))}
           </CollapsibleSection>
 
           <CollapsibleSection title="Rejected / Not Accepted Bets" defaultOpen={true}>
             {allBets
-              .filter(b => {
-                if (b.status === 'rejected') return true;
-                if (b.houseAction === 'Rejected' && b.phase === 'finalized') return true;
-                return false;
-              })
+              .filter(b => b.status === 'rejected' || (b.houseAction === 'Rejected' && b.phase === 'finalized'))
               .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
               .map(b => {
                 const houseLaid = parseFloat(b.houseAmount) || 0;
@@ -517,7 +505,7 @@ function App() {
                     )}
                     {b.layerBids && b.layerBids.filter(l => !l.rejected).length > 0 && (
                       <div style={{ fontSize: '12px', marginTop: '4px', color: '#999' }}>
-                        Layers: {b.layerBids.filter(l => !l.rejected).map(l => 
+                        Layers: {b.layerBids.filter(l => !l.rejected).map(l =>
                           `${l.layerName} £${l.amount}${l.actualLaid !== undefined ? ` → £${parseFloat(l.actualLaid).toFixed(2)}` : ''}`
                         ).join(', ')}
                       </div>
@@ -570,17 +558,17 @@ function App() {
                   <div style={{ marginTop: '6px' }}>Time left: <Countdown endTime={b.layerTimerEnd} /></div>
                 )}
                 <div style={{ marginTop: '12px', display: 'flex', gap: '6px' }}>
-                  <button onClick={() => setBidAmount(p => ({...p, [b.id]: (remaining*0.1).toFixed(2)}))} style={{background:'#3a3a5c',color:'white',padding:'6px 10px',border:'none',borderRadius:'5px',cursor:'pointer'}}>10%</button>
-                  <button onClick={() => setBidAmount(p => ({...p, [b.id]: (remaining*0.25).toFixed(2)}))} style={{background:'#3a3a5c',color:'white',padding:'6px 10px',border:'none',borderRadius:'5px',cursor:'pointer'}}>25%</button>
-                  <button onClick={() => setBidAmount(p => ({...p, [b.id]: (remaining*0.5).toFixed(2)}))} style={{background:'#3a3a5c',color:'white',padding:'6px 10px',border:'none',borderRadius:'5px',cursor:'pointer'}}>50%</button>
+                  <button onClick={() => setBidAmount(p => ({ ...p, [b.id]: (remaining * 0.1).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>10%</button>
+                  <button onClick={() => setBidAmount(p => ({ ...p, [b.id]: (remaining * 0.25).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>25%</button>
+                  <button onClick={() => setBidAmount(p => ({ ...p, [b.id]: (remaining * 0.5).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>50%</button>
                 </div>
                 <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
-                  <input type="number" placeholder="Bid amount (£)" value={bidAmount[b.id] || ''} onChange={e => setBidAmount(p => ({...p, [b.id]: e.target.value}))} style={{flex:1, padding:'10px', background:'#252540', color:'#e8e8e8', border:'1px solid #3a3a5c', borderRadius:'6px'}} />
-                  <button onClick={() => openBidConfirm(b.id, bidAmount[b.id])} style={{background:'#0066cc',color:'white',padding:'10px 18px',border:'none',borderRadius:'6px',cursor:'pointer'}}>Place Bid</button>
+                  <input type="number" placeholder="Bid amount (£)" value={bidAmount[b.id] || ''} onChange={e => setBidAmount(p => ({ ...p, [b.id]: e.target.value }))} style={{ flex: 1, padding: '10px', background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: '6px' }} />
+                  <button onClick={() => openBidConfirm(b.id, bidAmount[b.id])} style={{ background: '#0066cc', color: 'white', padding: '10px 18px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Place Bid</button>
                 </div>
-                <button onClick={() => handleLayerAcceptFull(b.id)} style={{marginTop:'10px', background:'#2d6a4f', color:'white', width:'100%', padding:'10px', border:'none', borderRadius:'6px', fontWeight:'600', cursor:'pointer'}}>Accept Full Remaining Stake</button>
-                <button onClick={() => handleLayerReject(b.id)} style={{marginTop:'8px', background:'#7f1d1d', color:'white', width:'100%', padding:'10px', border:'none', borderRadius:'6px', cursor:'pointer'}}>Reject Bet</button>
-                {currentBid > 0 && <div style={{marginTop:'8px', color:'#ff6b6b', fontWeight:'600'}}>Liability: £{liability}</div>}
+                <button onClick={() => handleLayerAcceptFull(b.id)} style={{ marginTop: '10px', background: '#2d6a4f', color: 'white', width: '100%', padding: '10px', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}>Accept Full Remaining Stake</button>
+                <button onClick={() => handleLayerReject(b.id)} style={{ marginTop: '8px', background: '#7f1d1d', color: 'white', width: '100%', padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Reject Bet</button>
+                {currentBid > 0 && <div style={{ marginTop: '8px', color: '#ff6b6b', fontWeight: '600' }}>Liability: £{liability}</div>}
               </div>
             );
           })}
@@ -609,13 +597,13 @@ function App() {
       )}
 
       {showBidConfirm && (
-        <div style={{position:'fixed', top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}}>
-          <div style={{background:'#1a1a2e',padding:'25px',borderRadius:'10px',maxWidth:'380px',width:'90%',border:'1px solid #3a3a5c',color:'#e8e8e8'}}>
-            <h3 style={{color:'#00ff88'}}>Confirm Layer Bid</h3>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#1a1a2e', padding: '25px', borderRadius: '10px', maxWidth: '380px', width: '90%', border: '1px solid #3a3a5c', color: '#e8e8e8' }}>
+            <h3 style={{ color: '#00ff88' }}>Confirm Layer Bid</h3>
             <p>Lay £{showBidConfirm.amount}?</p>
-            <div style={{display:'flex',gap:'10px',marginTop:'20px'}}>
-              <button onClick={() => setShowBidConfirm(null)} style={{flex:1,padding:'10px',background:'#3a3a5c',color:'#e8e8e8',border:'none',borderRadius:'6px',cursor:'pointer'}}>Cancel</button>
-              <button onClick={confirmLayerBid} style={{flex:1,padding:'10px',background:'#0066cc',color:'white',border:'none',borderRadius:'6px',cursor:'pointer'}}>Confirm Bid</button>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+              <button onClick={() => setShowBidConfirm(null)} style={{ flex: 1, padding: '10px', background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={confirmLayerBid} style={{ flex: 1, padding: '10px', background: '#0066cc', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Confirm Bid</button>
             </div>
           </div>
         </div>
