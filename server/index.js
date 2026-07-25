@@ -68,6 +68,7 @@ async function processExpiredTimers() {
   const now = new Date();
   let changed = false;
 
+  // Layer bidding timer expiry
   const layerBets = await prisma.bet.findMany({
     where: { phase: "layer_bidding", layerTimerEnd: { lte: now } }
   });
@@ -110,6 +111,7 @@ async function processExpiredTimers() {
     changed = true;
   }
 
+  // House residual timer expiry
   const residualBets = await prisma.bet.findMany({
     where: { phase: "house_residual", houseTimerEnd: { lte: now } }
   });
@@ -118,13 +120,25 @@ async function processExpiredTimers() {
     const houseLaid = Number(bet.houseAmount || 0);
     const layersLaid = (Array.isArray(bet.layerBids) ? bet.layerBids : [])
       .reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
+    const totalLaid = houseLaid + layersLaid;
 
-    const data = { phase: "finalized", houseTimerEnd: null };
-    if (houseLaid + layersLaid === 0) {
+    const data = {
+      phase: "finalized",
+      houseTimerEnd: null,
+    };
+
+    if (totalLaid <= 0.01) {
+      // Nothing laid at all → fully rejected
       data.status = "rejected";
       data.houseAction = "Rejected";
+    } else {
+      // Something was laid → keep as accepted (partial or full)
+      data.status = "accepted";
+      if (!bet.acceptedAt) data.acceptedAt = now;
     }
+
     await prisma.bet.update({ where: { id: bet.id }, data });
+    console.log(`[RESIDUAL EXPIRED] Bet ${bet.id} finalized. Total laid: £${totalLaid.toFixed(2)}`);
     changed = true;
   }
 
@@ -244,6 +258,10 @@ app.post("/api/bets/:id/action", async (req, res) => {
         const layersLaid = (Array.isArray(bet.layerBids) ? bet.layerBids : [])
           .reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
         if (houseLaid + layersLaid === 0) data.status = "rejected";
+        else {
+          data.status = "accepted";
+          if (!bet.acceptedAt) data.acceptedAt = now;
+        }
       } else {
         data.phase = "layer_bidding";
         data.layerTimerEnd = new Date(now.getTime() + 30 * 1000);
