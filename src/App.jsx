@@ -87,7 +87,7 @@ function App() {
   const clearAllBets = async () => {
     if (!window.confirm("Delete ALL bets? This cannot be undone.")) return;
     try {
-      const res = await fetch(`${API}/api/bets`, { method: "DELETE" });
+      const res = await fetch(`${API}/api/bets/clear`, { method: "POST" });
       if (!res.ok) {
         const text = await res.text();
         alert(`Clear failed: ${res.status} ${text}`);

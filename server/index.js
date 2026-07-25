@@ -163,6 +163,11 @@ async function processExpiredTimers() {
 setInterval(processExpiredTimers, 2000);
 
 app.get("/api/health", (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+app.post("/api/bets/clear", async (req, res) => {
+  await prisma.bet.deleteMany({});
+  io.emit("betUpdated", { type: "bulk", bets: [] });
+  res.json({ success: true });
+});
 
 app.delete("/api/bets", async (req, res) => {
   try {
