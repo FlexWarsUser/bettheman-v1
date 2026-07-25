@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const API = import.meta.env.VITE_API_URL || "https://bettheman-v1-production.up.railway.app";
+const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 const MOCK_USERS = [
   { id: 1, name: "Alex Rivera", canLay: true },
