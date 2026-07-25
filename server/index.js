@@ -19,6 +19,9 @@ const io = new Server(server, {
 app.use(cors({ origin: FRONTEND_URL === "*" ? true : FRONTEND_URL }));
 app.use(express.json());
 
+// Layer user ids that can lay (matches MOCK_USERS canLay: true)
+const LAYER_IDS = [1, 3, 5];
+
 function serializeBet(bet) {
   if (!bet) return null;
   return {
@@ -128,11 +131,9 @@ async function processExpiredTimers() {
     };
 
     if (totalLaid <= 0.01) {
-      // Nothing laid at all → fully rejected
       data.status = "rejected";
       data.houseAction = "Rejected";
     } else {
-      // Something was laid → keep as accepted (partial or full)
       data.status = "accepted";
       if (!bet.acceptedAt) data.acceptedAt = now;
     }
@@ -301,33 +302,74 @@ app.post("/api/bets/:id/layer-bid", async (req, res) => {
           bidAt: new Date().toISOString()
         });
       }
-      const updated = await prisma.bet.update({ where: { id }, data: { layerBids } });
-      console.log(`Layer ${layerName} rejected bet ${id}`);
-      const serialized = serializeBet(updated);
-      io.emit("betUpdated", serialized);
-      return res.json({ success: true, bet: serialized });
-    }
-
-    const existing = layerBids.findIndex(b => b.layerId === parseInt(layerId));
-    if (existing !== -1) {
-      layerBids[existing] = {
-        ...layerBids[existing],
-        amount: parseFloat(amount),
-        rejected: false,
-        bidAt: new Date().toISOString()
-      };
     } else {
-      layerBids.push({
-        layerId: parseInt(layerId),
-        layerName,
-        amount: parseFloat(amount),
-        rejected: false,
-        bidAt: new Date().toISOString()
-      });
+      const existing = layerBids.findIndex(b => b.layerId === parseInt(layerId));
+      if (existing !== -1) {
+        layerBids[existing] = {
+          ...layerBids[existing],
+          amount: parseFloat(amount),
+          rejected: false,
+          bidAt: new Date().toISOString()
+        };
+      } else {
+        layerBids.push({
+          layerId: parseInt(layerId),
+          layerName,
+          amount: parseFloat(amount),
+          rejected: false,
+          bidAt: new Date().toISOString()
+        });
+      }
     }
 
-    const updated = await prisma.bet.update({ where: { id }, data: { layerBids } });
-    console.log(`Layer bid on bet ${id}`, layerBids);
+    // Save the bid/reject first
+    let updated = await prisma.bet.update({ where: { id }, data: { layerBids } });
+    console.log(`Layer ${action} on bet ${id}`, layerBids);
+
+    // Early residual: all layers acted and still not fully covered
+    if (bet.phase === "layer_bidding") {
+      const actedIds = layerBids.map(b => b.layerId);
+      const relevantLayers = LAYER_IDS.filter(lid => lid !== bet.punterId);
+      const allLayersActed = relevantLayers.every(lid => actedIds.includes(lid));
+
+      const houseLaid = Number(bet.houseAmount || 0);
+      const remaining = Math.max(0, Number(bet.stake) - houseLaid);
+      const activeBidsTotal = layerBids
+        .filter(b => !b.rejected)
+        .reduce((s, b) => s + parseFloat(b.amount || 0), 0);
+
+      if (allLayersActed && activeBidsTotal < remaining - 0.01) {
+        const { bids, totalLaid } = applyProRata(layerBids, remaining);
+        const residual = Math.round((remaining - totalLaid) * 100) / 100;
+
+        updated = await prisma.bet.update({
+          where: { id },
+          data: {
+            phase: "house_residual",
+            residualStake: residual,
+            houseTimerEnd: new Date(Date.now() + 30 * 1000),
+            layerBids: bids,
+            layerTimerEnd: null,
+          }
+        });
+        console.log(`[EARLY RESIDUAL] £${residual} to House for bet ${id} (all layers acted)`);
+      } else if (allLayersActed && activeBidsTotal >= remaining - 0.01) {
+        // Fully covered by layers → finalize now
+        const { bids, totalLaid } = applyProRata(layerBids, remaining);
+        updated = await prisma.bet.update({
+          where: { id },
+          data: {
+            status: "accepted",
+            phase: "finalized",
+            acceptedAt: new Date(),
+            layerBids: bids,
+            layerTimerEnd: null,
+          }
+        });
+        console.log(`[EARLY FULL] Bet ${id} fully covered by layers. Laid: £${totalLaid.toFixed(2)}`);
+      }
+    }
+
     const serialized = serializeBet(updated);
     io.emit("betUpdated", serialized);
     res.json({ success: true, bet: serialized });
