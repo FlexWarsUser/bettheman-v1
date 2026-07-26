@@ -66,6 +66,22 @@ async function changeUserBalance(id, delta) {
   console.log(`💰 User ${id} balance ${current} → ${next} (delta ${delta})`);
   return next;
 }
+async function writeLedger({ betId = null, eventType, actorId = null, actorName = null, details = {} }) {
+  try {
+    await prisma.ledgerEntry.create({
+      data: {
+        betId: betId != null ? parseInt(betId) : null,
+        eventType,
+        actorId: actorId != null ? parseInt(actorId) : null,
+        actorName: actorName || null,
+        details,
+      }
+    });
+  } catch (err) {
+    // Ledger must never break the main flow, but always log failure
+    console.error("LEDGER WRITE FAILED:", err.message);
+  }
+}
 async function settleBalancesForBet(bet) {
   if (bet.allocationComplete) return;
 
@@ -157,7 +173,20 @@ async function settleBet(bet, result, notes = null, manualPayouts = null) {
       }
     }
   }
-
+await writeLedger({
+  betId: bet.id,
+  eventType: result === "won" ? "settled_won"
+            : result === "lost" ? "settled_lost"
+            : "settled_manual",
+  actorId: null,
+  actorName: "System",
+  details: {
+    result,
+    notes: notes || null,
+    houseAmount: bet.houseAmount,
+    layerBids: bet.layerBids,
+  }
+});
   return { success: true, bet: updated };
 }
 function serializeBet(bet) {
@@ -418,6 +447,18 @@ app.post("/api/bets", async (req, res) => {
       }
     });
     const serialized = serializeBet(bet);
+    await writeLedger({
+  betId: bet.id,
+  eventType: "submitted",
+  actorId: bet.punterId,
+  actorName: bet.punterName,
+  details: {
+    event: bet.event,
+    selection: bet.selection,
+    odds: bet.odds,
+    stake: bet.stake,
+  }
+});
     console.log("🆕 New Bet:", serialized.id, serialized.event);
     io.emit("betUpdated", serialized);
     res.json({ success: true, bet: serialized });
@@ -507,6 +548,20 @@ app.post("/api/bets/:id/action", async (req, res) => {
         await settleBalancesForBet(updated);
       }
     const serialized = serializeBet(updated);
+    await writeLedger({
+  betId: id,
+  eventType: action === "Accepted" ? "house_accepted"
+            : action === "Partial" ? "house_partial"
+            : "house_rejected",
+  actorId: 0,
+  actorName: "House",
+  details: {
+    action,
+    houseAmount: updated.houseAmount,
+    amount: amount || null,
+    phase: updated.phase,
+  }
+});
     console.log(`🏠 House ${action} bet ${id} - HouseAmount: £${serialized.houseAmount}`);
     io.emit("betUpdated", serialized);
     res.json({ success: true, bet: serialized });
@@ -662,6 +717,29 @@ app.post("/api/bets/:id/settle", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+app.get("/api/ledger", async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+    const betId = req.query.betId ? parseInt(req.query.betId) : null;
+
+    const entries = await prisma.ledgerEntry.findMany({
+      where: betId ? { betId } : undefined,
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+
+    res.json(entries.map(e => ({
+      ...e,
+      id: Number(e.id),
+      betId: e.betId != null ? Number(e.betId) : null,
+      actorId: e.actorId != null ? Number(e.actorId) : null,
+      createdAt: e.createdAt.toISOString(),
+    })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 io.on("connection", (socket) => {

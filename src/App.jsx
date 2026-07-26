@@ -71,23 +71,34 @@ const [currentUser, setCurrentUser] = useState(MOCK_USERS.find(u => u.id === 1) 
     const [users, setUsers] = useState([]);
   const [balanceUserId, setBalanceUserId] = useState(1);
   const [balanceAmount, setBalanceAmount] = useState('');
+const [ledger, setLedger] = useState([]);
+const fetchBets = async () => {
+  try {
+    const res = await fetch(`${API}/api/bets`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) setAllBets(data);
+    }
+  } catch (e) {}
+};
 
-  const fetchBets = async () => {
-    try {
-      const res = await fetch(`${API}/api/bets`);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) setAllBets(data);
-      }
-    } catch (e) {}
-  };
+const fetchLedger = async () => {
+  try {
+    const res = await fetch(`${API}/api/ledger?limit=100`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) setLedger(data);
+    }
+  } catch (e) {}
+};
 
-   useEffect(() => {
-    fetchBets();
-    fetchUsers();
-    const interval = setInterval(fetchBets, 1500);
-    return () => clearInterval(interval);
-  }, []);
+useEffect(() => {
+  fetchBets();
+  fetchUsers();
+  fetchLedger();
+  const interval = setInterval(fetchBets, 1500);
+  return () => clearInterval(interval);
+}, []);
 
     const fetchUsers = async () => {
     try {
@@ -634,22 +645,43 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
           })}
 
           <CollapsibleSection title="Active Lays" defaultOpen={true}>
-            {activeBets.filter(b => parseFloat(b.houseAmount) > 0).map(b => (
-              <div key={b.id} style={cardGreen}>
-                <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-                <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
-                <div style={{ marginTop: '4px', color: '#00ff88', fontWeight: '600' }}>
-                  {parseFloat(b.houseAmount) === parseFloat(b.stake)
-                    ? 'Laid in Full'
-                    : `Partially Laid (£${b.houseAmount} of £${b.stake})`}
-                </div>
-                <div style={{ fontSize: '12px', color: '#999' }}>
-                  Accepted: {(b.houseActedAt || b.acceptedAt)
-                    ? new Date(b.houseActedAt || b.acceptedAt).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) + ' UTC'
-                    : 'N/A'}
-                </div>
-              </div>
-            ))}
+            {activeBets.filter(b => parseFloat(b.houseAmount) > 0).map(b => {
+  const houseLaid = parseFloat(b.houseAmount) || 0;
+  const layerBids = (b.layerBids || []).filter(l => !l.rejected);
+  const layersLaid = layerBids.reduce((s, l) => s + (parseFloat(l.actualLaid != null ? l.actualLaid : l.amount) || 0), 0);
+  const totalLaid = houseLaid + layersLaid;
+  const isFull = totalLaid >= parseFloat(b.stake) - 0.01;
+  return (
+    <div key={b.id} style={cardGreen}>
+      <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
+      <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
+      <div style={{ marginTop: '6px', color: '#00ff88', fontWeight: '600' }}>
+        {isFull ? 'Laid in Full' : `Partially Laid (£${totalLaid.toFixed(2)} of £${b.stake})`}
+      </div>
+      <div style={{ fontSize: '13px', color: '#b0b0b0', marginTop: '6px' }}>
+        House: £{houseLaid.toFixed(2)} | Layers: £{layersLaid.toFixed(2)} | Total: £{totalLaid.toFixed(2)}
+      </div>
+      {layerBids.length > 0 && (
+        <div style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
+          <strong>Layers:</strong>
+          {layerBids.map((l, i) => (
+            <div key={i}>
+              • {l.layerName}: £{parseFloat(l.actualLaid != null ? l.actualLaid : l.amount).toFixed(2)}
+              {l.actualLaid != null && parseFloat(l.actualLaid) !== parseFloat(l.amount)
+                ? ` (bid £${parseFloat(l.amount).toFixed(2)})`
+                : ''}
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
+        Accepted: {(b.houseActedAt || b.acceptedAt)
+          ? new Date(b.houseActedAt || b.acceptedAt).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) + ' UTC'
+          : 'N/A'}
+      </div>
+    </div>
+  );
+})}
           </CollapsibleSection>
 
           <CollapsibleSection title="Rejected / Not Accepted Bets" defaultOpen={true}>
@@ -839,6 +871,38 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
     </div>
   </div>
 </CollapsibleSection>
+<CollapsibleSection title="Ledger" defaultOpen={false}>
+  <div style={{ marginBottom: '10px' }}>
+    <button
+      type="button"
+      onClick={fetchLedger}
+      style={{ background: '#3a3a5c', color: 'white', padding: '8px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+    >
+      Refresh Ledger
+    </button>
+  </div>
+  {ledger.length === 0 && <p style={muted}>No ledger entries yet.</p>}
+  {ledger.map(entry => (
+    <div key={entry.id} style={{ ...card, fontSize: '12px' }}>
+      <div style={{ fontWeight: '600', color: '#00ff88' }}>
+        {entry.eventType}
+        {entry.betId != null ? ` — Bet #${entry.betId}` : ''}
+      </div>
+      <div style={muted}>
+        {entry.actorName || 'System'}
+        {entry.actorId != null ? ` (id ${entry.actorId})` : ''}
+      </div>
+      <div style={{ color: '#999', marginTop: '4px' }}>
+        {entry.createdAt ? new Date(entry.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : ''}
+      </div>
+      {entry.details && (
+        <pre style={{ marginTop: '6px', whiteSpace: 'pre-wrap', color: '#b0b0b0', fontSize: '11px' }}>
+          {typeof entry.details === 'string' ? entry.details : JSON.stringify(entry.details, null, 2)}
+        </pre>
+      )}
+    </div>
+  ))}
+</CollapsibleSection>
   </div>
 )}
 
@@ -883,7 +947,12 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
           })}
 
           <CollapsibleSection title="Lays in Process" defaultOpen={true}>
-            {allBets.filter(b => b.layerBids && b.layerBids.some(l => l.layerId === currentUser.id && !l.rejected)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(b => {
+  {allBets.filter(b =>
+  b.phase !== 'settled' &&
+  !b.settledAt &&
+  b.layerBids &&
+  b.layerBids.some(l => Number(l.layerId) === Number(currentUser.id) && !l.rejected)
+).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(b => {
               const myBid = b.layerBids.find(l => l.layerId === currentUser.id);
               const hasApportioned = myBid && myBid.actualLaid !== undefined && myBid.actualLaid !== null;
               return (
