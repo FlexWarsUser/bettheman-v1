@@ -60,7 +60,7 @@ function CollapsibleSection({ title, children, defaultOpen = false }) {
 
 function App() {
   const [activeTab, setActiveTab] = useState('punter');
-  const [currentUser, setCurrentUser] = useState(MOCK_USERS[0]);
+const [currentUser, setCurrentUser] = useState(MOCK_USERS.find(u => u.id === 1) || MOCK_USERS[0]);
   const [bet, setBet] = useState({ event: '', selection: '', odds: '', stake: '' });
   const [message, setMessage] = useState('');
   const [layerMessage, setLayerMessage] = useState('');
@@ -297,38 +297,44 @@ const activeBets = allBets.filter(b => {
     return residual >= 0.01;
   });
 
-  const card = { background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '14px', margin: '8px 0', borderRadius: '8px' };
-  const cardGreen = { ...card, border: '1px solid #2d6a4f' };
-  const cardYellow = { background: '#2d2a1a', border: '1px solid #5c4a1a', padding: '16px', margin: '10px 0', borderRadius: '10px' };
-  const cardRed = { ...card, border: '1px solid #7f1d1d' };
-  const muted = { color: '#b0b0b0' };
+const card = { 
+  background: '#181b21', 
+  border: '1px solid #2a2e36', 
+  padding: '12px 14px', 
+  margin: '6px 0', 
+  borderRadius: '6px',
+  fontSize: '13px'
+};
+const cardGreen = { ...card, borderLeft: '3px solid #22c55e' };
+const cardYellow = { ...card, borderLeft: '3px solid #f59e0b', background: '#1c1a16' };
+const cardRed = { ...card, borderLeft: '3px solid #ef4444' };
+const muted = { color: '#94a3b8', fontSize: '12px' };
 
   return (
     <div style={{ maxWidth: '780px', margin: '0 auto', padding: '30px 20px', fontFamily: 'system-ui, sans-serif', color: '#e8e8e8' }}>
       <h1 style={{ textAlign: 'center', marginBottom: '30px', color: '#00ff88' }}>BetTheMan</h1>
 
       <div style={{ textAlign: 'center', marginBottom: '25px' }}>
-        <select
-          value={currentUser.id}
-          onChange={(e) => setCurrentUser(MOCK_USERS.find(u => u.id === parseInt(e.target.value)))}
-          style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px 12px', borderRadius: '6px' }}
-        >
-  {MOCK_USERS
-  .filter(u => activeTab === 'house' || activeTab === 'admin' || u.id !== 0)
-  .map(u => (
-    <option key={u.id} value={u.id}>
-      {u.name} {u.canLay ? "★" : ""}
-    </option>
-  ))
-}
-        </select>
+      {activeTab !== 'admin' && (
+  <select
+    value={currentUser.id}
+    onChange={(e) => setCurrentUser(MOCK_USERS.find(u => u.id === parseInt(e.target.value)))}
+    style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px 12px', borderRadius: '6px' }}
+  >
+    {MOCK_USERS
+      .filter(u => activeTab === 'house' || u.id !== 0)
+      .map(u => (
+        <option key={u.id} value={u.id}>
+          {u.name} {u.canLay ? "★" : ""}
+        </option>
+      ))}
+  </select>
+)}
         <div style={{ marginTop: '8px', color: '#00ff88', fontWeight: '600' }}>
                   <div style={{ marginTop: '8px', fontWeight: '600' }}>
 <span style={{ color: '#00ff88' }}>
   Balance: £{Number(
-    users.find(u => Number(u.id) === Number(
-      activeTab === 'house' ? 0 : currentUser.id
-    ))?.balance ?? 0
+    users.find(u => Number(u.id) === Number(activeTab === 'house' ? 0 : currentUser.id))?.balance ?? 0
   ).toFixed(2)}
 </span>
 {(activeTab === 'house' || currentUser.canLay) && (
@@ -340,6 +346,7 @@ const activeBets = allBets.filter(b => {
     ).toFixed(2)}
   </span>
 )}
+
         </div>
         </div>
       </div>
