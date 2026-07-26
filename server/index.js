@@ -85,6 +85,81 @@ async function settleBalancesForBet(bet) {
   await prisma.bet.update({ where: { id: bet.id }, data: { allocationComplete: true } });
   console.log(`✅ Punter ${bet.punterId} debited £${totalLaid} for bet ${bet.id}`);
 }
+function calcReturn(stake, oddsStr) {
+  const s = parseFloat(stake);
+  if (!s) return 0;
+  const str = String(oddsStr).trim();
+  if (str.includes("/")) {
+    const [n, d] = str.split("/");
+    const num = parseFloat(n);
+    const den = parseFloat(d) || 1;
+    return Math.round((s + s * (num / den)) * 100) / 100; // stake + profit
+  }
+  const o = parseFloat(str);
+  return o > 0 ? Math.round(s * o * 100) / 100 : 0; // decimal = full return
+}
+
+async function settleBet(bet, result, notes = null, manualPayouts = null) {
+  if (bet.settledAt) return { error: "Already settled" };
+
+  // 1. Mark settled FIRST
+  const updated = await prisma.bet.update({
+    where: { id: bet.id },
+    data: {
+      phase: "settled",
+      settledAt: new Date(),
+      result,
+      settlementNotes: notes || null,
+    }
+  });
+
+  // 2. THEN move balances
+  const houseLaid = Number(bet.houseAmount || 0);
+  const layers = Array.isArray(bet.layerBids) ? bet.layerBids : [];
+
+  if (result === "won") {
+    const matchedStake = houseLaid + layers.reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
+    const payout = calcReturn(matchedStake, bet.odds);
+    await changeUserBalance(bet.punterId, payout);
+
+    if (houseLaid > 0) {
+      const houseLiability = calcExposure(houseLaid, bet.odds);
+      await changeUserBalance(0, -houseLiability);
+    }
+
+    for (const l of layers) {
+      if (l.rejected) continue;
+      const amt = parseFloat(l.actualLaid) || 0;
+      if (amt <= 0) continue;
+      const liability = calcExposure(amt, bet.odds);
+      await changeUserBalance(l.layerId, -liability);
+    }
+  } else if (result === "lost") {
+    if (houseLaid > 0) {
+      await changeUserBalance(0, houseLaid);
+    }
+    for (const l of layers) {
+      if (l.rejected) continue;
+      const amt = parseFloat(l.actualLaid) || 0;
+      if (amt <= 0) continue;
+      await changeUserBalance(l.layerId, amt);
+    }
+  } else if (result === "manual" && manualPayouts) {
+    if (manualPayouts.punterDelta) {
+      await changeUserBalance(bet.punterId, manualPayouts.punterDelta);
+    }
+    if (manualPayouts.houseDelta) {
+      await changeUserBalance(0, manualPayouts.houseDelta);
+    }
+    if (Array.isArray(manualPayouts.layers)) {
+      for (const l of manualPayouts.layers) {
+        await changeUserBalance(l.layerId, l.delta);
+      }
+    }
+  }
+
+  return { success: true, bet: updated };
+}
 function serializeBet(bet) {
   if (!bet) return null;
   return {
@@ -101,6 +176,9 @@ function serializeBet(bet) {
     houseActedAt: bet.houseActedAt ? bet.houseActedAt.toISOString() : null,
     acceptedAt: bet.acceptedAt ? bet.acceptedAt.toISOString() : null,
     createdAt: bet.createdAt ? bet.createdAt.toISOString() : null,
+    settledAt: bet.settledAt ? bet.settledAt.toISOString() : null,
+    result: bet.result || null,
+    settlementNotes: bet.settlementNotes || null,
   };
 }
 
@@ -561,7 +639,31 @@ app.post("/api/bets/:id/layer-bid", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+app.post("/api/bets/:id/settle", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { result, notes, manualPayouts } = req.body; // result = "won" | "lost" | "manual"
 
+    const bet = await prisma.bet.findUnique({ where: { id } });
+    if (!bet) return res.status(404).json({ success: false, error: "Bet not found" });
+    if (bet.phase !== "finalized" && bet.phase !== "settled") {
+      return res.status(400).json({ success: false, error: "Bet is not ready for settlement" });
+    }
+    if (bet.settledAt) {
+      return res.status(400).json({ success: false, error: "Already settled" });
+    }
+
+    const outcome = await settleBet(bet, result, notes, manualPayouts);
+    if (outcome.error) return res.status(400).json({ success: false, error: outcome.error });
+
+    const serialized = serializeBet(outcome.bet);
+    io.emit("betUpdated", serialized);
+    res.json({ success: true, bet: serialized });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
 });

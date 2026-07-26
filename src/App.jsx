@@ -176,7 +176,59 @@ const [currentUser, setCurrentUser] = useState(MOCK_USERS.find(u => u.id === 1) 
       alert('Action failed');
     }
   };
+const handleSettle = async (betId, result) => {
+  const label = result === 'won' ? 'WON' : 'LOST';
+  if (!window.confirm(`Mark this bet as ${label}? Balances will be updated.`)) return;
+  try {
+    const res = await fetch(`${API}/api/bets/${betId}/settle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ result }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return alert(data.error || 'Settlement failed');
+    }
+    fetchBets();
+    fetchUsers();
+  } catch (err) {
+    alert('Settlement failed');
+  }
+};
 
+const openManualSettle = (bet) => {
+  const notes = window.prompt('Settlement notes (e.g. Dead heat, Rule 4, Void):', '');
+  if (notes === null) return;
+
+  const punterDeltaStr = window.prompt('Punter balance change (e.g. 50 to credit, -20 to debit, 0 for none):', '0');
+  if (punterDeltaStr === null) return;
+  const punterDelta = parseFloat(punterDeltaStr) || 0;
+
+  const houseDeltaStr = window.prompt('House balance change:', '0');
+  if (houseDeltaStr === null) return;
+  const houseDelta = parseFloat(houseDeltaStr) || 0;
+
+  // Simple version: one combined note; layer adjustments can be done later via Admin if needed
+  handleManualSettle(bet.id, notes, { punterDelta, houseDelta, layers: [] });
+};
+
+const handleManualSettle = async (betId, notes, manualPayouts) => {
+  try {
+    const res = await fetch(`${API}/api/bets/${betId}/settle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ result: 'manual', notes, manualPayouts }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return alert(data.error || 'Manual settlement failed');
+    }
+    fetchBets();
+    fetchUsers();
+  } catch (err) {
+    alert('Manual settlement failed');
+  }
+};
   const performLayerAction = async (betId, amount, action = 'bid') => {
     try {
       const res = await fetch(`${API}/api/bets/${betId}/layer-bid`, {
@@ -241,25 +293,26 @@ const [currentUser, setCurrentUser] = useState(MOCK_USERS.find(u => u.id === 1) 
     const o = parseFloat(str);
     return o > 1 ? (s * (o - 1)).toFixed(2) : '0.00';
   };
-  const getMyExposure = (userId) => {
-    let total = 0;
-    for (const b of allBets) {
-      if (b.status === 'rejected') continue;
-      const bid = (b.layerBids || []).find(l => Number(l.layerId) === Number(userId) && !l.rejected);
-      if (!bid) continue;
-      const amt = parseFloat(bid.actualLaid != null ? bid.actualLaid : bid.amount) || 0;
-      if (amt <= 0) continue;
-      total += parseFloat(getExposure(amt, b.odds)) || 0;
-    }
-    return total;
-  };
-  const getHouseExposure = () => {
+const getMyExposure = (userId) => {
   let total = 0;
   for (const b of allBets) {
     if (b.status === 'rejected') continue;
+    if (b.phase === 'settled' || b.settledAt) continue;
+    const bid = (b.layerBids || []).find(l => Number(l.layerId) === Number(userId) && !l.rejected);
+    if (!bid) continue;
+    const amt = parseFloat(bid.actualLaid != null ? bid.actualLaid : bid.amount) || 0;
+    if (amt <= 0) continue;
+    total += parseFloat(getExposure(amt, b.odds)) || 0;
+  }
+  return total;
+};
+const getHouseExposure = () => {
+  let total = 0;
+  for (const b of allBets) {
+    if (b.status === 'rejected') continue;
+    if (b.phase === 'settled' || b.settledAt) continue;   // only skip settled
     const houseAmt = parseFloat(b.houseAmount) || 0;
     if (houseAmt <= 0) continue;
-    if (b.phase === 'finalized' || b.phase === 'settled') continue;
     total += parseFloat(getExposure(houseAmt, b.odds)) || 0;
   }
   return total;
@@ -321,9 +374,9 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
     onChange={(e) => setCurrentUser(MOCK_USERS.find(u => u.id === parseInt(e.target.value)))}
     style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px 12px', borderRadius: '6px' }}
   >
-    {MOCK_USERS
-      .filter(u => activeTab === 'house' || u.id !== 0)
-      .map(u => (
+{MOCK_USERS
+  .filter(u => u.id !== 0)
+  .map(u => (
         <option key={u.id} value={u.id}>
           {u.name} {u.canLay ? "★" : ""}
         </option>
@@ -352,7 +405,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '30px' }}>
-       {['punter', 'house', 'layer', 'admin'].map(tab => (
+  {['punter', 'house', 'layer', 'settlement', 'admin'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -636,6 +689,85 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
           </CollapsibleSection>
         </div>
       )}
+      {activeTab === 'settlement' && (
+  <div>
+    <h2 style={{ color: '#00ff88' }}>Settlement</h2>
+    <p style={{ color: '#b0b0b0', marginBottom: '16px' }}>
+      Result finalised bets. Won / Lost updates balances automatically. Use Manual for dead heats, voids, Rule 4, etc.
+    </p>
+
+    <CollapsibleSection title="Awaiting Settlement" defaultOpen={true}>
+      {allBets.filter(b => b.phase === 'finalized' && !b.settledAt).length === 0 && (
+        <p style={muted}>No bets waiting to be settled.</p>
+      )}
+      {allBets
+        .filter(b => b.phase === 'finalized' && !b.settledAt)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .map(b => {
+          const houseLaid = parseFloat(b.houseAmount) || 0;
+          const layersLaid = (b.layerBids || []).reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
+          const matched = houseLaid + layersLaid;
+          return (
+            <div key={b.id} style={cardYellow}>
+              <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
+              <div style={muted}>{b.selection} @ {b.odds} — Stake £{b.stake}</div>
+              <div style={{ marginTop: '6px', fontSize: '13px' }}>
+                Matched: £{matched.toFixed(2)} (House £{houseLaid.toFixed(2)} + Layers £{layersLaid.toFixed(2)})
+              </div>
+              <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+                Punter: {b.punterName}
+              </div>
+
+              <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => handleSettle(b.id, 'won')}
+                  style={{ background: '#2d6a4f', color: 'white', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+                >
+                  Won
+                </button>
+                <button
+                  onClick={() => handleSettle(b.id, 'lost')}
+                  style={{ background: '#7f1d1d', color: 'white', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+                >
+                  Lost
+                </button>
+                <button
+                  onClick={() => openManualSettle(b)}
+                  style={{ background: '#3a3a5c', color: 'white', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+                >
+                  Manual
+                </button>
+              </div>
+            </div>
+          );
+        })}
+    </CollapsibleSection>
+
+    <CollapsibleSection title="Already Settled" defaultOpen={false}>
+      {allBets.filter(b => b.settledAt).length === 0 && (
+        <p style={muted}>No settled bets yet.</p>
+      )}
+      {allBets
+        .filter(b => b.settledAt)
+        .sort((a, b) => new Date(b.settledAt) - new Date(a.settledAt))
+        .map(b => (
+          <div key={b.id} style={card}>
+            <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
+            <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
+            <div style={{ marginTop: '6px', fontWeight: '600', color: b.result === 'won' ? '#00ff88' : b.result === 'lost' ? '#ff6b6b' : '#ffb347' }}>
+              Result: {(b.result || '').toUpperCase()}
+            </div>
+            {b.settlementNotes && (
+              <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>Notes: {b.settlementNotes}</div>
+            )}
+            <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+              Settled: {new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' })} UTC
+            </div>
+          </div>
+        ))}
+    </CollapsibleSection>
+  </div>
+)}
       {activeTab === 'admin' && (
         <div>
           <h2 style={{ color: '#00ff88' }}>Admin — Adjust balances</h2>
