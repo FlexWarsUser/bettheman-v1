@@ -11,6 +11,7 @@ model User {
   id        Int       @id @default(autoincrement())
   name      String
   canLay    Boolean   @default(false)
+  balance   Float    @default(0)
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
 }

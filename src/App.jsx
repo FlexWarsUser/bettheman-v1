@@ -67,6 +67,9 @@ function App() {
   const [partialAmount, setPartialAmount] = useState({});
   const [bidAmount, setBidAmount] = useState({});
   const [showBidConfirm, setShowBidConfirm] = useState(null);
+    const [users, setUsers] = useState([]);
+  const [balanceUserId, setBalanceUserId] = useState(1);
+  const [balanceAmount, setBalanceAmount] = useState('');
 
   const fetchBets = async () => {
     try {
@@ -78,11 +81,45 @@ function App() {
     } catch (e) {}
   };
 
-  useEffect(() => {
+   useEffect(() => {
     fetchBets();
+    fetchUsers();
     const interval = setInterval(fetchBets, 1500);
     return () => clearInterval(interval);
   }, []);
+
+    const fetchUsers = async () => {
+    try {
+      const res = await fetch(`${API}/api/users`);
+      console.log('USERS status', res.status);
+      if (res.ok) {
+        const data = await res.json();
+        console.log('USERS FROM API', data);
+        if (Array.isArray(data)) setUsers(data);
+      }
+    } catch (e) {
+      console.log('USERS ERROR', e);
+    }
+  };
+
+  const adjustBalance = async (mode) => {
+    if (!balanceAmount || parseFloat(balanceAmount) < 0) return alert('Enter a valid amount');
+    try {
+      const res = await fetch(`${API}/api/users/${balanceUserId}/balance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode, amount: parseFloat(balanceAmount) })
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        return alert('Failed: ' + t);
+      }
+      setBalanceAmount('');
+      fetchUsers();
+    } catch (e) {
+      alert('Failed: ' + e.message);
+    }
+  };
 
   const clearAllBets = async () => {
     if (!window.confirm("Delete ALL bets? This cannot be undone.")) return;
@@ -197,20 +234,32 @@ function App() {
     if (!s) return '0.00';
     const str = String(oddsStr).trim();
     if (str.includes('/')) {
-      const [n] = str.split('/');
-      return (s * parseFloat(n)).toFixed(2);
+      const [n, d] = str.split('/');
+      const num = parseFloat(n);
+      const den = parseFloat(d) || 1;
+      return (s * (num / den)).toFixed(2);
     }
     const o = parseFloat(str);
     return o > 1 ? (s * (o - 1)).toFixed(2) : '0.00';
   };
-
+  const getMyExposure = (userId) => {
+    let total = 0;
+    for (const b of allBets) {
+      if (b.status === 'rejected') continue;
+      const bid = (b.layerBids || []).find(l => Number(l.layerId) === Number(userId) && !l.rejected);
+      if (!bid) continue;
+      const amt = parseFloat(bid.actualLaid != null ? bid.actualLaid : bid.amount) || 0;
+      if (amt <= 0) continue;
+      total += parseFloat(getExposure(amt, b.odds)) || 0;
+    }
+    return total;
+  };
   const pendingReview = allBets.filter(b => b.phase === 'house_review').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
   const layerBidding = allBets.filter(b =>
-    (b.phase === 'layer_bidding' || b.phase === 'house_residual') &&
+    b.phase === 'layer_bidding' &&
     currentUser &&
-    b.punterId !== currentUser.id &&
-    !(b.layerBids || []).some(l => l.layerId === currentUser.id)
+    Number(b.punterId) !== Number(currentUser.id) &&
+    !(b.layerBids || []).some(l => Number(l.layerId) === Number(currentUser.id))
   ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   const activeBets = allBets.filter(b => {
@@ -253,12 +302,24 @@ function App() {
           onChange={(e) => setCurrentUser(MOCK_USERS.find(u => u.id === parseInt(e.target.value)))}
           style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px 12px', borderRadius: '6px' }}
         >
-          {MOCK_USERS.map(u => <option key={u.id} value={u.id}>{u.name} {u.canLay ? "★" : ""}</option>)}
+                    {MOCK_USERS.map(u => <option key={u.id} value={u.id}>{u.name} {u.canLay ? "★" : ""}</option>)}
         </select>
+        <div style={{ marginTop: '8px', color: '#00ff88', fontWeight: '600' }}>
+                  <div style={{ marginTop: '8px', fontWeight: '600' }}>
+          <span style={{ color: '#00ff88' }}>
+            Balance: £{Number(users.find(u => Number(u.id) === Number(currentUser.id))?.balance ?? 0).toFixed(2)}
+          </span>
+          {currentUser.canLay && (
+            <span style={{ color: '#ff6b6b', marginLeft: '16px' }}>
+              Open Lays Exposure: £{getMyExposure(currentUser.id).toFixed(2)}
+            </span>
+          )}
+        </div>
+        </div>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '30px' }}>
-        {['punter', 'house', 'layer'].map(tab => (
+       {['punter', 'house', 'layer', 'admin'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}

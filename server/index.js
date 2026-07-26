@@ -20,7 +20,71 @@ app.use(cors({ origin: FRONTEND_URL === "*" ? true : FRONTEND_URL }));
 app.use(express.json());
 
 const LAYER_IDS = [1, 3, 5];
+function calcExposure(stake, oddsStr) {
+  const s = parseFloat(stake);
+  if (!s) return 0;
+  const str = String(oddsStr).trim();
+  if (str.includes("/")) {
+      const [n, d] = str.split("/");
+    const num = parseFloat(n);
+    const den = parseFloat(d) || 1;
+    return Math.round(s * (num / den) * 100) / 100;
+  }
+  const o = parseFloat(str);
+  return o > 1 ? Math.round(s * (o - 1) * 100) / 100 : 0;
+}
 
+async function getUserBalance(id) {
+  const rows = await prisma.$queryRaw`SELECT balance FROM "User" WHERE id = ${parseInt(id)}`;
+  return rows[0] ? Number(rows[0].balance) || 0 : 0;
+}
+async function getLayerExposure(layerId) {
+  const bets = await prisma.bet.findMany({
+    where: {
+      phase: { in: ["layer_bidding", "house_residual", "finalized"] },
+      status: { not: "rejected" }
+    }
+  });
+  let exposure = 0;
+  for (const b of bets) {
+    const bids = Array.isArray(b.layerBids) ? b.layerBids : [];
+    for (const l of bids) {
+      if (l.rejected) continue;
+      if (parseInt(l.layerId) !== parseInt(layerId)) continue;
+      const amt = parseFloat(l.actualLaid != null ? l.actualLaid : l.amount) || 0;
+      if (amt > 0) exposure += calcExposure(amt, b.odds);
+    }
+  }
+  return Math.round(exposure * 100) / 100;
+}
+async function changeUserBalance(id, delta) {
+  const current = await getUserBalance(id);
+  const next = Math.round((current + delta) * 100) / 100;
+  await prisma.$executeRaw`
+    UPDATE "User" SET balance = ${next}, "updatedAt" = NOW() WHERE id = ${parseInt(id)}
+  `;
+  console.log(`💰 User ${id} balance ${current} → ${next} (delta ${delta})`);
+  return next;
+}
+async function settleBalancesForBet(bet) {
+  if (bet.allocationComplete) return;
+
+  const houseLaid = Number(bet.houseAmount || 0);
+  const layers = Array.isArray(bet.layerBids) ? bet.layerBids : [];
+  const layersLaid = layers.reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
+  const totalLaid = houseLaid + layersLaid;
+
+  if (totalLaid <= 0.01) {
+    await prisma.bet.update({ where: { id: bet.id }, data: { allocationComplete: true } });
+    return;
+  }
+
+  // Only the punter is debited (matched stake)
+  await changeUserBalance(bet.punterId, -totalLaid);
+
+  await prisma.bet.update({ where: { id: bet.id }, data: { allocationComplete: true } });
+  console.log(`✅ Punter ${bet.punterId} debited £${totalLaid} for bet ${bet.id}`);
+}
 function serializeBet(bet) {
   if (!bet) return null;
   return {
@@ -163,6 +227,7 @@ async function processExpiredTimers() {
 setInterval(processExpiredTimers, 2000);
 
 app.get("/api/health", (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+
 app.post("/api/bets/clear", async (req, res) => {
   await prisma.bet.deleteMany({});
   io.emit("betUpdated", { type: "bulk", bets: [] });
@@ -180,9 +245,61 @@ app.delete("/api/bets", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+app.get("/api/users", async (req, res) => {
+  try {
+    const users = await prisma.$queryRaw`
+      SELECT id, name, "canLay", balance, "createdAt", "updatedAt"
+      FROM "User"
+      ORDER BY id ASC
+    `;
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
+app.post("/api/users/:id/balance", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { mode, amount } = req.body;
+    const value = parseFloat(amount);
+    if (isNaN(value) || value < 0) {
+      return res.status(400).json({ error: "Invalid amount" });
+    }
+
+    const rows = await prisma.$queryRaw`
+      SELECT id, name, balance FROM "User" WHERE id = ${id}
+    `;
+    if (!rows.length) return res.status(404).json({ error: "User not found" });
+
+    const user = rows[0];
+    const current = Number(user.balance) || 0;
+    let newBalance = current;
+    if (mode === "set") newBalance = value;
+    else if (mode === "credit") newBalance = current + value;
+    else if (mode === "debit") newBalance = Math.max(0, current - value);
+    else return res.status(400).json({ error: "Invalid mode" });
+
+    await prisma.$executeRaw`
+      UPDATE "User" SET balance = ${newBalance}, "updatedAt" = NOW() WHERE id = ${id}
+    `;
+
+    console.log(`Balance ${mode} user ${id}: £${newBalance}`);
+    res.json({ success: true, user: { id, name: user.name, balance: newBalance } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
 app.post("/api/bets", async (req, res) => {
   try {
+        const punterId = parseInt(req.body.punterId);
+    const stake = parseFloat(req.body.stake);
+    const bal = await getUserBalance(punterId);
+    if (stake > bal) {
+      return res.status(400).json({ success: false, error: `Insufficient balance. You have £${bal.toFixed(2)}` });
+    }
     const now = new Date();
     const bet = await prisma.bet.create({
       data: {
@@ -284,8 +401,11 @@ app.post("/api/bets/:id/action", async (req, res) => {
         data.layerTimerEnd = new Date(now.getTime() + 30 * 1000);
       }
     }
-
+   
     const updated = await prisma.bet.update({ where: { id }, data });
+       if (data.phase === "finalized") {
+        await settleBalancesForBet(updated);
+      }
     const serialized = serializeBet(updated);
     console.log(`🏠 House ${action} bet ${id} - HouseAmount: £${serialized.houseAmount}`);
     io.emit("betUpdated", serialized);
@@ -302,6 +422,18 @@ app.post("/api/bets/:id/layer-bid", async (req, res) => {
     const { layerId, layerName, amount, action = "bid" } = req.body;
     const bet = await prisma.bet.findUnique({ where: { id } });
     if (!bet) return res.status(404).json({ success: false });
+        if (action !== "reject") {
+      const liability = calcExposure(amount, bet.odds);
+      const layerBal = await getUserBalance(layerId);
+      const currentExposure = await getLayerExposure(layerId);
+      const available = layerBal - currentExposure;
+      if (liability > available + 0.01) {
+        return res.status(400).json({
+          success: false,
+          error: `Insufficient free balance. Liability £${liability.toFixed(2)}, available £${available.toFixed(2)} (balance £${layerBal.toFixed(2)} − exposure £${currentExposure.toFixed(2)})`
+        });
+      }
+    }
 
     let layerBids = Array.isArray(bet.layerBids) ? [...bet.layerBids] : [];
 
@@ -366,8 +498,9 @@ app.post("/api/bets/:id/layer-bid", async (req, res) => {
               layerBids: bids,
               layerTimerEnd: null,
             }
-          });
-          console.log(`[EARLY FULL] Bet ${id} fully covered. Laid: £${totalLaid.toFixed(2)}`);
+                  });
+        await settleBalancesForBet(updated);
+        console.log(`[EARLY FULL] Bet ${id} fully covered. Laid: £${totalLaid.toFixed(2)}`);
         } else {
           updated = await prisma.bet.update({
             where: { id },
@@ -393,6 +526,7 @@ app.post("/api/bets/:id/layer-bid", async (req, res) => {
             layerTimerEnd: null,
           }
         });
+                await settleBalancesForBet(updated);
         console.log(`[EARLY FULL] Bet ${id} fully covered by layers. Laid: £${totalLaid.toFixed(2)}`);
       }
     }
