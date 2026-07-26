@@ -601,7 +601,35 @@ function App() {
           </CollapsibleSection>
         </div>
       )}
-
+      {activeTab === 'admin' && (
+        <div>
+          <h2 style={{ color: '#00ff88' }}>Admin — Adjust balances</h2>
+          <p style={{ color: '#b0b0b0', marginBottom: '16px' }}>Offline payments only. Credit / debit / set balances here.</p>
+          <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px' }}>
+            <select
+              value={balanceUserId}
+              onChange={e => setBalanceUserId(parseInt(e.target.value))}
+              style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px', borderRadius: '6px', width: '100%', marginBottom: '8px' }}
+            >
+              {users.map(u => (
+                <option key={u.id} value={u.id}>{u.name} — £{Number(u.balance || 0).toFixed(2)}</option>
+              ))}
+            </select>
+            <input
+              type="number"
+              placeholder="Amount"
+              value={balanceAmount}
+              onChange={e => setBalanceAmount(e.target.value)}
+              style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px', borderRadius: '6px', width: '100%', marginBottom: '8px' }}
+            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="button" onClick={() => adjustBalance('credit')} style={{ flex: 1, padding: '10px', background: '#2d6a4f', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Credit</button>
+              <button type="button" onClick={() => adjustBalance('debit')} style={{ flex: 1, padding: '10px', background: '#7f1d1d', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Debit</button>
+              <button type="button" onClick={() => adjustBalance('set')} style={{ flex: 1, padding: '10px', background: '#3a3a5c', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Set</button>
+            </div>
+          </div>
+        </div>
+      )}
       {activeTab === 'layer' && currentUser?.canLay && (
         <div>
           <h2 style={{ color: '#00ff88' }}>Bets Available to Lay</h2>
