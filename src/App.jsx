@@ -313,7 +313,14 @@ const activeBets = allBets.filter(b => {
           onChange={(e) => setCurrentUser(MOCK_USERS.find(u => u.id === parseInt(e.target.value)))}
           style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px 12px', borderRadius: '6px' }}
         >
-                    {MOCK_USERS.map(u => <option key={u.id} value={u.id}>{u.name} {u.canLay ? "★" : ""}</option>)}
+  {MOCK_USERS
+  .filter(u => activeTab === 'house' || activeTab === 'admin' || u.id !== 0)
+  .map(u => (
+    <option key={u.id} value={u.id}>
+      {u.name} {u.canLay ? "★" : ""}
+    </option>
+  ))
+}
         </select>
         <div style={{ marginTop: '8px', color: '#00ff88', fontWeight: '600' }}>
                   <div style={{ marginTop: '8px', fontWeight: '600' }}>
