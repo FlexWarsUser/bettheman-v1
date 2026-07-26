@@ -148,6 +148,25 @@ async function processExpiredTimers() {
   const now = new Date();
   let changed = false;
 
+  // 1. House review timer expired → send to layers
+  const houseReviewBets = await prisma.bet.findMany({
+    where: { phase: "house_review", houseTimerEnd: { lte: now } }
+  });
+
+  for (const bet of houseReviewBets) {
+    await prisma.bet.update({
+      where: { id: bet.id },
+      data: {
+        phase: "layer_bidding",
+        layerTimerEnd: new Date(now.getTime() + 30 * 1000),
+        houseTimerEnd: null,
+      }
+    });
+    console.log(`[HOUSE TIMER] Bet ${bet.id} moved to layer_bidding`);
+    changed = true;
+  }
+
+  // 2. Layer bidding timer expired
   const layerBets = await prisma.bet.findMany({
     where: { phase: "layer_bidding", layerTimerEnd: { lte: now } }
   });
@@ -163,7 +182,7 @@ async function processExpiredTimers() {
     const { bids, totalLaid } = applyProRata(currentBids, remainingForLayers);
 
     if (totalLaid >= remainingForLayers - 0.01) {
-      await prisma.bet.update({
+      const updated = await prisma.bet.update({
         where: { id: bet.id },
         data: {
           status: "accepted",
@@ -173,6 +192,7 @@ async function processExpiredTimers() {
           layerTimerEnd: null,
         }
       });
+      await settleBalancesForBet(updated);   // balance fix
     } else {
       const residual = Math.round((remainingForLayers - totalLaid) * 100) / 100;
       await prisma.bet.update({
@@ -190,6 +210,7 @@ async function processExpiredTimers() {
     changed = true;
   }
 
+  // 3. Residual house timer expired
   const residualBets = await prisma.bet.findMany({
     where: { phase: "house_residual", houseTimerEnd: { lte: now } }
   });
@@ -213,7 +234,8 @@ async function processExpiredTimers() {
       if (!bet.acceptedAt) data.acceptedAt = now;
     }
 
-    await prisma.bet.update({ where: { id: bet.id }, data });
+    const updated = await prisma.bet.update({ where: { id: bet.id }, data });
+    await settleBalancesForBet(updated);   // balance fix
     console.log(`[RESIDUAL EXPIRED] Bet ${bet.id} finalized. Total laid: £${totalLaid.toFixed(2)}`);
     changed = true;
   }
