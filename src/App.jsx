@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 const MOCK_USERS = [
+  { id: 0, name: "House", canLay: true },
   { id: 1, name: "Alex Rivera", canLay: true },
   { id: 2, name: "Jordan Hale", canLay: false },
   { id: 3, name: "Sam Patel", canLay: true },
@@ -252,6 +253,17 @@ function App() {
     }
     return total;
   };
+  const getHouseExposure = () => {
+  let total = 0;
+  for (const b of allBets) {
+    if (b.status === 'rejected') continue;
+    const houseAmt = parseFloat(b.houseAmount) || 0;
+    if (houseAmt <= 0) continue;
+    if (b.phase === 'finalized' || b.phase === 'settled') continue;
+    total += parseFloat(getExposure(houseAmt, b.odds)) || 0;
+  }
+  return total;
+};
   const pendingReview = allBets.filter(b => b.phase === 'house_review').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const layerBidding = allBets.filter(b =>
     b.phase === 'layer_bidding' &&
@@ -305,14 +317,22 @@ const activeBets = allBets.filter(b => {
         </select>
         <div style={{ marginTop: '8px', color: '#00ff88', fontWeight: '600' }}>
                   <div style={{ marginTop: '8px', fontWeight: '600' }}>
-          <span style={{ color: '#00ff88' }}>
-            Balance: £{Number(users.find(u => Number(u.id) === Number(currentUser.id))?.balance ?? 0).toFixed(2)}
-          </span>
-          {currentUser.canLay && (
-            <span style={{ color: '#ff6b6b', marginLeft: '16px' }}>
-              Open Lays Exposure: £{getMyExposure(currentUser.id).toFixed(2)}
-            </span>
-          )}
+<span style={{ color: '#00ff88' }}>
+  Balance: £{Number(
+    users.find(u => Number(u.id) === Number(
+      activeTab === 'house' ? 0 : currentUser.id
+    ))?.balance ?? 0
+  ).toFixed(2)}
+</span>
+{(activeTab === 'house' || currentUser.canLay) && (
+  <span style={{ color: '#ff6b6b', marginLeft: '16px' }}>
+    Open Lays Exposure: £{(
+      activeTab === 'house' 
+        ? getHouseExposure() 
+        : getMyExposure(currentUser.id)
+    ).toFixed(2)}
+  </span>
+)}
         </div>
         </div>
       </div>
