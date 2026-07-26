@@ -123,23 +123,37 @@ function App() {
 
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMessage('');
-    try {
-      const res = await fetch(`${API}/api/bets`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...bet, punterId: currentUser.id, punterName: currentUser.name }),
-      });
-      if (res.ok) {
-        setMessage('Bet submitted');
-        setBet({ event: '', selection: '', odds: '', stake: '' });
-        fetchBets();
-      }
-    } catch (err) {
-      setMessage('Error');
+  e.preventDefault();
+  setMessage('');
+
+  // Validate odds format
+  const odds = String(bet.odds).trim();
+  const isDecimal = /^\d+(\.\d+)?$/.test(odds);          // 5, 5.5, 2.75
+  const isFractional = /^\d+\s*\/\s*\d+$/.test(odds);    // 5/1, 6/4, 7/2
+
+  if (!isDecimal && !isFractional) {
+    setMessage('Odds must be numerical (e.g. 5, 5.5, 2.75) or fractional (e.g. 5/1, 6/4, 7/2)');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/bets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...bet, punterId: currentUser.id, punterName: currentUser.name }),
+    });
+    if (res.ok) {
+      setMessage('Bet submitted');
+      setBet({ event: '', selection: '', odds: '', stake: '' });
+      fetchBets();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setMessage(data.error || 'Error submitting bet');
     }
-  };
+  } catch (err) {
+    setMessage('Error');
+  }
+};
 
   const handleHouseAction = async (betId, action, amount = null) => {
     let confirmMessage = '';
@@ -246,11 +260,12 @@ function App() {
     !(b.layerBids || []).some(l => Number(l.layerId) === Number(currentUser.id))
   ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-  const activeBets = allBets.filter(b => {
-    const houseLaid = parseFloat(b.houseAmount) || 0;
-    const layersLaid = (b.layerBids || []).reduce((sum, l) => sum + (parseFloat(l.actualLaid) || 0), 0);
-    return (houseLaid + layersLaid) > 0;
-  }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+const activeBets = allBets.filter(b => {
+  if (b.phase !== 'finalized') return false;   // only show when fully finished
+  const houseLaid = parseFloat(b.houseAmount) || 0;
+  const layersLaid = (b.layerBids || []).reduce((sum, l) => sum + (parseFloat(l.actualLaid) || 0), 0);
+  return (houseLaid + layersLaid) > 0.01;
+}).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   const settledBets = allBets.filter(b => b.phase === 'settled').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
@@ -328,29 +343,37 @@ function App() {
           <h2 style={{ color: '#00ff88' }}>Place Bet</h2>
           <form onSubmit={handleSubmit} style={{ maxWidth: '420px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {['event', 'selection', 'odds', 'stake'].map(field => (
-              <input
-                key={field}
-                type={field === 'stake' ? 'number' : 'text'}
-                placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
-                value={bet[field]}
-                onChange={e => setBet({ ...bet, [field]: e.target.value })}
-                required
-                style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '12px', borderRadius: '8px' }}
-              />
-            ))}
+  <input
+    key={field}
+    type="text"
+    placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
+    value={bet[field]}
+    onChange={e => setBet({ ...bet, [field]: e.target.value })}
+    required
+    style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '12px', borderRadius: '8px' }}
+  />
+))}
             <button type="submit" style={{ background: '#00ff88', color: '#0f0c29', padding: '14px', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>
               Submit Bet
             </button>
           </form>
-          {message && <p style={{ textAlign: 'center', marginTop: '15px', fontWeight: 'bold', color: '#00ff88' }}>{message}</p>}
+         {message && (
+  <p style={{ 
+    textAlign: 'center', 
+    marginTop: '15px', 
+    fontWeight: 'bold', 
+    color: message.includes('Odds must') || message.includes('Error') ? '#ff6b6b' : '#00ff88' 
+  }}>
+    {message}
+  </p>
+)}
 
-          <CollapsibleSection title="Pending Bets" defaultOpen={true}>
-            {allBets.filter(b =>
-              b.punterId === currentUser.id &&
-              (b.status === 'pending' || b.phase === 'house_review' || b.phase === 'layer_bidding') &&
-              b.phase !== 'finalized' &&
-              !(parseFloat(b.houseAmount) > 0)
-            ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(b => (
+<CollapsibleSection title="Pending Bets" defaultOpen={true}>
+ {allBets.filter(b =>
+  b.punterId === currentUser.id &&
+  b.phase !== 'finalized' &&
+  b.status !== 'rejected'
+).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(b => (
               <div key={b.id} style={card}>
                 <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
                 <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
