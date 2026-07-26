@@ -121,22 +121,6 @@ function App() {
     }
   };
 
-  const clearAllBets = async () => {
-    if (!window.confirm("Delete ALL bets? This cannot be undone.")) return;
-    try {
-      const res = await fetch(`${API}/api/bets/clear`, { method: "POST" });
-      if (!res.ok) {
-        const text = await res.text();
-        alert(`Clear failed: ${res.status} ${text}`);
-        return;
-      }
-      setAllBets([]);
-      setMessage("All bets cleared");
-      setTimeout(fetchBets, 500);
-    } catch (e) {
-      alert("Failed to clear bets: " + e.message);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -485,13 +469,7 @@ function App() {
           </CollapsibleSection>
 
           <h2 style={{ color: '#00ff88' }}>Pending House Review</h2>
-          <button
-            onClick={clearAllBets}
-            style={{ background: '#dc3545', color: 'white', padding: '10px 16px', borderRadius: '8px', border: 'none', marginBottom: '16px', cursor: 'pointer', fontWeight: '600' }}
-          >
-            Clear All Bets (testing)
-          </button>
-
+         
           {pendingReview.length === 0 && <p style={muted}>No bets waiting.</p>}
           {pendingReview.map(b => {
             const exposure = getExposure(b.stake, b.odds);
