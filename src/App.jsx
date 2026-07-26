@@ -405,7 +405,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '30px' }}>
-  {['punter', 'house', 'layer', 'settlement', 'admin'].map(tab => (
+  {['punter', 'house', 'layer', 'admin'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -456,9 +456,11 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
 )}
 
 <CollapsibleSection title="Pending Bets" defaultOpen={true}>
- {allBets.filter(b =>
+{allBets.filter(b =>
   b.punterId === currentUser.id &&
   b.phase !== 'finalized' &&
+  b.phase !== 'settled' &&
+  !b.settledAt &&
   b.status !== 'rejected'
 ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(b => (
               <div key={b.id} style={card}>
@@ -500,15 +502,37 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
             })}
           </CollapsibleSection>
 
-          <CollapsibleSection title="Settled Bets">
-            {settledBets.filter(b => b.punterId === currentUser.id).map(b => (
-              <div key={b.id} style={card}>
-                <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-                <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
-                <div style={{ marginTop: '5px', color: '#999', fontWeight: '600' }}>Settled</div>
-              </div>
-            ))}
-          </CollapsibleSection>
+<CollapsibleSection title="Settled Bets" defaultOpen={true}>
+  {allBets
+    .filter(b => b.punterId === currentUser.id && (b.phase === 'settled' || b.settledAt))
+    .sort((a, b) => new Date(b.settledAt || b.createdAt) - new Date(a.settledAt || a.createdAt))
+    .map(b => {
+      const houseLaid = parseFloat(b.houseAmount) || 0;
+      const layersLaid = (b.layerBids || []).reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
+      const matched = houseLaid + layersLaid;
+      return (
+        <div key={b.id} style={card}>
+          <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
+          <div style={muted}>{b.selection} @ {b.odds} — Stake £{b.stake}</div>
+          <div style={{ marginTop: '6px', fontSize: '13px' }}>
+            Matched: £{matched.toFixed(2)} (House £{houseLaid.toFixed(2)} | Layers £{layersLaid.toFixed(2)})
+          </div>
+          <div style={{ marginTop: '6px', fontWeight: '600', color: b.result === 'won' ? '#00ff88' : b.result === 'lost' ? '#ff6b6b' : '#ffb347' }}>
+            Result: {(b.result || 'settled').toUpperCase()}
+          </div>
+          {b.settlementNotes && (
+            <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>Notes: {b.settlementNotes}</div>
+          )}
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+            Placed: {b.createdAt ? new Date(b.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : 'N/A'}
+          </div>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+            Settled: {b.settledAt ? new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : 'N/A'}
+          </div>
+        </div>
+      );
+    })}
+</CollapsibleSection>
 
           <CollapsibleSection title="Not Accepted / Rejected" defaultOpen={true}>
             {rejectedBets.map(b => {
@@ -678,23 +702,68 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
             )}
           </CollapsibleSection>
 
-          <CollapsibleSection title="Resulted Lays">
-            {settledBets.map(b => (
-              <div key={b.id} style={card}>
-                <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-                <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
-                <div style={{ marginTop: '4px', color: '#999', fontWeight: '600' }}>Resulted</div>
-              </div>
-            ))}
-          </CollapsibleSection>
+<CollapsibleSection title="Resulted Lays" defaultOpen={false}>
+  {allBets
+    .filter(b => (b.phase === 'settled' || b.settledAt) && parseFloat(b.houseAmount) > 0)
+    .sort((a, b) => new Date(b.settledAt || b.createdAt) - new Date(a.settledAt || a.createdAt))
+    .map(b => {
+      const houseLaid = parseFloat(b.houseAmount) || 0;
+      const layersLaid = (b.layerBids || []).reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
+      return (
+        <div key={b.id} style={card}>
+          <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
+          <div style={muted}>{b.selection} @ {b.odds} — Stake £{b.stake}</div>
+          <div style={{ marginTop: '6px', fontSize: '13px' }}>
+            House laid: £{houseLaid.toFixed(2)} | Layers: £{layersLaid.toFixed(2)}
+          </div>
+          <div style={{ marginTop: '6px', fontWeight: '600', color: b.result === 'won' ? '#ff6b6b' : b.result === 'lost' ? '#00ff88' : '#ffb347' }}>
+            {/* From House view: punter won = house lost */}
+            Result: {b.result === 'won' ? 'PUNTER WON (House lost)' : b.result === 'lost' ? 'PUNTER LOST (House won)' : (b.result || 'SETTLED').toUpperCase()}
+          </div>
+          {b.settlementNotes && (
+            <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>Notes: {b.settlementNotes}</div>
+          )}
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+            Placed: {b.createdAt ? new Date(b.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : 'N/A'}
+          </div>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+            Settled: {b.settledAt ? new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : 'N/A'}
+          </div>
+        </div>
+      );
+    })}
+</CollapsibleSection>
         </div>
       )}
-      {activeTab === 'settlement' && (
+    {activeTab === 'admin' && (
   <div>
-    <h2 style={{ color: '#00ff88' }}>Settlement</h2>
-    <p style={{ color: '#b0b0b0', marginBottom: '16px' }}>
-      Result finalised bets. Won / Lost updates balances automatically. Use Manual for dead heats, voids, Rule 4, etc.
-    </p>
+    <h2 style={{ color: '#00ff88' }}>Admin — Adjust balances</h2>
+<p style={{ color: '#b0b0b0', marginBottom: '16px' }}>Offline payments only. Credit / debit / set balances here.</p>
+<div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', marginBottom: '30px' }}>
+  <select
+    value={balanceUserId}
+    onChange={e => setBalanceUserId(parseInt(e.target.value))}
+    style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px', borderRadius: '6px', width: '100%', marginBottom: '8px' }}
+  >
+    {users.map(u => (
+      <option key={u.id} value={u.id}>{u.name} — £{Number(u.balance || 0).toFixed(2)}</option>
+    ))}
+  </select>
+  <input
+    type="number"
+    placeholder="Amount"
+    value={balanceAmount}
+    onChange={e => setBalanceAmount(e.target.value)}
+    style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px', borderRadius: '6px', width: '100%', marginBottom: '8px' }}
+  />
+  <div style={{ display: 'flex', gap: '8px' }}>
+    <button type="button" onClick={() => adjustBalance('credit')} style={{ flex: 1, padding: '10px', background: '#2d6a4f', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Credit</button>
+    <button type="button" onClick={() => adjustBalance('debit')} style={{ flex: 1, padding: '10px', background: '#7f1d1d', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Debit</button>
+    <button type="button" onClick={() => adjustBalance('set')} style={{ flex: 1, padding: '10px', background: '#3a3a5c', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Set</button>
+  </div>
+</div>
+
+<h2 style={{ color: '#00ff88' }}>Settlement</h2>
 
     <CollapsibleSection title="Awaiting Settlement" defaultOpen={true}>
       {allBets.filter(b => b.phase === 'finalized' && !b.settledAt).length === 0 && (
@@ -768,35 +837,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
     </CollapsibleSection>
   </div>
 )}
-      {activeTab === 'admin' && (
-        <div>
-          <h2 style={{ color: '#00ff88' }}>Admin — Adjust balances</h2>
-          <p style={{ color: '#b0b0b0', marginBottom: '16px' }}>Offline payments only. Credit / debit / set balances here.</p>
-          <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px' }}>
-            <select
-              value={balanceUserId}
-              onChange={e => setBalanceUserId(parseInt(e.target.value))}
-              style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px', borderRadius: '6px', width: '100%', marginBottom: '8px' }}
-            >
-              {users.map(u => (
-                <option key={u.id} value={u.id}>{u.name} — £{Number(u.balance || 0).toFixed(2)}</option>
-              ))}
-            </select>
-            <input
-              type="number"
-              placeholder="Amount"
-              value={balanceAmount}
-              onChange={e => setBalanceAmount(e.target.value)}
-              style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px', borderRadius: '6px', width: '100%', marginBottom: '8px' }}
-            />
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button type="button" onClick={() => adjustBalance('credit')} style={{ flex: 1, padding: '10px', background: '#2d6a4f', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Credit</button>
-              <button type="button" onClick={() => adjustBalance('debit')} style={{ flex: 1, padding: '10px', background: '#7f1d1d', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Debit</button>
-              <button type="button" onClick={() => adjustBalance('set')} style={{ flex: 1, padding: '10px', background: '#3a3a5c', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Set</button>
-            </div>
-          </div>
-        </div>
-      )}
+
       {activeTab === 'layer' && currentUser?.canLay && (
         <div>
           <h2 style={{ color: '#00ff88' }}>Bets Available to Lay</h2>
@@ -857,6 +898,39 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
               );
             })}
           </CollapsibleSection>
+          <CollapsibleSection title="Resulted Lays" defaultOpen={false}>
+  {allBets
+    .filter(b =>
+      (b.phase === 'settled' || b.settledAt) &&
+      (b.layerBids || []).some(l => Number(l.layerId) === Number(currentUser.id) && !l.rejected)
+    )
+    .sort((a, b) => new Date(b.settledAt || b.createdAt) - new Date(a.settledAt || a.createdAt))
+    .map(b => {
+      const myBid = (b.layerBids || []).find(l => Number(l.layerId) === Number(currentUser.id));
+      const myLaid = parseFloat(myBid?.actualLaid ?? myBid?.amount) || 0;
+      return (
+        <div key={b.id} style={card}>
+          <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
+          <div style={muted}>{b.selection} @ {b.odds} — Stake £{b.stake}</div>
+          <div style={{ marginTop: '6px', fontSize: '13px' }}>
+            Your lay: £{myLaid.toFixed(2)}
+          </div>
+          <div style={{ marginTop: '6px', fontWeight: '600', color: b.result === 'won' ? '#ff6b6b' : b.result === 'lost' ? '#00ff88' : '#ffb347' }}>
+            Result: {b.result === 'won' ? 'PUNTER WON (You lost)' : b.result === 'lost' ? 'PUNTER LOST (You won)' : (b.result || 'SETTLED').toUpperCase()}
+          </div>
+          {b.settlementNotes && (
+            <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>Notes: {b.settlementNotes}</div>
+          )}
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+            Placed: {b.createdAt ? new Date(b.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : 'N/A'}
+          </div>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+            Settled: {b.settledAt ? new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : 'N/A'}
+          </div>
+        </div>
+      );
+    })}
+</CollapsibleSection>
         </div>
       )}
 
