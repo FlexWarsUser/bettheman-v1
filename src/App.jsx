@@ -792,31 +792,28 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
   <div>
  
 <CollapsibleSection title="Settings" defaultOpen={false}>
-  <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px' }}>
-    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', cursor: 'pointer' }}>
-      <input
-        type="checkbox"
-        checked={settings.skipHouseFirstLook}
-        onChange={e => setSettings(s => ({
-          ...s,
-          skipHouseFirstLook: e.target.checked,
-          skipHouseResidual: e.target.checked ? s.skipHouseResidual : false,
-        }))}
-      />
-      Skip House first look (bets go straight to layers)
-    </label>
+            <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
+             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '10px 12px', alignItems: 'center', marginBottom: '12px', textAlign: 'left' }}>
+            <input
+              type="checkbox"
+              checked={settings.skipHouseFirstLook}
+              onChange={e => setSettings(s => ({
+                ...s,
+                skipHouseFirstLook: e.target.checked,
+                skipHouseResidual: e.target.checked ? s.skipHouseResidual : false,
+              }))}
+            />
+            <span style={{ color: '#e8e8e8', textAlign: 'left' }}>Skip House first look</span>
 
+            <input
+              type="checkbox"
+              checked={settings.skipHouseResidual}
+              disabled={!settings.skipHouseFirstLook}
+              onChange={e => setSettings(s => ({ ...s, skipHouseResidual: e.target.checked }))}
+            />
+            <span style={{ color: '#e8e8e8', textAlign: 'left' }}>Skip House residual</span>
+          </div>
     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', cursor: 'pointer' }}>
-      <input
-        type="checkbox"
-        checked={settings.skipHouseResidual}
-        disabled={!settings.skipHouseFirstLook}
-        onChange={e => setSettings(s => ({ ...s, skipHouseResidual: e.target.checked }))}
-      />
-      Skip House residual too (no second look)
-    </label>
-
-    <label style={{ display: 'block', marginBottom: '8px' }}>
       Lay stage timer (seconds)
       <input
         type="number"
@@ -832,7 +829,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
       onClick={saveSettings}
       style={{ marginTop: '12px', background: '#2d6a4f', color: 'white', padding: '10px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
     >
-      Save Settings
+      Save Settings 
     </button>
   </div>
 </CollapsibleSection>
