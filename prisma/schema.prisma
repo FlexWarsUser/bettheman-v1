@@ -12,6 +12,7 @@ model User {
   name      String
   canLay    Boolean   @default(false)
   balance   Float    @default(0)
+    weight    Float    @default(1)
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
 }
@@ -53,4 +54,10 @@ model LedgerEntry {
   @@index([betId])
   @@index([eventType])
   @@index([createdAt])
+}
+model Setting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
 }

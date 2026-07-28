@@ -101,6 +101,30 @@ async function settleBalancesForBet(bet) {
   await prisma.bet.update({ where: { id: bet.id }, data: { allocationComplete: true } });
   console.log(`✅ Punter ${bet.punterId} debited £${totalLaid} for bet ${bet.id}`);
 }
+const DEFAULT_SETTINGS = {
+  skipHouseFirstLook: "false",
+  skipHouseResidual: "false",
+  layerTimerSeconds: "30",
+};
+
+async function getSettings() {
+  const rows = await prisma.setting.findMany();
+  const map = { ...DEFAULT_SETTINGS };
+  for (const r of rows) map[r.key] = r.value;
+  return {
+    skipHouseFirstLook: map.skipHouseFirstLook === "true",
+    skipHouseResidual: map.skipHouseResidual === "true",
+    layerTimerSeconds: Math.max(5, parseInt(map.layerTimerSeconds) || 30),
+  };
+}
+
+async function setSetting(key, value) {
+  await prisma.setting.upsert({
+    where: { key },
+    create: { key, value: String(value) },
+    update: { value: String(value) },
+  });
+}
 function calcReturn(stake, oddsStr) {
   const s = parseFloat(stake);
   if (!s) return 0;
@@ -211,45 +235,57 @@ function serializeBet(bet) {
   };
 }
 
-function applyProRata(layerBids, remaining) {
-  const active = (layerBids || []).filter(b => !b.rejected);
-  const totalBids = active.reduce((sum, b) => sum + parseFloat(b.amount || 0), 0);
-  if (totalBids <= 0) return { bids: layerBids || [], totalLaid: 0 };
+async function applyProRata(layerBids, remaining) {
+  const weightRows = await prisma.$queryRaw`SELECT id, weight FROM "User" WHERE "canLay" = true`;
+  const weights = {};
+  for (const r of weightRows) weights[r.id] = Number(r.weight) || 1;
 
-  // Under-subscribed: each layer gets their full bid
-  if (totalBids < remaining - 0.01) {
-    const updated = (layerBids || []).map((bid) => {
-      if (bid.rejected) return bid;
-      const actualLaid = Math.round(parseFloat(bid.amount) * 100) / 100;
-      console.log(`[PRO-RATA] Layer ${bid.layerName}: Bid £${bid.amount} → Apportioned £${actualLaid.toFixed(2)} (under-subscribed)`);
-      return { ...bid, actualLaid };
+  const active = (layerBids || []).filter(b => !b.rejected && parseFloat(b.amount) > 0);
+  if (active.length === 0) return { bids: layerBids || [], totalLaid: 0 };
+
+  const totalBids = active.reduce((s, b) => s + parseFloat(b.amount), 0);
+
+  // Under-subscribed: everyone gets their full bid
+  if (totalBids <= remaining + 0.01) {
+    const bids = (layerBids || []).map(b => {
+      if (b.rejected || parseFloat(b.amount) <= 0) return { ...b, actualLaid: 0 };
+      return { ...b, actualLaid: parseFloat(b.amount) };
     });
-    const totalLaid = updated.filter(b => !b.rejected).reduce((s, b) => s + (b.actualLaid || 0), 0);
-    console.log(`[PRO-RATA TOTAL] Layers laid: £${totalLaid.toFixed(2)}`);
-    return { bids: updated, totalLaid };
+    const totalLaid = bids.reduce((s, b) => s + (parseFloat(b.actualLaid) || 0), 0);
+    return { bids, totalLaid };
   }
 
-  // Over-subscribed or exact: scale down pro-rata
-  const scale = remaining / totalBids;
-  let runningTotal = 0;
-  const updated = (layerBids || []).map((bid) => {
-    if (bid.rejected) return bid;
-    const idx = active.indexOf(bid);
-    if (idx === active.length - 1) {
-      const actualLaid = Math.round((remaining - runningTotal) * 100) / 100;
-      console.log(`[PRO-RATA] Layer ${bid.layerName}: Bid £${bid.amount} → Apportioned £${actualLaid.toFixed(2)} (scale=${scale.toFixed(4)})`);
-      return { ...bid, actualLaid };
+  // Over-subscribed: weighted pro-rata
+  // share_i = (bid_i * weight_i) / sum(bid_j * weight_j)
+  const weighted = active.map(b => {
+    const w = Number(weights[b.layerId] ?? weights[String(b.layerId)] ?? 1) || 1;
+    return { ...b, w, score: parseFloat(b.amount) * w };
+  });
+  const totalScore = weighted.reduce((s, b) => s + b.score, 0);
+
+  let allocated = 0;
+  const laidMap = {};
+  weighted.forEach((b, i) => {
+    let laid;
+    if (i === weighted.length - 1) {
+      laid = Math.round((remaining - allocated) * 100) / 100;
+    } else {
+      laid = Math.round((remaining * (b.score / totalScore)) * 100) / 100;
+      allocated += laid;
     }
-    const actualLaid = Math.round(parseFloat(bid.amount) * scale * 100) / 100;
-    runningTotal += actualLaid;
-    console.log(`[PRO-RATA] Layer ${bid.layerName}: Bid £${bid.amount} → Apportioned £${actualLaid.toFixed(2)} (scale=${scale.toFixed(4)})`);
-    return { ...bid, actualLaid };
+    laidMap[b.layerId] = laid;
+    console.log(`[PRO-RATA] Layer ${b.layerName}: Bid £${b.amount} weight=${b.w} → Apportioned £${laid.toFixed(2)}`);
   });
 
-  const totalLaid = updated.filter(b => !b.rejected).reduce((s, b) => s + (b.actualLaid || 0), 0);
+  const bids = (layerBids || []).map(b => {
+    if (b.rejected || parseFloat(b.amount) <= 0) return { ...b, actualLaid: 0 };
+    return { ...b, actualLaid: laidMap[b.layerId] ?? 0 };
+  });
+  const totalLaid = bids.reduce((s, b) => s + (parseFloat(b.actualLaid) || 0), 0);
   console.log(`[PRO-RATA TOTAL] Layers laid: £${totalLaid.toFixed(2)}`);
-  return { bids: updated, totalLaid };
+  return { bids, totalLaid };
 }
+
 
 async function processExpiredTimers() {
   const now = new Date();
@@ -261,11 +297,12 @@ async function processExpiredTimers() {
   });
 
   for (const bet of houseReviewBets) {
+    const settings = await getSettings();
     await prisma.bet.update({
       where: { id: bet.id },
       data: {
         phase: "layer_bidding",
-        layerTimerEnd: new Date(now.getTime() + 30 * 1000),
+        layerTimerEnd: new Date(now.getTime() + settings.layerTimerSeconds * 1000),
         houseTimerEnd: null,
       }
     });
@@ -286,7 +323,7 @@ async function processExpiredTimers() {
 
     console.log(`[TIMER] Bet ${bet.id} expired. RemainingForLayers: £${remainingForLayers}`);
 
-    const { bids, totalLaid } = applyProRata(currentBids, remainingForLayers);
+const { bids, totalLaid } = await applyProRata(currentBids, remainingForLayers);
 
     if (totalLaid >= remainingForLayers - 0.01) {
       const updated = await prisma.bet.update({
@@ -301,19 +338,40 @@ async function processExpiredTimers() {
       });
       await settleBalancesForBet(updated);   // balance fix
     } else {
-      const residual = Math.round((remainingForLayers - totalLaid) * 100) / 100;
-      await prisma.bet.update({
-        where: { id: bet.id },
-        data: {
-          phase: "house_residual",
-          residualStake: residual,
-          houseTimerEnd: new Date(now.getTime() + 30 * 1000),
-          layerBids: bids,
-          layerTimerEnd: null,
-        }
-      });
-      console.log(`[RESIDUAL] £${residual} to House for bet ${bet.id}`);
+  const settings = await getSettings();
+  if (settings.skipHouseResidual) {
+    const totalWithHouse = houseLaid + totalLaid;
+    const data = {
+      phase: "finalized",
+      layerBids: bids,
+      layerTimerEnd: null,
+      houseTimerEnd: null,
+    };
+    if (totalWithHouse <= 0.01) {
+      data.status = "rejected";
+      data.houseAction = "Rejected";
+    } else {
+      data.status = "accepted";
+      data.acceptedAt = now;
     }
+    const updated = await prisma.bet.update({ where: { id: bet.id }, data });
+    await settleBalancesForBet(updated);
+    console.log(`[SKIP RESIDUAL] Bet ${bet.id} finalized. Total: £${totalWithHouse.toFixed(2)}`);
+  } else {
+    const residual = Math.round((remainingForLayers - totalLaid) * 100) / 100;
+    await prisma.bet.update({
+      where: { id: bet.id },
+      data: {
+        phase: "house_residual",
+        residualStake: residual,
+        houseTimerEnd: new Date(now.getTime() + 30 * 1000),
+        layerBids: bids,
+        layerTimerEnd: null,
+      }
+    });
+    console.log(`[RESIDUAL] £${residual} to House for bet ${bet.id}`);
+  }
+}
     changed = true;
   }
 
@@ -377,7 +435,7 @@ app.delete("/api/bets", async (req, res) => {
 app.get("/api/users", async (req, res) => {
   try {
     const users = await prisma.$queryRaw`
-      SELECT id, name, "canLay", balance, "createdAt", "updatedAt"
+SELECT id, name, "canLay", balance, weight, "createdAt", "updatedAt"
       FROM "User"
       ORDER BY id ASC
     `;
@@ -421,6 +479,20 @@ app.post("/api/users/:id/balance", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+app.post("/api/users/:id/weight", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    let w = parseFloat(req.body.weight);
+    if (isNaN(w)) return res.status(400).json({ error: "Invalid weight" });
+    w = Math.min(2, Math.max(1, Math.round(w * 10) / 10));
+    await prisma.$executeRaw`
+      UPDATE "User" SET weight = ${w}, "updatedAt" = NOW() WHERE id = ${id}
+    `;
+    res.json({ success: true, id, weight: w });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 app.post("/api/bets", async (req, res) => {
   try {
         const punterId = parseInt(req.body.punterId);
@@ -429,23 +501,36 @@ app.post("/api/bets", async (req, res) => {
     if (stake > bal) {
       return res.status(400).json({ success: false, error: `Insufficient balance. You have £${bal.toFixed(2)}` });
     }
-    const now = new Date();
-    const bet = await prisma.bet.create({
-      data: {
-        punterId: parseInt(req.body.punterId),
-        punterName: req.body.punterName || "Unknown",
-        event: req.body.event,
-        selection: req.body.selection,
-        odds: String(req.body.odds),
-        stake: parseFloat(req.body.stake),
-        status: "pending",
-        phase: "house_review",
-        houseAmount: 0,
-        houseTimerEnd: new Date(now.getTime() + 30 * 1000),
-        layerTimerEnd: new Date(now.getTime() + 30 * 1000),
-        layerBids: [],
-      }
-    });
+   const settings = await getSettings();
+const layerSecs = settings.layerTimerSeconds;
+const now = new Date();
+
+let phase = "house_review";
+let houseTimerEnd = new Date(now.getTime() + 30 * 1000);
+let layerTimerEnd = null;
+
+if (settings.skipHouseFirstLook) {
+  phase = "layer_bidding";
+  houseTimerEnd = null;
+  layerTimerEnd = new Date(now.getTime() + layerSecs * 1000);
+}
+
+const bet = await prisma.bet.create({
+  data: {
+    punterId: parseInt(req.body.punterId),
+    punterName: req.body.punterName || "Unknown",
+    event: req.body.event,
+    selection: req.body.selection,
+    odds: String(req.body.odds),
+    stake: parseFloat(req.body.stake),
+    status: "pending",
+    phase,
+    houseAmount: 0,
+    houseTimerEnd,
+    layerTimerEnd,
+    layerBids: [],
+  }
+});
     const serialized = serializeBet(bet);
     await writeLedger({
   betId: bet.id,
@@ -522,7 +607,8 @@ app.post("/api/bets/:id/action", async (req, res) => {
         }
       } else {
         data.phase = "layer_bidding";
-        data.layerTimerEnd = new Date(now.getTime() + 30 * 1000);
+      const settings = await getSettings();
+data.layerTimerEnd = new Date(now.getTime() + settings.layerTimerSeconds * 1000);
       }
     } else if (action === "Rejected") {
       data = { houseAction: "Rejected" };
@@ -539,7 +625,8 @@ app.post("/api/bets/:id/action", async (req, res) => {
         }
       } else {
         data.phase = "layer_bidding";
-        data.layerTimerEnd = new Date(now.getTime() + 30 * 1000);
+       const settings = await getSettings();
+data.layerTimerEnd = new Date(now.getTime() + settings.layerTimerSeconds * 1000);
       }
     }
    
@@ -640,7 +727,7 @@ app.post("/api/bets/:id/layer-bid", async (req, res) => {
         .reduce((s, b) => s + parseFloat(b.amount || 0), 0);
 
       if (allLayersActed && activeBidsTotal < remaining - 0.01) {
-        const { bids, totalLaid } = applyProRata(layerBids, remaining);
+              const { bids, totalLaid } = await applyProRata(layerBids, remaining);
         const residual = Math.round((remaining - totalLaid) * 100) / 100;
 
         if (residual <= 0.01) {
@@ -656,34 +743,55 @@ app.post("/api/bets/:id/layer-bid", async (req, res) => {
                   });
         await settleBalancesForBet(updated);
         console.log(`[EARLY FULL] Bet ${id} fully covered. Laid: £${totalLaid.toFixed(2)}`);
-        } else {
-          updated = await prisma.bet.update({
-            where: { id },
-            data: {
-              phase: "house_residual",
-              residualStake: residual,
-              houseTimerEnd: new Date(Date.now() + 30 * 1000),
-              layerBids: bids,
-              layerTimerEnd: null,
-            }
-          });
-          console.log(`[EARLY RESIDUAL] £${residual} to House for bet ${id} (all layers acted)`);
-        }
-      } else if (allLayersActed && activeBidsTotal >= remaining - 0.01) {
-        const { bids, totalLaid } = applyProRata(layerBids, remaining);
-        updated = await prisma.bet.update({
-          where: { id },
-          data: {
-            status: "accepted",
-            phase: "finalized",
-            acceptedAt: new Date(),
-            layerBids: bids,
-            layerTimerEnd: null,
-          }
-        });
-                await settleBalancesForBet(updated);
-        console.log(`[EARLY FULL] Bet ${id} fully covered by layers. Laid: £${totalLaid.toFixed(2)}`);
+       } else {
+  const settings = await getSettings();
+  if (settings.skipHouseResidual) {
+    const totalWithHouse = Number(bet.houseAmount || 0) + totalLaid;
+    const data = {
+      phase: "finalized",
+      layerBids: bids,
+      layerTimerEnd: null,
+      houseTimerEnd: null,
+    };
+    if (totalWithHouse <= 0.01) {
+      data.status = "rejected";
+      data.houseAction = "Rejected";
+    } else {
+      data.status = "accepted";
+      data.acceptedAt = new Date();
+    }
+    updated = await prisma.bet.update({ where: { id }, data });
+    await settleBalancesForBet(updated);
+    console.log(`[SKIP RESIDUAL EARLY] Bet ${id} finalized. Total: £${totalWithHouse.toFixed(2)}`);
+  } else {
+    updated = await prisma.bet.update({
+      where: { id },
+      data: {
+        phase: "house_residual",
+        residualStake: residual,
+        houseTimerEnd: new Date(Date.now() + 30 * 1000),
+        layerBids: bids,
+        layerTimerEnd: null,
       }
+    });
+    console.log(`[EARLY RESIDUAL] £${residual} to House for bet ${id} (all layers acted)`);
+  }
+}
+     } else if (allLayersActed && activeBidsTotal >= remaining - 0.01) {
+      const { bids, totalLaid } = await applyProRata(layerBids, remaining);
+      updated = await prisma.bet.update({
+        where: { id },
+        data: {
+          status: "accepted",
+          phase: "finalized",
+          acceptedAt: new Date(),
+          layerBids: bids,
+          layerTimerEnd: null,
+        }
+      });
+      await settleBalancesForBet(updated);
+      console.log(`[EARLY FULL] Bet ${id} fully covered by layers. Laid: £${totalLaid.toFixed(2)}`);
+    }
     }
 
     const serialized = serializeBet(updated);
@@ -739,6 +847,33 @@ app.get("/api/ledger", async (req, res) => {
     })));
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+app.get("/api/settings", async (req, res) => {
+  try {
+    const settings = await getSettings();
+    res.json(settings);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/settings", async (req, res) => {
+  try {
+    const { skipHouseFirstLook, skipHouseResidual, layerTimerSeconds } = req.body;
+    if (typeof skipHouseFirstLook === "boolean") {
+      await setSetting("skipHouseFirstLook", skipHouseFirstLook);
+    }
+    if (typeof skipHouseResidual === "boolean") {
+      await setSetting("skipHouseResidual", skipHouseResidual);
+    }
+    if (layerTimerSeconds != null) {
+      await setSetting("layerTimerSeconds", Math.max(5, parseInt(layerTimerSeconds) || 30));
+    }
+    const settings = await getSettings();
+    res.json({ success: true, settings });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

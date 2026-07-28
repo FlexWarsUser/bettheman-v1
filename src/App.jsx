@@ -72,6 +72,11 @@ const [currentUser, setCurrentUser] = useState(MOCK_USERS.find(u => u.id === 1) 
   const [balanceUserId, setBalanceUserId] = useState(1);
   const [balanceAmount, setBalanceAmount] = useState('');
 const [ledger, setLedger] = useState([]);
+const [settings, setSettings] = useState({
+  skipHouseFirstLook: false,
+  skipHouseResidual: false,
+  layerTimerSeconds: 30,
+});
 const fetchBets = async () => {
   try {
     const res = await fetch(`${API}/api/bets`);
@@ -91,11 +96,17 @@ const fetchLedger = async () => {
     }
   } catch (e) {}
 };
-
+const fetchSettings = async () => {
+  try {
+    const res = await fetch(`${API}/api/settings`);
+    if (res.ok) setSettings(await res.json());
+  } catch (e) {}
+};
 useEffect(() => {
   fetchBets();
   fetchUsers();
   fetchLedger();
+  fetchSettings();
   const interval = setInterval(fetchBets, 1500);
   return () => clearInterval(interval);
 }, []);
@@ -132,7 +143,21 @@ useEffect(() => {
       alert('Failed: ' + e.message);
     }
   };
-
+const saveSettings = async () => {
+  try {
+    const res = await fetch(`${API}/api/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (!res.ok) return alert('Failed to save settings');
+    const data = await res.json();
+    if (data.settings) setSettings(data.settings);
+    alert('Settings saved');
+  } catch (e) {
+    alert('Failed to save settings');
+  }
+};
 
   const handleSubmit = async (e) => {
   e.preventDefault();
@@ -498,11 +523,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
                   <div style={{ marginTop: '5px', color: '#00ff88', fontWeight: '600' }}>
                     {isFull ? 'Accepted in Full' : totalLaid > 0 ? `Partially Laid (£${totalLaid.toFixed(2)} of £${b.stake})` : `£0 of £${b.stake}`}
                   </div>
-                  {(houseLaid > 0 || layersLaid > 0) && (
-                    <div style={{ fontSize: '12px', color: '#b0b0b0', marginTop: '4px' }}>
-                      House: £{houseLaid.toFixed(2)} | Layers: £{layersLaid.toFixed(2)}
-                    </div>
-                  )}
+                 
                   {b.acceptedAt && (
                     <div style={{ fontSize: '12px', color: '#00ff88' }}>
                       Accepted: {new Date(b.acceptedAt).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) + ' UTC'}
@@ -770,7 +791,51 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
     {activeTab === 'admin' && (
   <div>
  
+<CollapsibleSection title="Settings" defaultOpen={false}>
+  <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px' }}>
+    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', cursor: 'pointer' }}>
+      <input
+        type="checkbox"
+        checked={settings.skipHouseFirstLook}
+        onChange={e => setSettings(s => ({
+          ...s,
+          skipHouseFirstLook: e.target.checked,
+          skipHouseResidual: e.target.checked ? s.skipHouseResidual : false,
+        }))}
+      />
+      Skip House first look (bets go straight to layers)
+    </label>
 
+    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', cursor: 'pointer' }}>
+      <input
+        type="checkbox"
+        checked={settings.skipHouseResidual}
+        disabled={!settings.skipHouseFirstLook}
+        onChange={e => setSettings(s => ({ ...s, skipHouseResidual: e.target.checked }))}
+      />
+      Skip House residual too (no second look)
+    </label>
+
+    <label style={{ display: 'block', marginBottom: '8px' }}>
+      Lay stage timer (seconds)
+      <input
+        type="number"
+        min={5}
+        value={settings.layerTimerSeconds}
+        onChange={e => setSettings(s => ({ ...s, layerTimerSeconds: parseInt(e.target.value) || 30 }))}
+        style={{ display: 'block', marginTop: '6px', background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px', borderRadius: '6px', width: '100%' }}
+      />
+    </label>
+
+    <button
+      type="button"
+      onClick={saveSettings}
+      style={{ marginTop: '12px', background: '#2d6a4f', color: 'white', padding: '10px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+    >
+      Save Settings
+    </button>
+  </div>
+</CollapsibleSection>
 <h2 style={{ color: '#00ff88' }}>Settlement</h2>
 
     <CollapsibleSection title="Awaiting Settlement" defaultOpen={true}>
@@ -871,6 +936,34 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
     </div>
   </div>
 </CollapsibleSection>
+          <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', marginTop: '20px' }}>
+            <h3 style={{ color: '#00ff88', marginTop: 0 }}>Layer pro-rata weights</h3>
+            <p style={{ color: '#b0b0b0', fontSize: '13px' }}>1.0 = equal share. 2.0 = double share. Range 1.0–2.0.</p>
+{users.filter(u => u.canLay && u.name !== 'House').map(u => (
+              <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                <span style={{ flex: 1 }}>{u.name}</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={2}
+                  step={0.1}
+                  value={Number(u.weight ?? 1)}
+                  onChange={async (e) => {
+                    let w = parseFloat(e.target.value);
+                    if (isNaN(w)) return;
+                    w = Math.min(2, Math.max(1, Math.round(w * 10) / 10));
+                    await fetch(`${API}/api/users/${u.id}/weight`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ weight: w })
+                    });
+                    fetchUsers();
+                  }}
+                  style={{ width: '80px', background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '6px', borderRadius: '6px' }}
+                />
+              </div>
+            ))}
+          </div>
 <CollapsibleSection title="Ledger" defaultOpen={false}>
   <div style={{ marginBottom: '10px' }}>
     <button
