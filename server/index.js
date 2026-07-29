@@ -6,6 +6,7 @@ const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
 const { PrismaClient } = require("@prisma/client");
+const bcrypt = require("bcryptjs");
 
 const prisma = new PrismaClient();
 const app = express();
@@ -493,6 +494,174 @@ app.post("/api/users/:id/weight", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: "Email and password required" });
+    }
+    const rows = await prisma.$queryRaw`
+      SELECT id, name, email, "canLay", balance, weight, role, "passwordHash", "mustChangePassword"
+      FROM "User" WHERE lower(email) = ${email}
+    `;
+    const user = rows[0];
+    if (!user || !user.passwordHash) {
+      return res.status(401).json({ success: false, error: "Invalid login" });
+    }
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) {
+      return res.status(401).json({ success: false, error: "Invalid login" });
+    }
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        canLay: user.canLay,
+        balance: Number(user.balance) || 0,
+        weight: Number(user.weight) || 1,
+        role: user.role || "punter",
+        mustChangePassword: !!user.mustChangePassword,   // ← add this
+  },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+app.post("/api/auth/set-password", async (req, res) => {
+  try {
+    const userId = parseInt(req.body.userId);
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+    const role = String(req.body.role || "punter");
+    if (!userId || !email || !password) {
+      return res.status(400).json({ success: false, error: "userId, email and password required" });
+    }
+    if (password.length < 4) {
+      return res.status(400).json({ success: false, error: "Password too short" });
+    }
+    const hash = await bcrypt.hash(password, 10);
+    await prisma.$executeRaw`
+      UPDATE "User"
+      SET email = ${email}, "passwordHash" = ${hash}, role = ${role},
+          "mustChangePassword" = true, "updatedAt" = NOW()
+      WHERE id = ${userId}
+    `;
+    console.log(`Auth set for user ${userId} (${email}) role=${role}`);
+    res.json({ success: true, userId, email, role });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+app.post('/api/auth/create-user', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name ||  !email || !password) {
+      return res.status(400).json({ success: false, error: 'Name, email and password required' });
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return res.status(400).json({ success: false, error: 'Email already in use' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        passwordHash,
+        name,
+        role: 'punter',
+        canLay: false,
+        balance: 0,
+        weight: 1.0,
+        mustChangePassword: true,    // force change on first login if you wired it
+      },
+    });
+
+    res.json({ success: true, userId: user.id, email: user.email });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+app.post("/api/auth/change-password", async (req, res) => {
+  try {
+    const userId = parseInt(req.body.userId);
+    const currentPassword = String(req.body.currentPassword || "");
+    const newPassword = String(req.body.newPassword || "");
+    if (!userId || !currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, error: "All fields required" });
+    }
+    if (newPassword.length < 4) {
+      return res.status(400).json({ success: false, error: "New password too short" });
+    }
+    const rows = await prisma.$queryRaw`
+      SELECT id, "passwordHash" FROM "User" WHERE id = ${userId}
+    `;
+    const user = rows[0];
+    if (!user || !user.passwordHash) {
+      return res.status(400).json({ success: false, error: "No password set" });
+    }
+    const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!ok) {
+      return res.status(401).json({ success: false, error: "Current password wrong" });
+    }
+    const hash = await bcrypt.hash(newPassword, 10);
+    await prisma.$executeRaw`
+      UPDATE "User" SET "passwordHash" = ${hash}, "mustChangePassword" = false, "updatedAt" = NOW()
+      WHERE id = ${userId}
+    `;
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+app.post("/api/users", async (req, res) => {
+  try {
+    const name = String(req.body.name || "").trim();
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+    const role = String(req.body.role || "punter");
+    const canLay = Boolean(req.body.canLay);
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, error: "name, email and password required" });
+    }
+    const hash = await bcrypt.hash(password, 10);
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        passwordHash: hash,
+        role,
+        canLay,
+        balance: 0,
+        weight: 1,
+      },
+    });
+    console.log("Created user", user.id, user.email);
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        canLay: user.canLay,
+        balance: user.balance,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 app.post("/api/bets", async (req, res) => {
   try {
         const punterId = parseInt(req.body.punterId);
@@ -871,10 +1040,26 @@ app.post("/api/settings", async (req, res) => {
     if (layerTimerSeconds != null) {
       await setSetting("layerTimerSeconds", Math.max(5, parseInt(layerTimerSeconds) || 30));
     }
-    const settings = await getSettings();
+    const settings = await getSettings();nod
     res.json({ success: true, settings });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+app.post("/api/users/:id/rights", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const canLay = Boolean(req.body.canLay);
+    const role = String(req.body.role || "punter");
+    await prisma.$executeRaw`
+      UPDATE "User"
+      SET "canLay" = ${canLay}, role = ${role}, "updatedAt" = NOW()
+      WHERE id = ${id}
+    `;
+    res.json({ success: true, id, canLay, role });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 io.on("connection", (socket) => {
