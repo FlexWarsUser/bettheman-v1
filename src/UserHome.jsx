@@ -404,36 +404,58 @@ const changePassword = async () => {
       </CollapsibleSection>
 
       <CollapsibleSection title={`Settled Bets (${settledBets.length})`} defaultOpen={false}>
-        {settledBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No settled bets yet.</p>}
-        {settledBets.map(b => {
-          const house = Number(b.houseAmount) || 0;
-          const layers = (b.layerBids || []).reduce((s, l) => s + (Number(l.actualLaid) || 0), 0);
-          const matched = house + layers;
-          const isWon = b.result === 'won';
-          // simple return calculation (stake + profit)
-          let returns = 0;
-          if (isWon && matched > 0) {
-            const oddsStr = String(b.odds).trim();
-            if (oddsStr.includes('/')) {
-              const [n, d] = oddsStr.split('/').map(Number);
-              returns = matched * (1 + n / (d || 1));
-            } else {
-              returns = matched * (parseFloat(oddsStr) || 1);
-            }
-          }
-          return (
-            <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
-              <div style={{ fontWeight: 600 }}>{b.event}</div>
-              <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds} — Stake £{b.stake}</div>
-              <div style={{ marginTop: 6, fontWeight: 600, color: isWon ? '#00ff88' : '#ff6b6b' }}>
-                {isWon ? 'WON' : 'LOST'}
-                {isWon && returns > 0 ? ` — Returns £${returns.toFixed(2)}` : ''}
-              </div>
-              <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
-                Settled: {b.settledAt ? new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '—'}
-              </div>
-            </div>
-          );
+     {settledBets.map(b => {
+  const house = Number(b.houseAmount) || 0;
+  const layers = (b.layerBids || []).reduce((s, l) => s + (Number(l.actualLaid) || 0), 0);
+  const matched = house + layers;
+
+  const isWon = b.result === 'won';
+  const isManual = b.result === 'manual';
+
+  let returns = 0;
+  if (isWon && matched > 0) {
+    const oddsStr = String(b.odds).trim();
+    if (oddsStr.includes('/')) {
+      const [n, d] = oddsStr.split('/').map(Number);
+      returns = matched * (1 + n / (d || 1));
+    } else {
+      returns = matched * (parseFloat(oddsStr) || 1);
+    }
+  }
+
+  // display label
+  let resultLabel = 'LOST';
+  let resultColor = '#ff6b6b';
+  if (isWon) {
+    resultLabel = 'WON';
+    resultColor = '#00ff88';
+  } else if (isManual) {
+    resultLabel = 'SETTLED (Manual)';
+    resultColor = '#ffb347';
+  }
+
+  return (
+    <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+      <div style={{ fontWeight: 600 }}>{b.event}</div>
+      <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds} — Stake £{b.stake}</div>
+
+      <div style={{ marginTop: 6, fontWeight: 600, color: resultColor }}>
+        {resultLabel}
+        {isWon && returns > 0 ? ` — Returns £${returns.toFixed(2)}` : ''}
+      </div>
+
+      {b.settlementNotes && (
+        <div style={{ fontSize: 13, color: '#ffb347', marginTop: 4 }}>
+          Note: {b.settlementNotes}
+        </div>
+      )}
+
+      <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+        Settled: {b.settledAt ? new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '—'}
+      </div>
+    </div>
+  );
+})}
         })}
       </CollapsibleSection>
 
