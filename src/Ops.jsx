@@ -59,8 +59,9 @@ function CollapsibleSection({ title, children, defaultOpen = false }) {
 }
 
 function Ops() {
-  const [activeTab, setActiveTab] = useState('punter');
+  const [activeTab, setActiveTab] = useState('house');   // was 'punter'
 const [currentUser, setCurrentUser] = useState(MOCK_USERS.find(u => u.id === 1) || MOCK_USERS[0]);
+const [authName, setAuthName] = useState('');
   const [bet, setBet] = useState({ event: '', selection: '', odds: '', stake: '' });
   const [message, setMessage] = useState('');
   const [layerMessage, setLayerMessage] = useState('');
@@ -69,8 +70,10 @@ const [currentUser, setCurrentUser] = useState(MOCK_USERS.find(u => u.id === 1) 
   const [bidAmount, setBidAmount] = useState({});
   const [showBidConfirm, setShowBidConfirm] = useState(null);
     const [users, setUsers] = useState([]);
-  const [balanceUserId, setBalanceUserId] = useState(1);
+  const [balanceUserId, setBalanceUserId] = useState(7);
   const [balanceAmount, setBalanceAmount] = useState('');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
 const [ledger, setLedger] = useState([]);
 const [settings, setSettings] = useState({
   skipHouseFirstLook: false,
@@ -143,6 +146,35 @@ useEffect(() => {
       alert('Failed: ' + e.message);
     }
   };
+    const setUserAuth = async () => {
+    if (!authEmail || !authPassword) {
+      alert('Email and password required');
+      return;
+    }
+    try {
+      const res = await fetch(`${API}/api/auth/set-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: authName,
+          userId: authUserId,
+          email: authEmail,
+          password: authPassword,
+          role: authRole,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert(data.error || 'Failed');
+        return;
+      }
+      alert(`Login set for user ${data.userId}: ${data.email} (${data.role})`);
+      setAuthPassword('');
+      fetchUsers();
+    } catch (e) {
+      alert(e.message);
+    }
+  };
 const saveSettings = async () => {
   try {
     const res = await fetch(`${API}/api/settings`, {
@@ -156,6 +188,35 @@ const saveSettings = async () => {
     alert('Settings saved');
   } catch (e) {
     alert('Failed to save settings');
+  }
+};
+const createNewUser = async () => {
+  if (!authName || !authEmail || !authPassword) {
+    alert('Full name, email and temporary password required');
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/api/auth/create-user`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: authName,
+        email: authEmail,
+        password: authPassword,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      alert(data.error || 'Failed to create user');
+      return;
+    }
+    alert(`User created (id ${data.userId}): ${data.email}`);
+    setAuthName('');
+    setAuthEmail('');
+    setAuthPassword('');
+    fetchUsers();
+  } catch (e) {
+    alert(e.message);
   }
 };
 
@@ -404,26 +465,12 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
       <h1 style={{ textAlign: 'center', marginBottom: '30px', color: '#00ff88' }}>BetTheMan</h1>
 
       <div style={{ textAlign: 'center', marginBottom: '25px' }}>
-      {activeTab !== 'admin' && (
-  <select
-    value={currentUser.id}
-    onChange={(e) => setCurrentUser(MOCK_USERS.find(u => u.id === parseInt(e.target.value)))}
-    style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px 12px', borderRadius: '6px' }}
-  >
-{MOCK_USERS
-  .filter(u => u.id !== 0)
-  .map(u => (
-        <option key={u.id} value={u.id}>
-          {u.name} {u.canLay ? "★" : ""}
-        </option>
-      ))}
-  </select>
-)}
+
         <div style={{ marginTop: '8px', color: '#00ff88', fontWeight: '600' }}>
                   <div style={{ marginTop: '8px', fontWeight: '600' }}>
 <span style={{ color: '#00ff88' }}>
   Balance: £{Number(
-    users.find(u => Number(u.id) === Number(activeTab === 'house' ? 0 : currentUser.id))?.balance ?? 0
+users.find(u => Number(u.id) === 7)?.balance ?? 0
   ).toFixed(2)}
 </span>
 {(activeTab === 'house' || currentUser.canLay) && (
@@ -439,150 +486,46 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
         </div>
         </div>
       </div>
-
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '30px' }}>
-  {['punter', 'house', 'layer', 'admin'].map(tab => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
+            type="button"
+            onClick={() => {
+              localStorage.removeItem('btm_user');
+              window.location.href = '/';
+            }}
             style={{
-              background: activeTab === tab ? '#00ff88' : '#252540',
-              color: activeTab === tab ? '#0f0c29' : '#e8e8e8',
-              border: '1px solid #3a3a5c',
-              padding: '10px 18px',
-              borderRadius: '8px',
+              marginLeft: 12,
+              padding: '6px 12px',
+              background: '#3a3a5c',
+              color: '#e8e8e8',
+              border: 'none',
+              borderRadius: 6,
               cursor: 'pointer',
-              fontWeight: '600',
-              textTransform: 'capitalize'
             }}
           >
-            {tab}
+            Log out
           </button>
-        ))}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '30px' }}>
+  {['house', 'settlement', 'admin'].map(tab => (
+  <button
+    key={tab}
+    onClick={() => setActiveTab(tab)}
+    style={{
+      background: activeTab === tab ? '#00ff88' : '#252540',
+      color: activeTab === tab ? '#0f0c29' : '#e8e8e8',
+      border: '1px solid #3a3a5c',
+      padding: '10px 18px',
+      borderRadius: '8px',
+      cursor: 'pointer',
+      fontWeight: '600',
+      textTransform: 'capitalize'
+    }}
+  >
+    {tab}
+  </button>
+))}
       </div>
 
-      {activeTab === 'punter' && (
-        <div>
-          <h2 style={{ color: '#00ff88' }}>Place Bet</h2>
-          <form onSubmit={handleSubmit} style={{ maxWidth: '420px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {['event', 'selection', 'odds', 'stake'].map(field => (
-  <input
-    key={field}
-    type="text"
-    placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
-    value={bet[field]}
-    onChange={e => setBet({ ...bet, [field]: e.target.value })}
-    required
-    style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '12px', borderRadius: '8px' }}
-  />
-))}
-            <button type="submit" style={{ background: '#00ff88', color: '#0f0c29', padding: '14px', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>
-              Submit Bet
-            </button>
-          </form>
-         {message && (
-  <p style={{ 
-    textAlign: 'center', 
-    marginTop: '15px', 
-    fontWeight: 'bold', 
-    color: message.includes('Odds must') || message.includes('Error') ? '#ff6b6b' : '#00ff88' 
-  }}>
-    {message}
-  </p>
-)}
-
-<CollapsibleSection title="Pending Bets" defaultOpen={true}>
-{allBets.filter(b =>
-  b.punterId === currentUser.id &&
-  b.phase !== 'finalized' &&
-  b.phase !== 'settled' &&
-  !b.settledAt &&
-  b.status !== 'rejected'
-).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(b => (
-              <div key={b.id} style={card}>
-                <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-                <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
-                <div style={{ fontSize: '12px', color: '#ffb347', fontWeight: '600' }}>Pending</div>
-                <div style={{ fontSize: '12px', color: '#999' }}>
-                  Submitted: {b.createdAt ? new Date(b.createdAt).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) + ' UTC' : 'N/A'}
-                </div>
-              </div>
-            ))}
-          </CollapsibleSection>
-
-          <CollapsibleSection title="Active Bets" defaultOpen={true}>
-            {activeBets.filter(b => b.punterId === currentUser.id).map(b => {
-              const houseLaid = parseFloat(b.houseAmount) || 0;
-              const layersLaid = (b.layerBids || []).reduce((sum, l) => sum + (parseFloat(l.actualLaid) || 0), 0);
-              const totalLaid = houseLaid + layersLaid;
-              const isFull = totalLaid >= parseFloat(b.stake) - 0.01;
-              return (
-                <div key={b.id} style={cardGreen}>
-                  <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-                  <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
-                  <div style={{ marginTop: '5px', color: '#00ff88', fontWeight: '600' }}>
-                    {isFull ? 'Accepted in Full' : totalLaid > 0 ? `Partially Laid (£${totalLaid.toFixed(2)} of £${b.stake})` : `£0 of £${b.stake}`}
-                  </div>
-                 
-                  {b.acceptedAt && (
-                    <div style={{ fontSize: '12px', color: '#00ff88' }}>
-                      Accepted: {new Date(b.acceptedAt).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) + ' UTC'}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </CollapsibleSection>
-
-<CollapsibleSection title="Settled Bets" defaultOpen={true}>
-  {allBets
-    .filter(b => b.punterId === currentUser.id && (b.phase === 'settled' || b.settledAt))
-    .sort((a, b) => new Date(b.settledAt || b.createdAt) - new Date(a.settledAt || a.createdAt))
-    .map(b => {
-      const houseLaid = parseFloat(b.houseAmount) || 0;
-      const layersLaid = (b.layerBids || []).reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
-      const matched = houseLaid + layersLaid;
-      return (
-        <div key={b.id} style={card}>
-          <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-          <div style={muted}>{b.selection} @ {b.odds} — Stake £{b.stake}</div>
-          <div style={{ marginTop: '6px', fontSize: '13px' }}>
-            Matched: £{matched.toFixed(2)} (House £{houseLaid.toFixed(2)} | Layers £{layersLaid.toFixed(2)})
-          </div>
-          <div style={{ marginTop: '6px', fontWeight: '600', color: b.result === 'won' ? '#00ff88' : b.result === 'lost' ? '#ff6b6b' : '#ffb347' }}>
-            Result: {(b.result || 'settled').toUpperCase()}
-          </div>
-          {b.settlementNotes && (
-            <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>Notes: {b.settlementNotes}</div>
-          )}
-          <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
-            Placed: {b.createdAt ? new Date(b.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : 'N/A'}
-          </div>
-          <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
-            Settled: {b.settledAt ? new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : 'N/A'}
-          </div>
-        </div>
-      );
-    })}
-</CollapsibleSection>
-
-          <CollapsibleSection title="Not Accepted / Rejected" defaultOpen={true}>
-            {rejectedBets.map(b => {
-              const houseLaid = parseFloat(b.houseAmount) || 0;
-              return (
-                <div key={b.id} style={cardRed}>
-                  <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-                  <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
-                  <div style={{ marginTop: '5px', color: '#ff6b6b', fontWeight: '600' }}>Not Accepted / Rejected</div>
-                  <div style={{ fontSize: '13px', color: '#b0b0b0', marginTop: '8px' }}>
-                    House: £{houseLaid.toFixed(2)}{b.houseAction && ` (${b.houseAction})`}
-                  </div>
-                </div>
-              );
-            })}
-          </CollapsibleSection>
-        </div>
-      )}
+ 
             {activeTab === 'house' && (
         <div>
           {/* RESIDUAL ALWAYS AT THE TOP */}
@@ -705,7 +648,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
 })}
           </CollapsibleSection>
 
-          <CollapsibleSection title="Rejected / Not Accepted Bets" defaultOpen={true}>
+          <CollapsibleSection title="Rejected Bets" defaultOpen={false}>
             {allBets
               .filter(b => {
                 const houseLaid = parseFloat(b.houseAmount) || 0;
@@ -788,52 +731,9 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
 </CollapsibleSection>
         </div>
       )}
-    {activeTab === 'admin' && (
+      {activeTab === 'settlement' && (
   <div>
- 
-<CollapsibleSection title="Settings" defaultOpen={false}>
-            <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
-             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '10px 12px', alignItems: 'center', marginBottom: '12px', textAlign: 'left' }}>
-            <input
-              type="checkbox"
-              checked={settings.skipHouseFirstLook}
-              onChange={e => setSettings(s => ({
-                ...s,
-                skipHouseFirstLook: e.target.checked,
-                skipHouseResidual: e.target.checked ? s.skipHouseResidual : false,
-              }))}
-            />
-            <span style={{ color: '#e8e8e8', textAlign: 'left' }}>Skip House first look</span>
-
-            <input
-              type="checkbox"
-              checked={settings.skipHouseResidual}
-              disabled={!settings.skipHouseFirstLook}
-              onChange={e => setSettings(s => ({ ...s, skipHouseResidual: e.target.checked }))}
-            />
-            <span style={{ color: '#e8e8e8', textAlign: 'left' }}>Skip House residual</span>
-          </div>
-    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', cursor: 'pointer' }}>
-      Lay stage timer (seconds)
-      <input
-        type="number"
-        min={5}
-        value={settings.layerTimerSeconds}
-        onChange={e => setSettings(s => ({ ...s, layerTimerSeconds: parseInt(e.target.value) || 30 }))}
-        style={{ display: 'block', marginTop: '6px', background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px', borderRadius: '6px', width: '100%' }}
-      />
-    </label>
-
-    <button
-      type="button"
-      onClick={saveSettings}
-      style={{ marginTop: '12px', background: '#2d6a4f', color: 'white', padding: '10px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
-    >
-      Save Settings 
-    </button>
-  </div>
-</CollapsibleSection>
-<h2 style={{ color: '#00ff88' }}>Settlement</h2>
+    <h2 style={{ color: '#00ff88' }}>Settlement</h2>
 
     <CollapsibleSection title="Awaiting Settlement" defaultOpen={true}>
       {allBets.filter(b => b.phase === 'finalized' && !b.settledAt).length === 0 && (
@@ -905,210 +805,218 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
           </div>
         ))}
     </CollapsibleSection>
+  </div>
+)}
+ {activeTab === 'admin' && (
+  <div>
+    <CollapsibleSection title="Settings" defaultOpen={false}>
+      <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '10px 12px', alignItems: 'center', marginBottom: '12px', textAlign: 'left' }}>
+          <input
+            type="checkbox"
+            checked={settings.skipHouseFirstLook}
+            onChange={e => setSettings(s => ({
+              ...s,
+              skipHouseFirstLook: e.target.checked,
+              skipHouseResidual: e.target.checked ? s.skipHouseResidual : false,
+            }))}
+          />
+          <span style={{ color: '#e8e8e8', textAlign: 'left' }}>Skip House first look</span>
+
+          <input
+            type="checkbox"
+            checked={settings.skipHouseResidual}
+            disabled={!settings.skipHouseFirstLook}
+            onChange={e => setSettings(s => ({ ...s, skipHouseResidual: e.target.checked }))}
+          />
+          <span style={{ color: '#e8e8e8', textAlign: 'left' }}>Skip House residual</span>
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', cursor: 'pointer' }}>
+          Lay stage timer (seconds)
+          <input
+            type="number"
+            min={5}
+            value={settings.layerTimerSeconds}
+            onChange={e => setSettings(s => ({ ...s, layerTimerSeconds: parseInt(e.target.value) || 30 }))}
+            style={{ display: 'block', marginTop: '6px', background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px', borderRadius: '6px', width: '100%' }}
+          />
+        </label>
+        <button
+          type="button"
+          onClick={saveSettings}
+          style={{ marginTop: '12px', background: '#2d6a4f', color: 'white', padding: '10px 16px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+        >
+          Save Settings
+        </button>
+      </div>
+    </CollapsibleSection>
+
     <CollapsibleSection title="Adjust Balances" defaultOpen={false}>
-  <p style={{ color: '#b0b0b0', marginBottom: '12px', fontSize: '13px' }}>
-    Offline payments only. Credit / debit / set balances here.
-  </p>
-  <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px' }}>
-    <select
-      value={balanceUserId}
-      onChange={e => setBalanceUserId(parseInt(e.target.value))}
-      style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px', borderRadius: '6px', width: '100%', marginBottom: '8px' }}
-    >
-      {users.map(u => (
-        <option key={u.id} value={u.id}>{u.name} — £{Number(u.balance || 0).toFixed(2)}</option>
-      ))}
-    </select>
-    <input
-      type="number"
-      placeholder="Amount"
-      value={balanceAmount}
-      onChange={e => setBalanceAmount(e.target.value)}
-      style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px', borderRadius: '6px', width: '100%', marginBottom: '8px' }}
-    />
-    <div style={{ display: 'flex', gap: '8px' }}>
-      <button type="button" onClick={() => adjustBalance('credit')} style={{ flex: 1, padding: '10px', background: '#2d6a4f', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Credit</button>
-      <button type="button" onClick={() => adjustBalance('debit')} style={{ flex: 1, padding: '10px', background: '#7f1d1d', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Debit</button>
-      <button type="button" onClick={() => adjustBalance('set')} style={{ flex: 1, padding: '10px', background: '#3a3a5c', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Set</button>
-    </div>
-  </div>
-</CollapsibleSection>
-          <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', marginTop: '20px' }}>
-            <h3 style={{ color: '#00ff88', marginTop: 0 }}>Layer pro-rata weights</h3>
-            <p style={{ color: '#b0b0b0', fontSize: '13px' }}>1.0 = equal share. 2.0 = double share. Range 1.0–2.0.</p>
-{users.filter(u => u.canLay && u.name !== 'House').map(u => (
-              <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                <span style={{ flex: 1 }}>{u.name}</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={2}
-                  step={0.1}
-                  value={Number(u.weight ?? 1)}
-                  onChange={async (e) => {
-                    let w = parseFloat(e.target.value);
-                    if (isNaN(w)) return;
-                    w = Math.min(2, Math.max(1, Math.round(w * 10) / 10));
-                    await fetch(`${API}/api/users/${u.id}/weight`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ weight: w })
-                    });
-                    fetchUsers();
-                  }}
-                  style={{ width: '80px', background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '6px', borderRadius: '6px' }}
-                />
-              </div>
-            ))}
+      <p style={{ color: '#b0b0b0', marginBottom: '12px', fontSize: '13px' }}>
+        Offline payments only. Credit / debit / set balances here.
+      </p>
+      <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px' }}>
+        <select
+          value={balanceUserId}
+          onChange={e => setBalanceUserId(parseInt(e.target.value))}
+          style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px', borderRadius: '6px', width: '100%', marginBottom: '8px' }}
+        >
+          {users.map(u => (
+            <option key={u.id} value={u.id}>{u.name} — £{Number(u.balance || 0).toFixed(2)}</option>
+          ))}
+        </select>
+        <input
+          type="number"
+          placeholder="Amount"
+          value={balanceAmount}
+          onChange={e => setBalanceAmount(e.target.value)}
+          style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px', borderRadius: '6px', width: '100%', marginBottom: '8px' }}
+        />
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button type="button" onClick={() => adjustBalance('credit')} style={{ flex: 1, padding: '10px', background: '#2d6a4f', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Credit</button>
+          <button type="button" onClick={() => adjustBalance('debit')} style={{ flex: 1, padding: '10px', background: '#7f1d1d', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Debit</button>
+          <button type="button" onClick={() => adjustBalance('set')} style={{ flex: 1, padding: '10px', background: '#3a3a5c', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Set</button>
+        </div>
+      </div>
+    </CollapsibleSection>
+
+    <CollapsibleSection title="Layer pro-rata weights" defaultOpen={false}>
+      <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px' }}>
+        <p style={{ color: '#b0b0b0', fontSize: '13px' }}>1.0 = equal share. 2.0 = double share. Range 1.0–2.0.</p>
+        {users.filter(u => u.canLay && u.name !== 'House').map(u => (
+          <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+            <span style={{ flex: 1 }}>{u.name}</span>
+            <input
+              type="number"
+              min={1}
+              max={2}
+              step={0.1}
+              value={Number(u.weight ?? 1)}
+              onChange={async (e) => {
+                let w = parseFloat(e.target.value);
+                if (isNaN(w)) return;
+                w = Math.min(2, Math.max(1, Math.round(w * 10) / 10));
+                await fetch(`${API}/api/users/${u.id}/weight`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ weight: w })
+                });
+                fetchUsers();
+              }}
+              style={{ width: '80px', background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '6px', borderRadius: '6px' }}
+            />
           </div>
-<CollapsibleSection title="Ledger" defaultOpen={false}>
-  <div style={{ marginBottom: '10px' }}>
-    <button
-      type="button"
-      onClick={fetchLedger}
-      style={{ background: '#3a3a5c', color: 'white', padding: '8px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
-    >
-      Refresh Ledger
-    </button>
-  </div>
-  {ledger.length === 0 && <p style={muted}>No ledger entries yet.</p>}
-  {ledger.map(entry => (
-    <div key={entry.id} style={{ ...card, fontSize: '12px' }}>
-      <div style={{ fontWeight: '600', color: '#00ff88' }}>
-        {entry.eventType}
-        {entry.betId != null ? ` — Bet #${entry.betId}` : ''}
+        ))}
       </div>
-      <div style={muted}>
-        {entry.actorName || 'System'}
-        {entry.actorId != null ? ` (id ${entry.actorId})` : ''}
+    </CollapsibleSection>
+
+    <CollapsibleSection title="Create New User" defaultOpen={false}>
+      <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
+        <input
+          type="text"
+          placeholder="Full name"
+          value={authName}
+          onChange={e => setAuthName(e.target.value)}
+          style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}
+        />
+        <input
+          type="email"
+          placeholder="Email"
+          value={authEmail}
+          onChange={e => setAuthEmail(e.target.value)}
+          style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}
+        />
+        <input
+          type="text"
+          placeholder="Temporary password"
+          value={authPassword}
+          onChange={e => setAuthPassword(e.target.value)}
+          style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}
+        />
+        <button
+          type="button"
+          onClick={createNewUser}
+          style={{ width: '100%', padding: 10, background: '#0066cc', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+        >
+          Create user
+        </button>
       </div>
-      <div style={{ color: '#999', marginTop: '4px' }}>
-        {entry.createdAt ? new Date(entry.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : ''}
+    </CollapsibleSection>
+
+    <CollapsibleSection title="User rights" defaultOpen={false}>
+      <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
+        <p style={{ color: '#b0b0b0', fontSize: 13 }}>Default is punter. Tick Can lay to allow laying.</p>
+        {users.filter(u => Number(u.id) > 0 && u.name !== 'House').map(u => (
+          <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <span style={{ flex: 1 }}>{u.name}</span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#e8e8e8', fontSize: 13 }}>
+              <input
+                type="checkbox"
+                checked={!!u.canLay}
+                onChange={async (e) => {
+                  const canLay = e.target.checked;
+                  await fetch(`${API}/api/users/${u.id}/rights`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ canLay, role: u.role || 'punter' }),
+                  });
+                  fetchUsers();
+                }}
+              />
+              Can lay
+            </label>
+          </div>
+        ))}
       </div>
-      {entry.details && (
-        <pre style={{ marginTop: '6px', whiteSpace: 'pre-wrap', color: '#b0b0b0', fontSize: '11px' }}>
-          {typeof entry.details === 'string' ? entry.details : JSON.stringify(entry.details, null, 2)}
-        </pre>
-      )}
-    </div>
-  ))}
-</CollapsibleSection>
+    </CollapsibleSection>
+
+    <CollapsibleSection title="Ledger" defaultOpen={false}>
+      <div style={{ marginBottom: '10px' }}>
+        <button
+          type="button"
+          onClick={fetchLedger}
+          style={{ background: '#3a3a5c', color: 'white', padding: '8px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+        >
+          Refresh Ledger
+        </button>
+      </div>
+      {ledger.length === 0 && <p style={muted}>No ledger entries yet.</p>}
+      {ledger.map(entry => (
+        <div key={entry.id} style={{ ...card, fontSize: '12px' }}>
+          <div style={{ fontWeight: '600', color: '#00ff88' }}>
+            {entry.eventType}
+            {entry.betId != null ? ` — Bet #${entry.betId}` : ''}
+          </div>
+          <div style={muted}>
+            {entry.actorName || 'System'}
+            {entry.actorId != null ? ` (id ${entry.actorId})` : ''}
+          </div>
+          <div style={{ color: '#999', marginTop: '4px' }}>
+            {entry.createdAt ? new Date(entry.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : ''}
+          </div>
+          {entry.details && (
+            <pre style={{ marginTop: '6px', whiteSpace: 'pre-wrap', color: '#b0b0b0', fontSize: '11px' }}>
+              {typeof entry.details === 'string' ? entry.details : JSON.stringify(entry.details, null, 2)}
+            </pre>
+          )}
+        </div>
+      ))}
+    </CollapsibleSection>
   </div>
 )}
 
-      {activeTab === 'layer' && currentUser?.canLay && (
-        <div>
-          <h2 style={{ color: '#00ff88' }}>Bets Available to Lay</h2>
-          {layerMessage && <p style={{ color: '#00ff88', fontWeight: 'bold', textAlign: 'center', marginBottom: '15px' }}>{layerMessage}</p>}
-          {layerBidding.length === 0 && <p style={muted}>No bets available for you to lay.</p>}
-          {layerBidding.map(b => {
-            const remaining = getLayableAmount(b);
-            const currentBid = parseFloat(bidAmount[b.id] || 0);
-            const liability = currentBid > 0 ? getExposure(currentBid, b.odds) : '0.00';
-            return (
-              <div key={b.id} style={card}>
-                <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-                <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
-                <div style={{ marginTop: '8px', color: '#ffb347', fontWeight: '600' }}>
-                  {b.phase === 'house_residual' ? 'RESIDUAL (House second look)' : 'Remaining'}: £{remaining}
-                </div>
-                {b.layerBids && b.layerBids.length > 0 && (
-                  <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
-                    Current Layer bids: {(b.layerBids || []).filter(l => !l.rejected).map(l => `${l.layerName}: £${l.amount}`).join(', ')}
-                  </div>
-                )}
-                {b.layerTimerEnd && (
-                  <div style={{ marginTop: '6px' }}>Time left: <Countdown endTime={b.layerTimerEnd} /></div>
-                )}
-                <div style={{ marginTop: '12px', display: 'flex', gap: '6px' }}>
-                  <button onClick={() => setBidAmount(p => ({ ...p, [b.id]: (remaining * 0.1).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>10%</button>
-                  <button onClick={() => setBidAmount(p => ({ ...p, [b.id]: (remaining * 0.25).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>25%</button>
-                  <button onClick={() => setBidAmount(p => ({ ...p, [b.id]: (remaining * 0.5).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>50%</button>
-                </div>
-                <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
-                  <input type="number" placeholder="Bid amount (£)" value={bidAmount[b.id] || ''} onChange={e => setBidAmount(p => ({ ...p, [b.id]: e.target.value }))} style={{ flex: 1, padding: '10px', background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: '6px' }} />
-                  <button onClick={() => openBidConfirm(b.id, bidAmount[b.id])} style={{ background: '#0066cc', color: 'white', padding: '10px 18px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Place Bid</button>
-                </div>
-                <button onClick={() => handleLayerAcceptFull(b.id)} style={{ marginTop: '10px', background: '#2d6a4f', color: 'white', width: '100%', padding: '10px', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}>Accept Full Remaining Stake</button>
-                <button onClick={() => handleLayerReject(b.id)} style={{ marginTop: '8px', background: '#7f1d1d', color: 'white', width: '100%', padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Reject Bet</button>
-                {currentBid > 0 && <div style={{ marginTop: '8px', color: '#ff6b6b', fontWeight: '600' }}>Liability: £{liability}</div>}
-              </div>
-            );
-          })}
-
-          <CollapsibleSection title="Lays in Process" defaultOpen={true}>
-  {allBets.filter(b =>
-  b.phase !== 'settled' &&
-  !b.settledAt &&
-  b.layerBids &&
-  b.layerBids.some(l => Number(l.layerId) === Number(currentUser.id) && !l.rejected)
-).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(b => {
-              const myBid = b.layerBids.find(l => l.layerId === currentUser.id);
-              const hasApportioned = myBid && myBid.actualLaid !== undefined && myBid.actualLaid !== null;
-              return (
-                <div key={b.id} style={cardGreen}>
-                  <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-                  <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
-                  <div style={{ marginTop: '8px', color: '#00ff88', fontWeight: '600' }}>
-                    {hasApportioned ? 'Apportioned' : 'Bid Submitted - Awaiting Apportioning'}
-                  </div>
-                  {hasApportioned && (
-                    <div style={{ marginTop: '8px', color: '#00ff88', fontSize: '14px' }}>
-                      <strong>Your Apportioned Amount: £{parseFloat(myBid.actualLaid).toFixed(2)}</strong>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </CollapsibleSection>
-          <CollapsibleSection title="Resulted Lays" defaultOpen={false}>
-  {allBets
-    .filter(b =>
-      (b.phase === 'settled' || b.settledAt) &&
-      (b.layerBids || []).some(l => Number(l.layerId) === Number(currentUser.id) && !l.rejected)
-    )
-    .sort((a, b) => new Date(b.settledAt || b.createdAt) - new Date(a.settledAt || a.createdAt))
-    .map(b => {
-      const myBid = (b.layerBids || []).find(l => Number(l.layerId) === Number(currentUser.id));
-      const myLaid = parseFloat(myBid?.actualLaid ?? myBid?.amount) || 0;
-      return (
-        <div key={b.id} style={card}>
-          <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-          <div style={muted}>{b.selection} @ {b.odds} — Stake £{b.stake}</div>
-          <div style={{ marginTop: '6px', fontSize: '13px' }}>
-            Your lay: £{myLaid.toFixed(2)}
-          </div>
-          <div style={{ marginTop: '6px', fontWeight: '600', color: b.result === 'won' ? '#ff6b6b' : b.result === 'lost' ? '#00ff88' : '#ffb347' }}>
-            Result: {b.result === 'won' ? 'PUNTER WON (You lost)' : b.result === 'lost' ? 'PUNTER LOST (You won)' : (b.result || 'SETTLED').toUpperCase()}
-          </div>
-          {b.settlementNotes && (
-            <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>Notes: {b.settlementNotes}</div>
-          )}
-          <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
-            Placed: {b.createdAt ? new Date(b.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : 'N/A'}
-          </div>
-          <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
-            Settled: {b.settledAt ? new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : 'N/A'}
-          </div>
-        </div>
-      );
-    })}
-</CollapsibleSection>
-        </div>
-      )}
-
-      {showBidConfirm && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#1a1a2e', padding: '25px', borderRadius: '10px', maxWidth: '380px', width: '90%', border: '1px solid #3a3a5c', color: '#e8e8e8' }}>
-            <h3 style={{ color: '#00ff88' }}>Confirm Layer Bid</h3>
-            <p>Lay £{showBidConfirm.amount}?</p>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-              <button onClick={() => setShowBidConfirm(null)} style={{ flex: 1, padding: '10px', background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={confirmLayerBid} style={{ flex: 1, padding: '10px', background: '#0066cc', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Confirm Bid</button>
-            </div>
-          </div>
-        </div>
-      )}
+{showBidConfirm && (
+  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+    <div style={{ background: '#1a1a2e', padding: '25px', borderRadius: '10px', maxWidth: '380px', width: '90%', border: '1px solid #3a3a5c', color: '#e8e8e8' }}>
+      <h3 style={{ color: '#00ff88' }}>Confirm Layer Bid</h3>
+      <p>Lay £{showBidConfirm.amount}?</p>
+      <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+        <button onClick={() => setShowBidConfirm(null)} style={{ flex: 1, padding: '10px', background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
+        <button onClick={confirmLayerBid} style={{ flex: 1, padding: '10px', background: '#0066cc', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Confirm Bid</button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
