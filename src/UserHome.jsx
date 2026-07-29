@@ -118,11 +118,36 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
     } catch (e) {}
   };
 
-  useEffect(() => {
+const refreshUser = async () => {
+  try {
+    const res = await fetch(`${API}/api/users/${user.id}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const newUser = {
+      ...user,
+      balance: data.balance,
+      canLay: data.canLay,
+      weight: data.weight,
+      mustChangePassword: data.mustChangePassword,
+    };
+    if (JSON.stringify(newUser) !== JSON.stringify(user)) {
+      localStorage.setItem('btm_user', JSON.stringify(newUser));
+      onUserUpdate(newUser);
+    }
+  } catch (e) {}
+};
+
+useEffect(() => {
+  fetchBets();
+  refreshUser();
+
+  const interval = setInterval(() => {
     fetchBets();
-    const t = setInterval(fetchBets, 3000);
-    return () => clearInterval(t);
-  }, []);
+    refreshUser();
+  }, 3000);
+
+  return () => clearInterval(interval);
+}, [user.id]);
 
   const placeBet = async (e) => {
     e.preventDefault();
@@ -145,6 +170,7 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
       setMessage('Bet submitted');
       setBet({ event: '', selection: '', odds: '', stake: '' });
       fetchBets();
+      await refreshUser();
     } catch (err) {
       setMessage(err.message);
     }
@@ -218,6 +244,7 @@ const changePassword = async () => {
       setLayerMessage('Lay submitted');
       setBidAmount(prev => ({ ...prev, [b.id]: '' }));
       fetchBets();
+      await refreshUser();
     } catch (e) {
       setLayerMessage(e.message);
     }
