@@ -165,7 +165,7 @@ async function settleBet(bet, result, notes = null, manualPayouts = null) {
 
     if (houseLaid > 0) {
       const houseLiability = calcExposure(houseLaid, bet.odds);
-      await changeUserBalance(0, -houseLiability);
+      await changeUserBalance(7, -houseLiability);
     }
 
     for (const l of layers) {
@@ -177,7 +177,7 @@ async function settleBet(bet, result, notes = null, manualPayouts = null) {
     }
   } else if (result === "lost") {
     if (houseLaid > 0) {
-      await changeUserBalance(0, houseLaid);
+      await changeUserBalance(7, houseLaid);
     }
     for (const l of layers) {
       if (l.rejected) continue;
@@ -190,7 +190,7 @@ async function settleBet(bet, result, notes = null, manualPayouts = null) {
       await changeUserBalance(bet.punterId, manualPayouts.punterDelta);
     }
     if (manualPayouts.houseDelta) {
-      await changeUserBalance(0, manualPayouts.houseDelta);
+      await changeUserBalance(7, manualPayouts.houseDelta);
     }
     if (Array.isArray(manualPayouts.layers)) {
       for (const l of manualPayouts.layers) {
