@@ -2,7 +2,32 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
+function CollapsibleSection({ title, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div
+        onClick={() => setOpen(!open)}
+        style={{
+          background: '#252540',
+          padding: '12px 16px',
+          borderRadius: 8,
+          cursor: 'pointer',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontWeight: 600,
+          fontSize: 15,
+          color: '#e8e8e8',
+          border: '1px solid #3a3a5c',
+        }}
+      >
+        {title} <span>{open ? '−' : '+'}</span>
+      </div>
+      {open && <div style={{ padding: '10px 0' }}>{children}</div>}
+    </div>
+  );
+}
 export default function UserHome() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -304,17 +329,127 @@ const changePassword = async () => {
       </form>
       {message && <p style={{ color: '#00ff88' }}>{message}</p>}
 
-      <h2 style={{ color: '#00ff88', marginTop: 32 }}>My bets</h2>
-      {myBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No bets yet.</p>}
-      {myBets.map(b => (
-        <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
-          <div style={{ fontWeight: 600 }}>{b.event}</div>
-          <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds} — £{b.stake}</div>
-           <div style={{ marginTop: 6, color: statusColor(b) }}>
-            {userFacingStatus(b)}
+     {(() => {
+  const myBets = bets
+    .filter(b => Number(b.punterId) === Number(user.id))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const openBets = myBets.filter(b =>
+    b.phase !== 'settled' &&
+    !b.settledAt &&
+    b.status !== 'rejected' &&
+    (Number(b.houseAmount) || 0) + (b.layerBids || []).reduce((s, l) => s + (Number(l.actualLaid) || 0), 0) < 0.01
+      ? true   // still in house/layer process
+      : b.phase === 'finalized' && !b.settledAt
+  );
+
+  // still going through the matching process
+  const inProcess = myBets.filter(b =>
+    !b.settledAt &&
+    b.status !== 'rejected' &&
+    b.phase !== 'finalized' &&
+    b.phase !== 'settled'
+  );
+
+  // matched / active (fully or partially laid, waiting for settlement)
+  const activeBets = myBets.filter(b => {
+    if (b.settledAt || b.phase === 'settled' || b.status === 'rejected') return false;
+    const matched = (Number(b.houseAmount) || 0) +
+      (b.layerBids || []).reduce((s, l) => s + (Number(l.actualLaid) || 0), 0);
+    return matched > 0.01;
+  });
+
+  // settled
+  const settledBets = myBets.filter(b => b.settledAt || b.phase === 'settled');
+
+  // not accepted / rejected
+  const rejectedBets = myBets.filter(b => {
+    if (b.settledAt) return false;
+    const matched = (Number(b.houseAmount) || 0) +
+      (b.layerBids || []).reduce((s, l) => s + (Number(l.actualLaid) || 0), 0);
+    return b.status === 'rejected' || (b.phase === 'finalized' && matched < 0.01);
+  });
+
+  const hasInProcess = inProcess.length > 0;
+
+  return (
+    <>
+      <CollapsibleSection title={`In Process (${inProcess.length})`} defaultOpen={hasInProcess}>
+        {inProcess.length === 0 && <p style={{ color: '#b0b0b0' }}>No bets currently being matched.</p>}
+        {inProcess.map(b => (
+          <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+            <div style={{ fontWeight: 600 }}>{b.event}</div>
+            <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds} — £{b.stake}</div>
+            <div style={{ marginTop: 6, color: '#ffb347' }}>Pending</div>
           </div>
-        </div>
-      ))}
+        ))}
+      </CollapsibleSection>
+
+      <CollapsibleSection title={`Active Bets (${activeBets.length})`} defaultOpen={false}>
+        {activeBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No active bets.</p>}
+        {activeBets.map(b => {
+          const house = Number(b.houseAmount) || 0;
+          const layers = (b.layerBids || []).reduce((s, l) => s + (Number(l.actualLaid) || 0), 0);
+          const matched = house + layers;
+          return (
+            <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+              <div style={{ fontWeight: 600 }}>{b.event}</div>
+              <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds} — £{b.stake}</div>
+              <div style={{ marginTop: 6, color: '#00ff88' }}>
+                Matched £{matched.toFixed(2)} of £{b.stake}
+              </div>
+            </div>
+          );
+        })}
+      </CollapsibleSection>
+
+      <CollapsibleSection title={`Settled Bets (${settledBets.length})`} defaultOpen={false}>
+        {settledBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No settled bets yet.</p>}
+        {settledBets.map(b => {
+          const house = Number(b.houseAmount) || 0;
+          const layers = (b.layerBids || []).reduce((s, l) => s + (Number(l.actualLaid) || 0), 0);
+          const matched = house + layers;
+          const isWon = b.result === 'won';
+          // simple return calculation (stake + profit)
+          let returns = 0;
+          if (isWon && matched > 0) {
+            const oddsStr = String(b.odds).trim();
+            if (oddsStr.includes('/')) {
+              const [n, d] = oddsStr.split('/').map(Number);
+              returns = matched * (1 + n / (d || 1));
+            } else {
+              returns = matched * (parseFloat(oddsStr) || 1);
+            }
+          }
+          return (
+            <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+              <div style={{ fontWeight: 600 }}>{b.event}</div>
+              <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds} — Stake £{b.stake}</div>
+              <div style={{ marginTop: 6, fontWeight: 600, color: isWon ? '#00ff88' : '#ff6b6b' }}>
+                {isWon ? 'WON' : 'LOST'}
+                {isWon && returns > 0 ? ` — Returns £${returns.toFixed(2)}` : ''}
+              </div>
+              <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                Settled: {b.settledAt ? new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '—'}
+              </div>
+            </div>
+          );
+        })}
+      </CollapsibleSection>
+
+      <CollapsibleSection title={`Not Accepted (${rejectedBets.length})`} defaultOpen={false}>
+        {rejectedBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No rejected bets.</p>}
+        {rejectedBets.map(b => (
+          <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+            <div style={{ fontWeight: 600 }}>{b.event}</div>
+            <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds} — £{b.stake}</div>
+            <div style={{ marginTop: 6, color: '#ff6b6b' }}>Not Accepted / Rejected</div>
+          </div>
+        ))}
+      </CollapsibleSection>
+    </>
+  );
+})()}
             {user.canLay && (
         <>
           <h2 style={{ color: '#00ff88', marginTop: 32 }}>Available to lay</h2>
