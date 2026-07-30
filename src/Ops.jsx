@@ -311,8 +311,28 @@ const openManualSettle = (bet) => {
   if (houseDeltaStr === null) return;
   const houseDelta = parseFloat(houseDeltaStr) || 0;
 
-  // Simple version: one combined note; layer adjustments can be done later via Admin if needed
-  handleManualSettle(bet.id, notes, { punterDelta, houseDelta, layers: [] });
+  // Collect per-layer adjustments for anyone who actually laid
+  const layers = [];
+  const layerBids = (bet.layerBids || []).filter(l => {
+    const amt = parseFloat(l.actualLaid != null ? l.actualLaid : l.amount) || 0;
+    return amt > 0 && !l.rejected;
+  });
+
+  for (const l of layerBids) {
+    const name = l.layerName || `Layer ${l.layerId}`;
+    const laid = parseFloat(l.actualLaid != null ? l.actualLaid : l.amount) || 0;
+    const deltaStr = window.prompt(
+      `Layer "${name}" (laid £${laid.toFixed(2)}) balance change:`,
+      '0'
+    );
+    if (deltaStr === null) return; // user cancelled
+    const delta = parseFloat(deltaStr) || 0;
+    if (delta !== 0) {
+      layers.push({ layerId: l.layerId, delta });
+    }
+  }
+
+  handleManualSettle(bet.id, notes, { punterDelta, houseDelta, layers });
 };
 
 const handleManualSettle = async (betId, notes, manualPayouts) => {

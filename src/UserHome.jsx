@@ -427,7 +427,32 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
               <p style={{ color: '#00ff88', margin: '0 0 0 0', fontSize: 14 }}>Enter bet details</p>
               <input placeholder="Event" value={bet.event} onChange={e => setBet({ ...bet, event: e.target.value })} required style={inputStyle} />
               <input placeholder="Selection" value={bet.selection} onChange={e => setBet({ ...bet, selection: e.target.value })} required style={inputStyle} />
-              <input placeholder="Odds e.g. 3/1" value={bet.odds} onChange={e => setBet({ ...bet, odds: e.target.value })} required style={inputStyle} />
+<input
+  placeholder="Odds - Fractional or Decimal"
+  inputMode="decimal"
+  autoComplete="off"
+  spellCheck={false}
+  value={bet.odds}
+  onChange={e => {
+    const value = e.target.value;
+
+    // Allow:
+    // - Empty (so the user can delete)
+    // - Whole numbers (2)
+    // - Decimal odds (2.5)
+    // - Fractional odds (11/4)
+    if (
+      value === '' ||
+      /^\d+$/.test(value) ||
+      /^\d+\.\d*$/.test(value) ||
+      /^\d+\/\d*$/.test(value)
+    ) {
+      setBet({ ...bet, odds: value });
+    }
+  }}
+  required
+  style={inputStyle}
+/>
               <input placeholder="Stake" type="number" value={bet.stake} onChange={e => setBet({ ...bet, stake: e.target.value })} required style={inputStyle} />
 <button
   type="submit"
