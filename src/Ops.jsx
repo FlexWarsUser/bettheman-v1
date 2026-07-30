@@ -745,7 +745,11 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
         <p style={muted}>No bets waiting to be settled.</p>
       )}
       {allBets
-        .filter(b => b.phase === 'finalized' && !b.settledAt)
+.filter(b => {
+  const houseLaid = parseFloat(b.houseAmount) || 0;
+  const layersLaid = (b.layerBids || []).reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
+  return b.phase === 'finalized' && !b.settledAt && (houseLaid + layersLaid) > 0;
+})
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .map(b => {
           const houseLaid = parseFloat(b.houseAmount) || 0;
@@ -789,7 +793,7 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
 
     <CollapsibleSection title="Already Settled" defaultOpen={false}>
       {allBets.filter(b => b.settledAt).length === 0 && (
-        <p style={muted}>No settled bets yet.</p>
+        <p style={muted}></p>
       )}
       {allBets
         .filter(b => b.settledAt)

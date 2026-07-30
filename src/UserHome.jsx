@@ -18,7 +18,7 @@ function CollapsibleSection({ title, children, defaultOpen = false }) {
           justifyContent: 'space-between',
           alignItems: 'center',
           fontWeight: 600,
-          fontSize: 15,
+          fontSize: 14,
           color: '#e8e8e8',
           border: '1px solid #3a3a5c',
         }}
@@ -33,9 +33,9 @@ function CollapsibleSection({ title, children, defaultOpen = false }) {
 const inputStyle = {
   width: '100%',
   padding: '9px 12px',
-  marginBottom: 6,          // was 10
-  borderRadius: 6,
-  border: '1px solid #3a3a5c',
+  marginBottom: 0,        // was 10
+  borderRadius: 0,
+  border: '1px solid #3a3a5c',  
   background: '#252540',
   color: '#e8e8e8',
   boxSizing: 'border-box',
@@ -325,14 +325,14 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
     .sort((a, b) => new Date(b.settledAt || b.createdAt) - new Date(a.settledAt || a.createdAt));
 
   return (
-    <div style={{ maxWidth: 520, margin: '40px auto', padding: 20, color: '#e8e8e8' }}>
+    <div style={{ maxWidth: 520, margin: '10px auto', padding: 20, color: '#e8e8e8' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h1 style={{ textAlign: 'left', margin: 0 }}>
           <img src="/logo2.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />
         </h1>
         <button type="button" onClick={onLogout} style={{ padding: '8px 12px', background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-          Log out
+          Log out 
         </button>
       </div>
 
@@ -374,7 +374,7 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
       border: '1px solid #3a3a5c',
       cursor: 'pointer',
       fontWeight: 600,
-      fontSize: 15,
+      fontSize: 14,
       background: customerTab === 'slip' ? '#00ff88' : '#252540',
       color: customerTab === 'slip' ? '#0f0c29' : '#e8e8e8',
     }}
@@ -391,7 +391,7 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
       border: '1px solid #3a3a5c',
       cursor: 'pointer',
       fontWeight: 600,
-      fontSize: 15,
+      fontSize: 14,
       background: customerTab === 'bets' ? '#00ff88' : '#252540',
       color: customerTab === 'bets' ? '#0f0c29' : '#e8e8e8',
     }}
@@ -409,7 +409,7 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
         border: '1px solid #3a3a5c',
         cursor: 'pointer',
         fontWeight: 600,
-        fontSize: 15,
+        fontSize: 14,
         background: customerTab === 'lays' ? '#00ff88' : '#252540',
         color: customerTab === 'lays' ? '#0f0c29' : '#e8e8e8',
       }}
@@ -424,7 +424,7 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
         <>
           <CollapsibleSection title="Show/Hide Betting Slip" defaultOpen={false}>
             <form onSubmit={placeBet}>
-              <p style={{ color: '#00ff88', margin: '0 0 0 0', fontSize: 16 }}>Enter bet details</p>
+              <p style={{ color: '#00ff88', margin: '0 0 0 0', fontSize: 14 }}>Enter bet details</p>
               <input placeholder="Event" value={bet.event} onChange={e => setBet({ ...bet, event: e.target.value })} required style={inputStyle} />
               <input placeholder="Selection" value={bet.selection} onChange={e => setBet({ ...bet, selection: e.target.value })} required style={inputStyle} />
               <input placeholder="Odds e.g. 3/1" value={bet.odds} onChange={e => setBet({ ...bet, odds: e.target.value })} required style={inputStyle} />
@@ -561,7 +561,7 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
                 <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                   <div style={{ fontWeight: 600 }}>{b.event}</div>
                   <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds}</div>
-                  <div style={{ marginTop: 6, fontSize: 13, color: '#b0b0b0' }}>
+                  <div style={{ marginTop: 6, fontSize: 14, color: '#b0b0b0' }}>
                     Original stake: £{originalStake.toFixed(2)}
                     {isPartial && <span style={{ color: '#ffb347' }}> — Partially matched £{matched.toFixed(2)}</span>}
                     {!isPartial && matched > 0.01 && <span> — Fully matched £{matched.toFixed(2)}</span>}
@@ -569,8 +569,8 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
                   <div style={{ marginTop: 6, fontWeight: 600, color: resultColor }}>
                     {resultLabel}{isWon && returns > 0 ? ` — Returns £${returns.toFixed(2)}` : ''}
                   </div>
-                  {b.settlementNotes && <div style={{ fontSize: 13, color: '#ffb347', marginTop: 4 }}>Note: {b.settlementNotes}</div>}
-                  <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                  {b.settlementNotes && <div style={{ fontSize: 14, color: '#ffb347', marginTop: 4 }}>Note: {b.settlementNotes}</div>}
+                  <div style={{ fontSize: 14, color: '#999', marginTop: 4 }}>
                     Settled: {b.settledAt ? new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '—'}
                   </div>
                 </div>
@@ -636,8 +636,8 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
                     {!isManual && isWon && ` — Lost £${liability.toFixed(2)}`}
                     {!isManual && !isWon && ` — Won £${laid.toFixed(2)}`}
                   </div>
-                  {b.settlementNotes && <div style={{ fontSize: 13, color: '#ffb347', marginTop: 4 }}>Note: {b.settlementNotes}</div>}
-                  <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                  {b.settlementNotes && <div style={{ fontSize: 14, color: '#ffb347', marginTop: 4 }}>Note: {b.settlementNotes}</div>}
+                  <div style={{ fontSize: 14, color: '#999', marginTop: 4 }}>
                     Settled: {b.settledAt ? new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '—'}
                   </div>
                 </div>
