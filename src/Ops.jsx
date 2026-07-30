@@ -613,7 +613,7 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
             );
           })}
 
-          <CollapsibleSection title="Active Lays" defaultOpen={true}>
+          <CollapsibleSection title="Active Lays" defaultOpen={false}>
             {activeBets.filter(b => parseFloat(b.houseAmount) > 0).map(b => {
   const houseLaid = parseFloat(b.houseAmount) || 0;
   const layerBids = (b.layerBids || []).filter(l => !l.rejected);
