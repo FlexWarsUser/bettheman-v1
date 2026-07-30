@@ -32,13 +32,14 @@ function CollapsibleSection({ title, children, defaultOpen = false }) {
 
 const inputStyle = {
   width: '100%',
-  padding: 10,
-  marginBottom: 10,
+  padding: '9px 12px',
+  marginBottom: 6,          // was 10
   borderRadius: 6,
   border: '1px solid #3a3a5c',
   background: '#252540',
   color: '#e8e8e8',
   boxSizing: 'border-box',
+  fontSize: 14,
 };
 
 export default function UserHome() {
@@ -209,7 +210,6 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
         setMessage(data.error || 'Failed to place bet');
         return;
       }
-      setMessage('Bet submitted');
       setBet({ event: '', selection: '', odds: '', stake: '' });
       fetchBets();
       await refreshUser();
@@ -362,36 +362,109 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
         </div>
       )}
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, marginTop: 12 }}>
-        <button type="button" onClick={() => setCustomerTab('slip')} style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid #3a3a5c', cursor: 'pointer', fontWeight: 600, background: customerTab === 'slip' ? '#00ff88' : '#252540', color: customerTab === 'slip' ? '#0f0c29' : '#e8e8e8' }}>
-          Betting Slip
-        </button>
-        <button type="button" onClick={() => setCustomerTab('bets')} style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid #3a3a5c', cursor: 'pointer', fontWeight: 600, background: customerTab === 'bets' ? '#00ff88' : '#252540', color: customerTab === 'bets' ? '#0f0c29' : '#e8e8e8' }}>
-          My Bets
-        </button>
-        {user.canLay && (
-          <button type="button" onClick={() => setCustomerTab('lays')} style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid #3a3a5c', cursor: 'pointer', fontWeight: 600, background: customerTab === 'lays' ? '#00ff88' : '#252540', color: customerTab === 'lays' ? '#0f0c29' : '#e8e8e8' }}>
-            My Lays
-          </button>
-        )}
-      </div>
+     {/* Tabs */}
+<div style={{ display: 'flex', gap: 6, marginBottom: 16, marginTop: 10 }}>
+  <button
+    type="button"
+    onClick={() => setCustomerTab('slip')}
+    style={{
+      flex: 1,
+      padding: '8px 10px',
+      borderRadius: 7,
+      border: '1px solid #3a3a5c',
+      cursor: 'pointer',
+      fontWeight: 600,
+      fontSize: 15,
+      background: customerTab === 'slip' ? '#00ff88' : '#252540',
+      color: customerTab === 'slip' ? '#0f0c29' : '#e8e8e8',
+    }}
+  >
+    Betting Slip
+  </button>
+  <button
+    type="button"
+    onClick={() => setCustomerTab('bets')}
+    style={{
+      flex: 1,
+      padding: '8px 10px',
+      borderRadius: 7,
+      border: '1px solid #3a3a5c',
+      cursor: 'pointer',
+      fontWeight: 600,
+      fontSize: 15,
+      background: customerTab === 'bets' ? '#00ff88' : '#252540',
+      color: customerTab === 'bets' ? '#0f0c29' : '#e8e8e8',
+    }}
+  >
+    My Bets
+  </button>
+  {user.canLay && (
+    <button
+      type="button"
+      onClick={() => setCustomerTab('lays')}
+      style={{
+        flex: 1,
+        padding: '8px 10px',
+        borderRadius: 7,
+        border: '1px solid #3a3a5c',
+        cursor: 'pointer',
+        fontWeight: 600,
+        fontSize: 15,
+        background: customerTab === 'lays' ? '#00ff88' : '#252540',
+        color: customerTab === 'lays' ? '#0f0c29' : '#e8e8e8',
+      }}
+    >
+      My Lays
+    </button>
+  )}
+</div>
 
       {/* ===== TAB: Betting Slip ===== */}
       {customerTab === 'slip' && (
         <>
           <CollapsibleSection title="Show/Hide Betting Slip" defaultOpen={false}>
             <form onSubmit={placeBet}>
+              <p style={{ color: '#00ff88', margin: '0 0 0 0', fontSize: 16 }}>Enter bet details</p>
               <input placeholder="Event" value={bet.event} onChange={e => setBet({ ...bet, event: e.target.value })} required style={inputStyle} />
               <input placeholder="Selection" value={bet.selection} onChange={e => setBet({ ...bet, selection: e.target.value })} required style={inputStyle} />
               <input placeholder="Odds e.g. 3/1" value={bet.odds} onChange={e => setBet({ ...bet, odds: e.target.value })} required style={inputStyle} />
               <input placeholder="Stake" type="number" value={bet.stake} onChange={e => setBet({ ...bet, stake: e.target.value })} required style={inputStyle} />
-              <button type="submit" style={{ width: '100%', padding: 12, background: '#00ff88', color: '#0f0c29', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>
-                Submit bet
-              </button>
+<button
+  type="submit"
+  style={{
+    width: '33%',
+    padding: '10px 12px',
+    marginTop: 4,
+    background: '#00ff88',
+    color: '#0f0c29',
+    border: 'none',
+    borderRadius: 7,
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: 'pointer',
+    letterSpacing: '0.3px',
+  }}
+>
+  Submit bet
+</button>
             </form>
             {message && <p style={{ color: '#00ff88' }}>{message}</p>}
           </CollapsibleSection>
+          {/* Pending bets shown under the slip */}
+{inProcess.length > 0 && (
+  <div style={{ marginTop: 10 }}>
+    <div style={{ color: '#ffb347', fontWeight: 600, marginBottom: 10 }}>
+      In Process ({inProcess.length})
+    </div>
+    {inProcess.map(b => (
+      <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+        <div style={{ fontWeight: 600 }}>{b.event}</div>
+        <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds} — £{b.stake}</div>
+        <div style={{ marginTop: 6, color: '#ffb347' }}>Pending</div>
+      </div>
+    ))}
+  </div>
+)}
 
           {user.canLay && availableToLay.length > 0 && (
             <>
@@ -446,18 +519,7 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
       {/* ===== TAB: My Bets ===== */}
       {customerTab === 'bets' && (
         <>
-          {inProcess.length > 0 && (
-            <CollapsibleSection title={`In Process (${inProcess.length})`} defaultOpen={true}>
-              {inProcess.map(b => (
-                <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
-                  <div style={{ fontWeight: 600 }}>{b.event}</div>
-                  <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds} — £{b.stake}</div>
-                  <div style={{ marginTop: 6, color: '#ffb347' }}>Pending</div>
-                </div>
-              ))}
-            </CollapsibleSection>
-          )}
-
+  
           <CollapsibleSection title={`Active Bets (${activeBets.length})`} defaultOpen={false}>
             {activeBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No active bets.</p>}
             {activeBets.map(b => {

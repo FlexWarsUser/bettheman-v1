@@ -33,6 +33,12 @@ function Countdown({ endTime, onExpire }) {
 
 function CollapsibleSection({ title, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
+
+  // Auto-open when defaultOpen becomes true (e.g. residual bets appear)
+  useEffect(() => {
+    if (defaultOpen) setOpen(true);
+  }, [defaultOpen]);
+
   return (
     <div style={{ marginBottom: '25px' }}>
       <div
@@ -72,7 +78,7 @@ const [authName, setAuthName] = useState('');
     const [users, setUsers] = useState([]);
   const [balanceUserId, setBalanceUserId] = useState(7);
   const [balanceAmount, setBalanceAmount] = useState('');
-  const [authEmail, setAuthEmail] = useState('');
+  const [authEmail, setAuthEmail] = useState(''); 
   const [authPassword, setAuthPassword] = useState('');
 const [ledger, setLedger] = useState([]);
 const [settings, setSettings] = useState({
@@ -528,55 +534,54 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
  
             {activeTab === 'house' && (
         <div>
-          {/* RESIDUAL ALWAYS AT THE TOP */}
-          <CollapsibleSection title="🔄 Residual Bets (House Second Look)" defaultOpen={true}>
-            {residualBets.length === 0 && <p style={muted}>No residual bets waiting.</p>}
-            {residualBets.map(b => {
-              const houseLaid = parseFloat(b.houseAmount) || 0;
-              const layerTotal = (b.layerBids || []).reduce((sum, bid) => sum + (parseFloat(bid.actualLaid) || parseFloat(bid.amount) || 0), 0);
-              const residual = Math.max(0, Math.round((parseFloat(b.residualStake) || (parseFloat(b.stake) - houseLaid - layerTotal)) * 100) / 100);
-              return (
-                <div key={b.id} style={{ ...cardYellow, border: '2px solid #ff9800' }}>
-                  <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event} — RESIDUAL</div>
-                  <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
-                  <div style={{ marginTop: '8px', fontSize: '13px' }}>
-                    <strong>Already Laid:</strong> House £{houseLaid.toFixed(2)} + Layers £{layerTotal.toFixed(2)} = £{(houseLaid + layerTotal).toFixed(2)}
-                  </div>
-                  <div style={{ color: '#ff6b6b', fontWeight: '700', marginTop: '4px' }}>
-                    Residual to decide: £{residual.toFixed(2)}
-                  </div>
-                  {b.layerBids && b.layerBids.length > 0 && (
-                    <div style={{ fontSize: '12px', background: '#1a1a2e', padding: '8px', marginTop: '8px', borderRadius: '6px', border: '1px solid #3a3a5c' }}>
-                      <strong>Layer Bids so far:</strong><br />
-                      {(b.layerBids || []).map((l, i) => (
-                        <div key={i}>• {l.layerName}: £{l.amount} (apportioned £{(l.actualLaid || 0).toFixed(2)})</div>
-                      ))}
-                    </div>
-                  )}
-                  {b.houseTimerEnd && (
-                    <div style={{ marginTop: '8px', color: '#ffb347' }}>
-                      Time left for residual: <Countdown endTime={b.houseTimerEnd} />
-                    </div>
-                  )}
-                  <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-                    <button onClick={() => handleHouseAction(b.id, 'Accepted', residual)} style={{ background: '#2d6a4f', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
-                      Accept Residual Full
-                    </button>
-                    <button onClick={() => handleHouseAction(b.id, 'Rejected')} style={{ background: '#7f1d1d', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
-                      Reject Residual
-                    </button>
-                  </div>
-                  <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
-                    <input type="number" placeholder="Partial residual amount" value={partialAmount[b.id] || ''} onChange={e => setPartialAmount({ ...partialAmount, [b.id]: e.target.value })} style={{ flex: 1, padding: '9px', background: '#1a1a2e', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: '6px' }} />
-                    <button onClick={() => handleHouseAction(b.id, 'Partial', partialAmount[b.id])} style={{ background: '#d4a017', color: '#0f0c29', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>
-                      Accept Partial Residual
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </CollapsibleSection>
-
+    {residualBets.length > 0 && (
+  <CollapsibleSection title="🔄 Residual Bets (House Second Look)" defaultOpen={true}>
+    {residualBets.map(b => {
+      const houseLaid = parseFloat(b.houseAmount) || 0;
+      const layerTotal = (b.layerBids || []).reduce((sum, bid) => sum + (parseFloat(bid.actualLaid) || parseFloat(bid.amount) || 0), 0);
+      const residual = Math.max(0, Math.round((parseFloat(b.residualStake) || (parseFloat(b.stake) - houseLaid - layerTotal)) * 100) / 100);
+      return (
+        <div key={b.id} style={{ ...cardYellow, border: '2px solid #ff9800' }}>
+          <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event} — RESIDUAL</div>
+          <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
+          <div style={{ marginTop: '8px', fontSize: '13px' }}>
+            <strong>Already Laid:</strong> House £{houseLaid.toFixed(2)} + Layers £{layerTotal.toFixed(2)} = £{(houseLaid + layerTotal).toFixed(2)}
+          </div>
+          <div style={{ color: '#ff6b6b', fontWeight: '700', marginTop: '4px' }}>
+            Residual to decide: £{residual.toFixed(2)}
+          </div>
+          {b.layerBids && b.layerBids.length > 0 && (
+            <div style={{ fontSize: '12px', background: '#1a1a2e', padding: '8px', marginTop: '8px', borderRadius: '6px', border: '1px solid #3a3a5c' }}>
+              <strong>Layer Bids so far:</strong><br />
+              {(b.layerBids || []).map((l, i) => (
+                <div key={i}>• {l.layerName}: £{l.amount} (apportioned £{(l.actualLaid || 0).toFixed(2)})</div>
+              ))}
+            </div>
+          )}
+          {b.houseTimerEnd && (
+            <div style={{ marginTop: '8px', color: '#ffb347' }}>
+              Time left for residual: <Countdown endTime={b.houseTimerEnd} />
+            </div>
+          )}
+          <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+            <button onClick={() => handleHouseAction(b.id, 'Accepted', residual)} style={{ background: '#2d6a4f', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+              Accept Residual Full
+            </button>
+            <button onClick={() => handleHouseAction(b.id, 'Rejected')} style={{ background: '#7f1d1d', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+              Reject Residual
+            </button>
+          </div>
+          <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
+            <input type="number" placeholder="Partial residual amount" value={partialAmount[b.id] || ''} onChange={e => setPartialAmount({ ...partialAmount, [b.id]: e.target.value })} style={{ flex: 1, padding: '9px', background: '#1a1a2e', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: '6px' }} />
+            <button onClick={() => handleHouseAction(b.id, 'Partial', partialAmount[b.id])} style={{ background: '#d4a017', color: '#0f0c29', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>
+              Accept Partial Residual
+            </button>
+          </div>
+        </div>
+      );
+    })}
+  </CollapsibleSection>
+)}
           <h2 style={{ color: '#00ff88' }}>Pending House Review</h2>
          
           {pendingReview.length === 0 && <p style={muted}>No bets waiting.</p>}
