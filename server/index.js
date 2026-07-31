@@ -1066,7 +1066,7 @@ app.post("/api/settings", async (req, res) => {
     if (layerTimerSeconds != null) {
       await setSetting("layerTimerSeconds", Math.max(5, parseInt(layerTimerSeconds) || 30));
     }
-    const settings = await getSettings();nod
+    const settings = await getSettings();
     res.json({ success: true, settings });
   } catch (err) {
     res.status(500).json({ error: err.message });
