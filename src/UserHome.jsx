@@ -113,10 +113,10 @@ export default function UserHome() {
       <h1 style={{ textAlign: 'center', margin: 0 }}>
         <img src="/logo2.png" alt="BetTheMan" style={{ maxWidth: '280px', height: 'auto' }} />
       </h1>
-      <div style={{ marginTop: 24 }}>
-        <div style={{ marginBottom: 6, color: '#b0b0b0' }}>Email</div>
+      <div style={{ marginTop: 12 }}>
+        <div style={{  marginBottom: 8, color: '#b0b0b0' }}>Email</div>
         <input type="text" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
-        <div style={{ marginBottom: 6, color: '#b0b0b0' }}>Password</div>
+        <div style={{ marginTop: 14, marginBottom: 8, color: '#b0b0b0' }}>Password</div>
         <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} />
         {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
         <button
