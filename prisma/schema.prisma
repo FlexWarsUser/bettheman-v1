@@ -34,6 +34,8 @@ model Bet {
   houseAction         String?
   houseAmount         Float     @default(0)
   residualStake       Float?
+  eachWay        Boolean  @default(false)
+originalStake  Float?
   houseTimerEnd       DateTime?
   layerTimerEnd       DateTime?
   houseActedAt        DateTime?

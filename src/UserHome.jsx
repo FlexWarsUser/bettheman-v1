@@ -123,7 +123,7 @@ export default function UserHome() {
 
 function UserDashboard({ user, onLogout, onUserUpdate }) {
   const [bets, setBets] = useState([]);
-  const [bet, setBet] = useState({ event: '', selection: '', odds: '', stake: '' });
+const [bet, setBet] = useState({ event: '', selection: '', odds: '', stake: '', eachWay: false });
   const [message, setMessage] = useState('');
   const [bidAmount, setBidAmount] = useState({});
   const [layerMessage, setLayerMessage] = useState('');
@@ -203,14 +203,21 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
       const res = await fetch(`${API}/api/bets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...bet, punterId: user.id, punterName: user.name }),
+body: JSON.stringify({
+  ...bet,
+  stake: bet.eachWay ? (parseFloat(bet.stake) * 2) : bet.stake,
+  eachWay: !!bet.eachWay,
+  originalStake: parseFloat(bet.stake) || 0,
+  punterId: user.id,
+  punterName: user.name
+}),
       });
       const data = await res.json();
       if (!res.ok) {
         setMessage(data.error || 'Failed to place bet');
         return;
       }
-      setBet({ event: '', selection: '', odds: '', stake: '' });
+setBet({ event: '', selection: '', odds: '', stake: '', eachWay: false });
       fetchBets();
       await refreshUser();
     } catch (err) {
@@ -454,6 +461,15 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
   style={inputStyle}
 />
               <input placeholder="Stake" type="number" value={bet.stake} onChange={e => setBet({ ...bet, stake: e.target.value })} required style={inputStyle} />
+<label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 0, color: '#ccc', fontSize: 14, cursor: 'pointer' }}>
+  <input
+    type="checkbox"
+    checked={bet.eachWay}
+    onChange={e => setBet({ ...bet, eachWay: e.target.checked })}
+    style={{ width: 14, height: 14, accentColor: '#00ff88' }}
+  />
+  Tick for each way
+</label>
 <button
   type="submit"
   style={{
@@ -484,7 +500,10 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
     {inProcess.map(b => (
       <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
         <div style={{ fontWeight: 600 }}>{b.event}</div>
-        <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds} — £{b.stake}</div>
+<div style={{ color: '#b0b0b0' }}>
+  {b.selection} @ {b.odds} — £{b.originalStake || (b.eachWay ? b.stake / 2 : b.stake)}
+  {b.eachWay ? ' each way' : ''}
+</div>
         <div style={{ marginTop: 6, color: '#ffb347' }}>Pending</div>
       </div>
     ))}
@@ -502,7 +521,11 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
                 return (
                   <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                     <div style={{ fontWeight: 600 }}>{b.event}</div>
-                    <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds} — stake £{b.stake}</div>
+<div style={{ color: '#b0b0b0' }}>
+  {b.selection} @ {b.odds} — £
+  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+  {b.eachWay ? ' each way' : ''}
+</div>
                     <div style={{ color: '#ffb347', marginTop: 4 }}>Available to lay: £{remaining.toFixed(2)}</div>
                     <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (remaining * 0.1).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: 5, cursor: 'pointer' }}>10%</button>
@@ -552,7 +575,11 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
               return (
                 <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                   <div style={{ fontWeight: 600 }}>{b.event}</div>
-                  <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds} — £{b.stake}</div>
+                  <div style={{ color: '#b0b0b0' }}>
+  {b.selection} @ {b.odds} — £
+  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+  {b.eachWay ? ' each way' : ''}
+</div>
                   <div style={{ marginTop: 6, color: '#00ff88' }}>Matched £{matched.toFixed(2)} of £{b.stake}</div>
                 </div>
               );
@@ -608,7 +635,11 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
             {rejectedBets.map(b => (
               <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                 <div style={{ fontWeight: 600 }}>{b.event}</div>
-                <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds} — £{b.stake}</div>
+<div style={{ color: '#b0b0b0' }}>
+  {b.selection} @ {b.odds} — £
+  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+  {b.eachWay ? ' each way' : ''}
+</div>
                 <div style={{ marginTop: 6, color: '#ff6b6b' }}>Not Accepted / Rejected</div>
               </div>
             ))}
@@ -629,7 +660,11 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
               return (
                 <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                   <div style={{ fontWeight: 600 }}>{b.event}</div>
-                  <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds} — stake £{b.stake}</div>
+<div style={{ color: '#b0b0b0' }}>
+  {b.selection} @ {b.odds} — £
+  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+  {b.eachWay ? ' each way' : ''}
+</div>
                   <div style={{ marginTop: 6, color: '#00ff88' }}>
                     Your lay: £{laid.toFixed(2)}{hasApportioned ? ' (apportioned)' : ' (awaiting apportioning)'}
                   </div>
@@ -654,7 +689,11 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
               return (
                 <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                   <div style={{ fontWeight: 600 }}>{b.event}</div>
-                  <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds} — stake £{b.stake}</div>
+<div style={{ color: '#b0b0b0' }}>
+  {b.selection} @ {b.odds} — £
+  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+  {b.eachWay ? ' each way' : ''}
+</div>
                   <div style={{ marginTop: 6 }}>Your lay: £{laid.toFixed(2)}</div>
                   <div style={{ marginTop: 4, fontWeight: 600, color: resultColor }}>
                     {resultLabel}

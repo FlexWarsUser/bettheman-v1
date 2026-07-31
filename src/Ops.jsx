@@ -610,7 +610,11 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
             return (
               <div key={b.id} style={cardYellow}>
                 <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-                <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
+<div style={muted}>
+  {b.selection} @ {b.odds} — £
+  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+  {b.eachWay ? ' each way' : ''}
+</div>
                 <div style={{ color: '#999' }}>by {b.punterName}</div>
                 <div style={{ marginTop: '6px', color: '#ff6b6b', fontWeight: '600' }}>Exposure: £{exposure}</div>
                 {b.houseTimerEnd && (
@@ -643,7 +647,11 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
   return (
     <div key={b.id} style={cardGreen}>
       <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-      <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
+<div style={muted}>
+  {b.selection} @ {b.odds} — £
+  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+  {b.eachWay ? ' each way' : ''}
+</div>
       <div style={{ marginTop: '6px', color: '#00ff88', fontWeight: '600' }}>
         {isFull ? 'Laid in Full' : `Partially Laid (£${totalLaid.toFixed(2)} of £${b.stake})`}
       </div>
@@ -691,7 +699,11 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
                 return (
                   <div key={b.id} style={cardRed}>
                     <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-                    <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
+<div style={muted}>
+  {b.selection} @ {b.odds} — £
+  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+  {b.eachWay ? ' each way' : ''}
+</div>
                     <div style={{ color: '#999', fontSize: '13px' }}>by {b.punterName}</div>
                     <div style={{ marginTop: '6px', color: '#ff6b6b', fontWeight: '600' }}>
                       Rejected by House
@@ -733,7 +745,11 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
       return (
         <div key={b.id} style={card}>
           <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-          <div style={muted}>{b.selection} @ {b.odds} — Stake £{b.stake}</div>
+<div style={muted}>
+  {b.selection} @ {b.odds} — £
+  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+  {b.eachWay ? ' each way' : ''}
+</div>
           <div style={{ marginTop: '6px', fontSize: '13px' }}>
             House laid: £{houseLaid.toFixed(2)} | Layers: £{layersLaid.toFixed(2)}
           </div>
@@ -778,7 +794,11 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
           return (
             <div key={b.id} style={cardYellow}>
               <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-              <div style={muted}>{b.selection} @ {b.odds} — Stake £{b.stake}</div>
+<div style={muted}>
+  {b.selection} @ {b.odds} — £
+  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+  {b.eachWay ? ' each way' : ''}
+</div>
               <div style={{ marginTop: '6px', fontSize: '13px' }}>
                 Matched: £{matched.toFixed(2)} (House £{houseLaid.toFixed(2)} + Layers £{layersLaid.toFixed(2)})
               </div>
@@ -821,7 +841,11 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
         .map(b => (
           <div key={b.id} style={card}>
             <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-            <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
+<div style={muted}>
+  {b.selection} @ {b.odds} — £
+  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+  {b.eachWay ? ' each way' : ''}
+</div>
             <div style={{ marginTop: '6px', fontWeight: '600', color: b.result === 'won' ? '#00ff88' : b.result === 'lost' ? '#ff6b6b' : '#ffb347' }}>
               Result: {(b.result || '').toUpperCase()}
             </div>
