@@ -279,30 +279,35 @@ setSlipOpen(false);
     return getLayable(b) > 0.01;
   });
 
-  const submitLay = async (b) => {
-    const amount = parseFloat(bidAmount[b.id]);
-    if (!amount || amount <= 0) {
-      setLayerMessage('Enter an amount');
-      return;
-    }
-    setLayerMessage('');
-    try {
-      const res = await fetch(`${API}/api/bets/${b.id}/layer-bid`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          layerId: user.id,
-          layerName: user.name,
-          amount,
-          action: 'bid',
-        }),
-      });
+const submitLay = async (b) => {
+  let amount = parseFloat(bidAmount[b.id]);
+  if (!amount || amount <= 0) {
+    setLayerMessage('Enter an amount');
+    return;
+  }
+
+  // Each-way: the number the layer typed is the single stake, so double it for the backend
+  if (b.eachWay) {
+    amount = amount * 2;
+  }
+
+  setLayerMessage('');
+  try {
+    const res = await fetch(`${API}/api/bets/${b.id}/layer-bid`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        layerId: user.id,
+        layerName: user.name,
+        amount,          // this is now the correct total
+        action: 'bid',
+      }),
+    });
       const data = await res.json();
       if (!res.ok || !data.success) {
         setLayerMessage(data.error || 'Lay failed');
         return;
       }
-      setLayerMessage('Lay submitted');
       setBidAmount(prev => ({ ...prev, [b.id]: '' }));
       fetchBets();
       await refreshUser();
@@ -349,29 +354,30 @@ setSlipOpen(false);
     .sort((a, b) => new Date(b.settledAt || b.createdAt) - new Date(a.settledAt || a.createdAt));
 
   return (
-    <div style={{ maxWidth: 520, margin: '10px auto', padding: 20, color: '#e8e8e8' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h1 style={{ textAlign: 'left', margin: 0 }}>
-          <img src="/logo2.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />
-        </h1>
-        <button type="button" onClick={onLogout} style={{ padding: '8px 12px', background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-          Log out 
-        </button>
-      </div>
+ <div style={{ maxWidth: 520, margin: '10px auto', padding: 20, color: '#e8e8e8' }}>
+  {/* Header */}
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+    <h1 style={{ textAlign: 'left', margin: 0 }}>
+      <img src="/logo2.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />
+    </h1>
+    <div style={{ textAlign: 'right' }}>
+      <div style={{ color: '#b0b0b0', fontSize: 14, marginBottom: 6 }}>{user.name}</div>
+      <button type="button" onClick={onLogout} style={{ padding: '2px 3px', background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
+        Log out
+      </button>
+    </div>
+  </div>
 
-      <p style={{ color: '#b0b0b0' }}>{user.name}</p>
-
-      <div style={{ marginTop: 4, marginBottom: 8 }}>
-        <span style={{ color: '#00ff88', fontWeight: 600 }}>
-          Balance: £{Number(user.balance || 0).toFixed(2)}
-        </span>
-        {user.canLay && (
-          <span style={{ color: '#ff6b6b', fontWeight: 600, marginLeft: 16 }}>
-            Open Lays Exposure: £{openLaysExposure.toFixed(2)}
-          </span>
-        )}
-      </div>
+  <div style={{ marginBottom: 8 }}>
+    <span style={{ color: '#00ff88', fontWeight: 600 }}>
+      Balance: £{Number(user.balance || 0).toFixed(2)}
+    </span>
+    {user.canLay && (
+      <span style={{ color: '#ff6b6b', fontWeight: 600, marginLeft: 16 }}>
+        Open Lays Exposure: £{openLaysExposure.toFixed(2)}
+      </span>
+    )}
+  </div>
 
       {/* Forced password change */}
       {user.mustChangePassword && (
@@ -526,66 +532,8 @@ setSlipOpen(false);
     ))}
   </div>
 )}
-
-          {user.canLay && availableToLay.length > 0 && (
-            <>
-              <h2 style={{ color: '#00ff88', marginTop: 24 }}>Available to lay</h2>
-              {layerMessage && <p style={{ color: '#00ff88' }}>{layerMessage}</p>}
-              {availableToLay.map(b => {
-                const remaining = getLayable(b);
-                const currentBid = parseFloat(bidAmount[b.id] || 0);
-                const liability = currentBid > 0 ? calcLiability(currentBid, b.odds).toFixed(2) : '0.00';
-                return (
-                  <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
-                    <div style={{ fontWeight: 600 }}>{b.event}</div>
-<div style={{ color: '#b0b0b0' }}>
-  {b.selection} @ {b.odds} — £
-  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
-  {b.eachWay ? ' each way' : ''}
-</div>
-                    <div style={{ color: '#ffb347', marginTop: 4 }}>Available to lay: £{remaining.toFixed(2)}</div>
-                    {b.layerTimerEnd && (
-  <div style={{ color: '#ffb347', marginTop: 4, fontSize: 13 }}>
-    Time left: {Math.max(0, Math.floor((new Date(b.layerTimerEnd) - now) / 1000))}s left
-  </div>
-)}
-                    <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (remaining * 0.1).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: 5, cursor: 'pointer' }}>10%</button>
-                      <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (remaining * 0.25).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: 5, cursor: 'pointer' }}>25%</button>
-                      <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (remaining * 0.5).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: 5, cursor: 'pointer' }}>50%</button>
-                      <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: remaining.toFixed(2) }))} style={{ background: '#2d6a4f', color: 'white', padding: '6px 10px', border: 'none', borderRadius: 5, cursor: 'pointer' }}>Full</button>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                      <input type="number" placeholder="Your lay amount" value={bidAmount[b.id] || ''} onChange={e => setBidAmount(prev => ({ ...prev, [b.id]: e.target.value }))} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
-                      <button type="button" onClick={() => submitLay(b)} style={{ padding: '10px 14px', background: '#0066cc', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Lay</button>
-                    </div>
-                    {currentBid > 0 && <div style={{ marginTop: 8, color: '#ff6b6b', fontWeight: 600 }}>Liability: £{liability}</div>}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!window.confirm('Reject this bet?')) return;
-                        fetch(`${API}/api/bets/${b.id}/layer-bid`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ layerId: user.id, layerName: user.name, amount: 0, action: 'reject' }),
-                        }).then(async res => {
-                          const data = await res.json();
-                          if (!res.ok || !data.success) setLayerMessage(data.error || 'Reject failed');
-                          else { setLayerMessage('Bet rejected'); fetchBets(); }
-                        }).catch(e => setLayerMessage(e.message));
-                      }}
-                      style={{ marginTop: 10, width: '100%', padding: 10, background: '#7f1d1d', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
-                    >
-                      Reject Bet
-                    </button>
-                  </div>
-                );
-              })}
-            </>
-          )}
         </>
       )}
-
       {/* ===== TAB: My Bets ===== */}
       {customerTab === 'bets' && (
         <>
@@ -602,7 +550,14 @@ setSlipOpen(false);
   {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
   {b.eachWay ? ' each way' : ''}
 </div>
-                  <div style={{ marginTop: 6, color: '#00ff88' }}>Matched £{matched.toFixed(2)} of £{b.stake}</div>
+<div style={{ marginTop: 6, color: '#00ff88' }}>
+  Matched £
+  {b.eachWay ? (matched / 2).toFixed(2) : matched.toFixed(2)}
+  {b.eachWay ? ' each way' : ''}
+  {' of £'}
+  {b.eachWay ? (b.stake / 2).toFixed(2) : b.stake}
+  {b.eachWay ? ' each way' : ''}
+</div>
                 </div>
               );
             })}
@@ -669,10 +624,10 @@ setSlipOpen(false);
         </>
       )}
 
-      {/* ===== TAB: My Lays ===== */}
+       {/* ===== TAB: My Lays ===== */}
       {customerTab === 'lays' && user.canLay && (
         <>
-          <CollapsibleSection title={`Open Lays (${openLays.length})`} defaultOpen={openLays.length > 0}>
+          <CollapsibleSection title={`Open Lays (${openLays.length})`} defaultOpen={false}>
             {openLays.length === 0 && <p style={{ color: '#b0b0b0' }}>No open lays.</p>}
             {openLays.map(b => {
               const myBid = (b.layerBids || []).find(l => Number(l.layerId) === Number(user.id));
@@ -682,13 +637,15 @@ setSlipOpen(false);
               return (
                 <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                   <div style={{ fontWeight: 600 }}>{b.event}</div>
-<div style={{ color: '#b0b0b0' }}>
-  {b.selection} @ {b.odds} — £
-  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
-  {b.eachWay ? ' each way' : ''}
-</div>
+                  <div style={{ color: '#b0b0b0' }}>
+                    {b.selection} @ {b.odds} — £
+                    {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+                    {b.eachWay ? ' each way' : ''}
+                  </div>
                   <div style={{ marginTop: 6, color: '#00ff88' }}>
-                    Your lay: £{laid.toFixed(2)}{hasApportioned ? ' (apportioned)' : ' (awaiting apportioning)'}
+                    Your lay: £{b.eachWay ? (laid / 2).toFixed(2) : laid.toFixed(2)}
+                    {b.eachWay ? ' each way' : ''}
+                    {hasApportioned ? ' (apportioned)' : ' (awaiting apportioning)'}
                   </div>
                   <div style={{ marginTop: 4, color: '#ff6b6b', fontWeight: 600 }}>Liability: £{liability.toFixed(2)}</div>
                 </div>
@@ -711,11 +668,11 @@ setSlipOpen(false);
               return (
                 <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                   <div style={{ fontWeight: 600 }}>{b.event}</div>
-<div style={{ color: '#b0b0b0' }}>
-  {b.selection} @ {b.odds} — £
-  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
-  {b.eachWay ? ' each way' : ''}
-</div>
+                  <div style={{ color: '#b0b0b0' }}>
+                    {b.selection} @ {b.odds} — £
+                    {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+                    {b.eachWay ? ' each way' : ''}
+                  </div>
                   <div style={{ marginTop: 6 }}>Your lay: £{laid.toFixed(2)}</div>
                   <div style={{ marginTop: 4, fontWeight: 600, color: resultColor }}>
                     {resultLabel}
@@ -730,6 +687,66 @@ setSlipOpen(false);
               );
             })}
           </CollapsibleSection>
+        </>
+      )}
+
+      {/* Available to lay – shows on every tab */}
+      {user.canLay && availableToLay.length > 0 && (
+        <>
+          <h2 style={{ color: '#00ff88', marginTop: 24, fontSize: 16 }}>Available to lay</h2>
+          {layerMessage && <p style={{ color: '#00ff88' }}>{layerMessage}</p>}
+          {availableToLay.map(b => {
+            const remaining = getLayable(b);
+            const displayRemaining = b.eachWay ? remaining / 2 : remaining;
+            const currentBid = parseFloat(bidAmount[b.id] || 0);
+            const liability = currentBid > 0 ? calcLiability(currentBid, b.odds).toFixed(2) : '0.00';
+            return (
+              <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+                <div style={{ fontWeight: 600 }}>
+                  {b.event} – {b.selection} @ {b.odds} — £
+                  {b.eachWay ? (remaining / 2).toFixed(2) : remaining.toFixed(2)}
+                  {b.eachWay ? ' each way' : ' Win'}
+                </div>
+                <div style={{ color: '#999', fontSize: 13, marginTop: 2 }}>
+                  by {b.punterName} at {new Date(b.createdAt).toLocaleTimeString()}
+                </div>
+                {b.layerTimerEnd && (
+                  <div style={{ color: '#ffb347', marginTop: 4, fontSize: 13 }}>
+                    Time left: {Math.max(0, Math.floor((new Date(b.layerTimerEnd) - now) / 1000))}s left
+                  </div>
+                )}
+                <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (displayRemaining * 0.1).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '3px 7px', fontSize: 11, border: 'none', borderRadius: 4, cursor: 'pointer' }}>10%</button>
+                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (displayRemaining * 0.25).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '3px 7px', fontSize: 11, border: 'none', borderRadius: 4, cursor: 'pointer' }}>25%</button>
+                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (displayRemaining * 0.5).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '3px 7px', fontSize: 11, border: 'none', borderRadius: 4, cursor: 'pointer' }}>50%</button>
+                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: displayRemaining.toFixed(2) }))} style={{ background: '#2d6a4f', color: 'white', padding: '3px 9px', fontSize: 11, border: 'none', borderRadius: 4, cursor: 'pointer' }}>Full</button>
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <input type="number" placeholder="Your lay amount" value={bidAmount[b.id] || ''} onChange={e => setBidAmount(prev => ({ ...prev, [b.id]: e.target.value }))} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+                  <button type="button" onClick={() => submitLay(b)} style={{ padding: '6px 12px', fontSize: 13, background: '#0066cc', color: 'white', border: 'none', borderRadius: 5, cursor: 'pointer' }}>Lay</button>
+                </div>
+                {currentBid > 0 && <div style={{ marginTop: 8, color: '#ff6b6b', fontWeight: 600 }}>Liability: £{liability}</div>}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!window.confirm('Reject this bet?')) return;
+                    fetch(`${API}/api/bets/${b.id}/layer-bid`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ layerId: user.id, layerName: user.name, amount: 0, action: 'reject' }),
+                    }).then(async res => {
+                      const data = await res.json();
+                      if (!res.ok || !data.success) setLayerMessage(data.error || 'Reject failed');
+                      else { setLayerMessage('Bet rejected'); fetchBets(); }
+                    }).catch(e => setLayerMessage(e.message));
+                  }}
+                  style={{ marginTop: 9, width: '100%', padding: 7, background: '#7f1d1d', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Reject Bet
+                </button>
+              </div>
+            );
+          })}
         </>
       )}
     </div>
