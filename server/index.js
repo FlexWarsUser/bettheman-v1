@@ -768,82 +768,77 @@ app.post("/api/bets/:id/action", async (req, res) => {
     const now = new Date();
     let data = {};
 
-    if (action === "Accepted") {
-      const current = Number(bet.houseAmount || 0);
-      const add = parseFloat(amount) || (Number(bet.stake) - current);
-      data = {
-        houseAmount: Math.min(Number(bet.stake), current + add),
-        status: "accepted",
-        phase: "finalized",
-        acceptedAt: now,
-        houseActedAt: bet.houseActedAt || now,
-        houseAction: "Accepted",
-        houseTimerEnd: null,
-        layerTimerEnd: null,
-      };
-    } else if (action === "Partial") {
-      const current = Number(bet.houseAmount || 0);
-      const add = parseFloat(amount) || 0;
-      data = {
-        houseAmount: current + add,
-        houseAction: "Partial",
-        houseActedAt: bet.houseActedAt || now,
-      };
-      if (bet.phase === "house_residual") {
-        const layerTotal = (Array.isArray(bet.layerBids) ? bet.layerBids : [])
-          .filter(b => !b.rejected)
-          .reduce((s, b) => s + (parseFloat(b.actualLaid) || parseFloat(b.amount) || 0), 0);
-        if (current + add + layerTotal >= Number(bet.stake) - 0.01) {
-          data.houseAmount = Number(bet.stake);
-          data.status = "accepted";
-          data.phase = "finalized";
-          data.acceptedAt = now;
-          data.houseTimerEnd = null;
-        }
-      } else {
-        data.phase = "layer_bidding";
-      const settings = await getSettings();
-data.layerTimerEnd = new Date(now.getTime() + settings.layerTimerSeconds * 1000);
-      }
-    } else if (action === "Rejected") {
-      data = { houseAction: "Rejected" };
-      if (bet.phase === "house_residual") {
-        data.phase = "finalized";
-        data.houseTimerEnd = null;
-        const houseLaid = Number(bet.houseAmount || 0);
-        const layersLaid = (Array.isArray(bet.layerBids) ? bet.layerBids : [])
-          .reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
-        if (houseLaid + layersLaid === 0) data.status = "rejected";
-        else {
-          data.status = "accepted";
-          if (!bet.acceptedAt) data.acceptedAt = now;
-        }
-      } else {
-        data.phase = "layer_bidding";
-       const settings = await getSettings();
-data.layerTimerEnd = new Date(now.getTime() + settings.layerTimerSeconds * 1000);
-      }
-    }
-   
-    const updated = await prisma.bet.update({ where: { id }, data });
-       if (data.phase === "finalized") {
-        await settleBalancesForBet(updated);
-      }
-    const serialized = serializeBet(updated);
-    await writeLedger({
-  betId: id,
-  eventType: action === "Accepted" ? "house_accepted"
-            : action === "Partial" ? "house_partial"
-            : "house_rejected",
-  actorId: 0,
-  actorName: "House",
-  details: {
-    action,
-    houseAmount: updated.houseAmount,
-    amount: amount || null,
-    phase: updated.phase,
+      if (action === "Accepted") {
+        const current = Number(bet.houseAmount || 0);
+        const add = parseFloat(amount) || (Number(bet.stake) - current);
+        data = {
+          houseAmount: Math.min(Number(bet.stake), current + add),
+          status: "accepted",
+          phase: "finalized",
+          acceptedAt: now,
+          houseActedAt: bet.houseActedAt || now,
+          houseAction: "Accepted",
+          houseTimerEnd: null,
+          layerTimerEnd: null,
+        };
+} else if (action === "Partial") {
+  const current = Number(bet.houseAmount || 0);
+  const add = parseFloat(amount) || 0;
+  data = {
+    houseAmount: current + add,
+    houseAction: "Partial",
+    houseActedAt: bet.houseActedAt || now,
+  };
+  if (bet.phase === "house_residual") {
+    data.status = "accepted";
+    data.phase = "finalized";
+    data.acceptedAt = now;
+    data.houseTimerEnd = null;
+    data.layerTimerEnd = null;
+  } else {
+    data.phase = "layer_bidding";
+    const settings = await getSettings();
+    data.layerTimerEnd = new Date(now.getTime() + settings.layerTimerSeconds * 1000);
   }
-});
+} else if (action === "Rejected") {
+  data = { houseAction: "Rejected" };
+  if (bet.phase === "house_residual") {
+    data.phase = "finalized";
+    data.houseTimerEnd = null;
+    const houseLaid = Number(bet.houseAmount || 0);
+    const layersLaid = (Array.isArray(bet.layerBids) ? bet.layerBids : [])
+      .reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
+    if (houseLaid + layersLaid === 0) data.status = "rejected";
+    else {
+      data.status = "accepted";
+      if (!bet.acceptedAt) data.acceptedAt = now;
+    }
+  } else {
+    data.phase = "layer_bidding";
+    const settings = await getSettings();
+    data.layerTimerEnd = new Date(now.getTime() + settings.layerTimerSeconds * 1000);
+  }
+}
+    
+      const updated = await prisma.bet.update({ where: { id }, data });
+        if (data.phase === "finalized") {
+          await settleBalancesForBet(updated);
+        }
+      const serialized = serializeBet(updated);
+      await writeLedger({
+    betId: id,
+    eventType: action === "Accepted" ? "house_accepted"
+              : action === "Partial" ? "house_partial"
+              : "house_rejected",
+    actorId: 0,
+    actorName: "House",
+    details: {
+      action,
+      houseAmount: updated.houseAmount,
+      amount: amount || null,
+      phase: updated.phase,
+    }
+  });
     console.log(`🏠 House ${action} bet ${id} - HouseAmount: £${serialized.houseAmount}`);
     io.emit("betUpdated", serialized);
     res.json({ success: true, bet: serialized });

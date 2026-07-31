@@ -3,12 +3,23 @@ import { useNavigate } from 'react-router-dom';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-function CollapsibleSection({ title, children, defaultOpen = false }) {
-  const [open, setOpen] = useState(defaultOpen);
+function CollapsibleSection({ title, children, defaultOpen = false, open: controlledOpen, onToggle }) {
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+
+  const toggle = () => {
+    if (isControlled) {
+      onToggle && onToggle(!controlledOpen);
+    } else {
+      setInternalOpen(!internalOpen);
+    }
+  };
+
   return (
     <div style={{ marginBottom: 16 }}>
       <div
-        onClick={() => setOpen(!open)}
+        onClick={toggle}
         style={{
           background: '#252540',
           padding: '12px 16px',
@@ -131,6 +142,8 @@ const [bet, setBet] = useState({ event: '', selection: '', odds: '', stake: '', 
   const [newPassword, setNewPassword] = useState('');
   const [pwMessage, setPwMessage] = useState('');
   const [customerTab, setCustomerTab] = useState('slip');
+  const [slipOpen, setSlipOpen] = useState(false);
+const [now, setNow] = useState(Date.now());   // ← add this line
 
   const fetchBets = async () => {
     try {
@@ -170,7 +183,10 @@ const [bet, setBet] = useState({ event: '', selection: '', odds: '', stake: '', 
     }, 3000);
     return () => clearInterval(interval);
   }, [user.id]);
-
+useEffect(() => {
+  const id = setInterval(() => setNow(Date.now()), 1000);
+  return () => clearInterval(id);
+}, []);
   const calcLiability = (amount, oddsStr) => {
     const amt = parseFloat(amount) || 0;
     if (amt <= 0) return 0;
@@ -218,6 +234,7 @@ body: JSON.stringify({
         return;
       }
 setBet({ event: '', selection: '', odds: '', stake: '', eachWay: false });
+setSlipOpen(false);
       fetchBets();
       await refreshUser();
     } catch (err) {
@@ -429,7 +446,7 @@ setBet({ event: '', selection: '', odds: '', stake: '', eachWay: false });
       {/* ===== TAB: Betting Slip ===== */}
       {customerTab === 'slip' && (
         <>
-          <CollapsibleSection title="Show/Hide Betting Slip" defaultOpen={false}>
+<CollapsibleSection title="Show/Hide Betting Slip" open={slipOpen} onToggle={setSlipOpen}>
             <form onSubmit={placeBet}>
               <p style={{ color: '#00ff88', margin: '0 0 0 0', fontSize: 14 }}>Enter bet details</p>
               <input placeholder="Event" value={bet.event} onChange={e => setBet({ ...bet, event: e.target.value })} required style={inputStyle} />
@@ -527,6 +544,11 @@ setBet({ event: '', selection: '', odds: '', stake: '', eachWay: false });
   {b.eachWay ? ' each way' : ''}
 </div>
                     <div style={{ color: '#ffb347', marginTop: 4 }}>Available to lay: £{remaining.toFixed(2)}</div>
+                    {b.layerTimerEnd && (
+  <div style={{ color: '#ffb347', marginTop: 4, fontSize: 13 }}>
+    Time left: {Math.max(0, Math.floor((new Date(b.layerTimerEnd) - now) / 1000))}s left
+  </div>
+)}
                     <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (remaining * 0.1).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: 5, cursor: 'pointer' }}>10%</button>
                       <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (remaining * 0.25).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: 5, cursor: 'pointer' }}>25%</button>
