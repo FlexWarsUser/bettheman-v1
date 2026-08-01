@@ -143,6 +143,10 @@ const [bet, setBet] = useState({ event: '', selection: '', odds: '', stake: '', 
   const [pwMessage, setPwMessage] = useState('');
   const [customerTab, setCustomerTab] = useState('slip');
   const [slipOpen, setSlipOpen] = useState(false);
+  const [eventSuggestions, setEventSuggestions] = useState([]);
+const [showEventDropdown, setShowEventDropdown] = useState(false);
+const [selectionSuggestions, setSelectionSuggestions] = useState([]);
+const [showSelectionDropdown, setShowSelectionDropdown] = useState(false);
 const [now, setNow] = useState(Date.now());   // ← add this line
 
   const fetchBets = async () => {
@@ -154,7 +158,54 @@ const [now, setNow] = useState(Date.now());   // ← add this line
       }
     } catch (e) {}
   };
+const searchEvents = async (q) => {
+  if (!q || q.length < 2) {
+    setEventSuggestions([]);
+    setShowEventDropdown(false);
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/api/events?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    let list = data.success ? (data.events || []) : [];
 
+    const ql = q.trim().toLowerCase();
+    const isNumeric = /^\d+$/.test(ql);
+
+        if (isNumeric) {
+      list = list.filter(ev => {
+        const name = (ev.name || '').toLowerCase();
+        return name.startsWith(ql);
+      });
+    } else {
+      list = list.filter(ev => (ev.name || '').toLowerCase().includes(ql));
+    }
+
+    setEventSuggestions(list);
+    setShowEventDropdown(list.length > 0);
+  } catch (e) {
+    setEventSuggestions([]);
+  }
+};
+const searchSelections = async (q) => {
+  if (!q || q.length < 2) {
+    setSelectionSuggestions([]);
+    setShowSelectionDropdown(false);
+    return;
+  }
+  try {
+    const params = new URLSearchParams({ q });
+    if (bet.event) params.set('eventName', bet.event);
+    const res = await fetch(`${API}/api/runners?${params}`);
+    const data = await res.json();
+    const list = (data && data.runners) ? data.runners : [];
+    setSelectionSuggestions(list);
+    setShowSelectionDropdown(list.length > 0);
+  } catch (e) {
+    setSelectionSuggestions([]);
+    setShowSelectionDropdown(false);
+  }
+};
   const refreshUser = async () => {
     try {
       const res = await fetch(`${API}/api/users/${user.id}`);
@@ -455,8 +506,113 @@ const submitLay = async (b) => {
 <CollapsibleSection title="Show/Hide Betting Slip" open={slipOpen} onToggle={setSlipOpen}>
             <form onSubmit={placeBet}>
               <p style={{ color: '#00ff88', margin: '0 0 0 0', fontSize: 14 }}>Enter bet details</p>
-              <input placeholder="Event" value={bet.event} onChange={e => setBet({ ...bet, event: e.target.value })} required style={inputStyle} />
-              <input placeholder="Selection" value={bet.selection} onChange={e => setBet({ ...bet, selection: e.target.value })} required style={inputStyle} />
+<div style={{ position: 'relative' }}>
+  <input
+    placeholder="Event"
+    value={bet.event}
+    onChange={e => {
+      const v = e.target.value;
+      setBet({ ...bet, event: v });
+      searchEvents(v);
+    }}
+    onBlur={() => setTimeout(() => setShowEventDropdown(false), 200)}
+    onFocus={() => { if (eventSuggestions.length) setShowEventDropdown(true); }}
+    required
+    style={inputStyle}
+    autoComplete="off"
+  />
+  {showEventDropdown && eventSuggestions.length > 0 && (
+    <div style={{
+      position: 'absolute',
+      top: '100%',
+      left: 0,
+      right: 0,
+      background: '#1a1a2e',
+      border: '1px solid #3a3a5c',
+      borderRadius: 6,
+      zIndex: 50,
+      maxHeight: 200,
+      overflowY: 'auto',
+    }}>
+      {eventSuggestions.map(ev => (
+        <div
+          key={ev.id}
+          onMouseDown={() => {
+            setBet({ ...bet, event: ev.name });
+            setShowEventDropdown(false);
+            setEventSuggestions([]);
+          }}
+          style={{
+            padding: '10px 12px',
+            cursor: 'pointer',
+            borderBottom: '1px solid #2a2a40',
+            color: '#e8e8e8',
+            fontSize: 14,
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = '#252540'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          {ev.name}
+<span style={{ color: '#888', fontSize: 12, marginLeft: 8 }}>
+  {new Date(ev.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' })}
+</span>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
+<div style={{ position: 'relative' }}>
+  <input
+    placeholder="Selection"
+    value={bet.selection}
+    onChange={e => {
+      const v = e.target.value;
+      setBet({ ...bet, selection: v });
+      searchSelections(v);
+    }}
+    onBlur={() => setTimeout(() => setShowSelectionDropdown(false), 200)}
+    onFocus={() => { if (selectionSuggestions.length) setShowSelectionDropdown(true); }}
+    required
+    style={inputStyle}
+    autoComplete="off"
+  />
+  {showSelectionDropdown && selectionSuggestions.length > 0 && (
+    <div style={{
+      position: 'absolute',
+      top: '100%',
+      left: 0,
+      right: 0,
+      background: '#1a1a2e',
+      border: '1px solid #3a3a5c',
+      borderRadius: 6,
+      zIndex: 50,
+      maxHeight: 200,
+      overflowY: 'auto',
+    }}>
+      {selectionSuggestions.map(r => (
+        <div
+          key={r.id}
+          onMouseDown={() => {
+            setBet({ ...bet, selection: r.name });
+            setShowSelectionDropdown(false);
+            setSelectionSuggestions([]);
+          }}
+          style={{
+            padding: '10px 12px',
+            cursor: 'pointer',
+            borderBottom: '1px solid #2a2a40',
+            color: '#e8e8e8',
+            fontSize: 14,
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = '#252540'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          {r.name}
+        </div>
+      ))}
+    </div>
+  )}
+</div>
 <input
   placeholder="Odds - Fractional or Decimal"
   inputMode="decimal"

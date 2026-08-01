@@ -1067,6 +1067,150 @@ app.post("/api/settings", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// GET /api/events?q=don&from=2026-08-01
+app.get("/api/events", async (req, res) => {
+  try {
+    const q = (req.query.q || "").trim();
+    const from = req.query.from ? new Date(req.query.from) : new Date();
+    from.setHours(0, 0, 0, 0);
+
+    const where = {
+      active: true,
+      date: { gte: from },
+    };
+    if (q) {
+      where.name = { contains: q, mode: "insensitive" };
+    }
+
+    const events = await prisma.event.findMany({
+      where,
+      orderBy: [{ date: "asc" }, { name: "asc" }],
+      take: 2000,
+    });
+    res.json({ success: true, events });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/events  (single)
+app.post("/api/events", async (req, res) => {
+  try {
+    const { type, name, date } = req.body;
+    if (!type || !name || !date) {
+      return res.status(400).json({ success: false, error: "type, name, date required" });
+    }
+    const event = await prisma.event.create({
+      data: {
+        type: String(type).toLowerCase(),
+        name: String(name).trim(),
+        date: new Date(date),
+      },
+    });
+    res.json({ success: true, event });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/events/bulk  (CSV rows as JSON array)
+app.post("/api/events/bulk", async (req, res) => {
+  try {
+    const rows = Array.isArray(req.body.events) ? req.body.events : [];
+    if (!rows.length) {
+      return res.status(400).json({ success: false, error: "No events provided" });
+    }
+
+    const data = rows
+      .filter(r => r.type && r.name && r.date)
+      .map(r => ({
+  type: String(r.type).toLowerCase(),
+  name: String(r.name).trim(),
+  date: new Date(r.date),
+  isHandicap: !!r.isHandicap,
+  fieldSize: r.fieldSize != null ? parseInt(r.fieldSize, 10) : null,
+}));
+
+const result = await prisma.event.createMany({ data });
+    res.json({ success: true, count: result.count });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+// DELETE /api/events  (all)
+app.delete("/api/events", async (req, res) => {
+  try {
+    const result = await prisma.event.deleteMany({});
+    res.json({ success: true, count: result.count });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+// DELETE /api/events/:id
+app.delete("/api/events/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await prisma.event.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+// GET /api/runners?q=rum&eventId=12  (or eventName=340 Doncaster)
+app.get("/api/runners", async (req, res) => {
+  try {
+    const q = (req.query.q || "").trim();
+    const eventId = req.query.eventId ? parseInt(req.query.eventId) : null;
+    const eventName = (req.query.eventName || "").trim();
+
+    const where = {};
+    if (q) where.name = { contains: q, mode: "insensitive" };
+    if (eventId) where.eventId = eventId;
+    else if (eventName) where.event = { name: { equals: eventName, mode: "insensitive" } };
+
+    const runners = await prisma.runner.findMany({
+      where,
+      orderBy: { name: "asc" },
+      take: 25,
+      select: { id: true, name: true, eventId: true },
+    });
+    res.json({ success: true, runners });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/runners/bulk", async (req, res) => {
+  try {
+    const rows = Array.isArray(req.body.runners) ? req.body.runners : [];
+    if (!rows.length) return res.json({ success: true, count: 0 });
+
+    const data = rows
+      .filter(r => r.eventId && r.name)
+      .map(r => ({
+        eventId: parseInt(r.eventId, 10),
+        name: String(r.name).trim(),
+      }));
+
+    const result = await prisma.runner.createMany({ data });
+    res.json({ success: true, count: result.count });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+// Optional: soft-delete (set active=false) instead of hard delete
+app.patch("/api/events/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const event = await prisma.event.update({
+      where: { id },
+      data: { active: req.body.active === false ? false : true },
+    });
+    res.json({ success: true, event });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 app.post("/api/users/:id/rights", async (req, res) => {
   try {
     const id = parseInt(req.params.id);

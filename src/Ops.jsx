@@ -81,11 +81,203 @@ const [authName, setAuthName] = useState('');
   const [authEmail, setAuthEmail] = useState(''); 
   const [authPassword, setAuthPassword] = useState('');
 const [ledger, setLedger] = useState([]);
+const [events, setEvents] = useState([]);
+const [eventForm, setEventForm] = useState({ type: 'horse', name: '', date: '' });
+const [csvText, setCsvText] = useState('');
+const [eventMessage, setEventMessage] = useState('');
 const [settings, setSettings] = useState({
   skipHouseFirstLook: false,
   skipHouseResidual: false,
   layerTimerSeconds: 30,
 });
+const inputStyle = {
+  width: '100%',
+  padding: '10px',
+  marginBottom: 8,
+  background: '#1a1a2e',
+  color: '#e8e8e8',
+  border: '1px solid #3a3a5c',
+  borderRadius: 6,
+  boxSizing: 'border-box',
+};
+const fetchEvents = async () => {
+  try {
+    const res = await fetch(`${API}/api/events`);
+    const data = await res.json();
+    if (data.success) setEvents(data.events || []);
+  } catch (e) {}
+};
+
+useEffect(() => {
+  fetchEvents();
+}, []);
+
+const addEvent = async () => {
+  if (!eventForm.name || !eventForm.date) return alert('Name and date required');
+  try {
+    const res = await fetch(`${API}/api/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(eventForm),
+    });
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || 'Failed');
+    setEventForm({ type: 'horse', name: '', date: '' });
+    setEventMessage('Event added');
+    fetchEvents();
+  } catch (e) {
+    alert('Failed to add event');
+  }
+};
+
+const deleteEvent = async (id) => {
+  if (!window.confirm('Delete this event?')) return;
+  try {
+    await fetch(`${API}/api/events/${id}`, { method: 'DELETE' });
+    fetchEvents();
+  } catch (e) {
+    alert('Delete failed');
+  }
+};
+
+const uploadCsvFromText = async (text) => {
+  const raw = (text || '').trim();
+  if (!raw) return alert('No file content');
+
+  const lines = raw.split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return alert('Need header + data rows');
+
+  const delim = lines[0].includes('\t') ? '\t' : ',';
+  const splitLine = (line) =>
+    line.split(delim).map(s => s.trim().replace(/^["']|["']$/g, ''));
+
+  const header = splitLine(lines[0]).map(h => h.toLowerCase());
+
+  const findCol = (...names) => {
+    for (const n of names) {
+      const i = header.findIndex(h => h.includes(n));
+      if (i >= 0) return i;
+    }
+    return -1;
+  };
+
+  const idxCourse = findCol('race_course', 'course', 'track', 'venue');
+  const idxDate = findCol('race_date', 'date');
+  const idxTime = findCol('race_off_time', 'race_off_ti', 'off_time', 'scheduled', 'time');
+  const idxHandicap = findCol('handicap', 'race_type', 'race_name', 'race_race');
+  const idxField = findCol('race_field', 'field_size', 'fieldsize', 'field');
+  let idxHorse = 20;
+  if (idxCourse < 0 || idxDate < 0 || idxTime < 0) {
+    return alert('Could not find course/date/time columns.\n\nHeaders:\n' + header.join(' | '));
+  }
+
+  const raceMap = new Map();
+  const runnerRows = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const parts = splitLine(lines[i]);
+    if (parts.length < 4) continue;
+
+    const course = parts[idxCourse] || '';
+    const dateStr = parts[idxDate] || '';
+    const timeStr = parts[idxTime] || '';
+    if (!course || !dateStr) continue;
+
+    let timeDigits = (timeStr || '').replace(/[^\d]/g, '');
+    if (timeDigits.length === 3) timeDigits = '0' + timeDigits;
+    if (timeDigits.length >= 4) timeDigits = timeDigits.slice(0, 4);
+    else if (timeDigits.length > 0) timeDigits = timeDigits.padStart(4, '0');
+    else timeDigits = '0000';
+
+    const timeLabel = String(parseInt(timeDigits, 10));
+    const name = `${timeLabel} ${course}`.replace(/\s+/g, ' ').trim();
+    if (name.length < 3) continue;
+
+    let date = new Date(dateStr);
+    if (isNaN(date.getTime())) {
+      const m = dateStr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+      if (m) {
+        const y = m[3].length === 2 ? '20' + m[3] : m[3];
+        date = new Date(`${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`);
+      }
+    }
+    if (timeDigits.length === 4 && !isNaN(date.getTime())) {
+      date.setHours(parseInt(timeDigits.slice(0, 2), 10), parseInt(timeDigits.slice(2, 4), 10), 0, 0);
+    }
+    if (isNaN(date.getTime())) continue;
+
+    const handRaw = ((idxHandicap >= 0 ? parts[idxHandicap] : '') || '').toLowerCase();
+    const isHandicap =
+      handRaw === 'y' || handRaw === 'yes' || handRaw === 'true' || handRaw === '1' ||
+      handRaw.includes('handicap');
+    const fieldSize = idxField >= 0 ? parseInt(parts[idxField], 10) : NaN;
+    const field = Number.isFinite(fieldSize) ? fieldSize : null;
+
+    const key = `${name}|${date.toISOString().slice(0, 16)}`;
+    if (!raceMap.has(key)) {
+      raceMap.set(key, {
+        type: 'horse',
+        name,
+        date: date.toISOString(),
+        isHandicap,
+        fieldSize: field,
+      });
+    }
+
+    if (idxHorse >= 0) {
+      const horse = (parts[idxHorse] || '').trim();
+      if (horse) runnerRows.push({ key, horse });
+    }
+  }
+
+  const raceList = Array.from(raceMap.values());
+  if (!raceList.length) {
+    return alert('No races found.\n\nHeaders:\n' + header.join(' | '));
+  }
+
+  try {
+    const res = await fetch(`${API}/api/events/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ events: raceList }),
+    });
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || 'Event upload failed');
+
+    const evRes = await fetch(`${API}/api/events`);
+    const evData = await evRes.json();
+    const allEvents = evData.events || [];
+    const idByKey = new Map();
+    for (const ev of allEvents) {
+      const k = `${ev.name}|${new Date(ev.date).toISOString().slice(0, 16)}`;
+      idByKey.set(k, ev.id);
+    }
+
+    const runners = [];
+const seen = new Set();
+    for (const { key, horse } of runnerRows) {
+      const eventId = idByKey.get(key);
+      if (!eventId) continue;
+      const sk = `${eventId}|${horse.toLowerCase()}`;
+      if (seen.has(sk)) continue;
+      seen.add(sk);
+      runners.push({ eventId, name: horse });
+    }
+
+    if (runners.length) {
+      await fetch(`${API}/api/runners/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runners }),
+      });
+    }
+
+    setEventMessage(`Uploaded ${data.count} races, ${runners.length} runners`);
+    fetchEvents();
+} catch (e) {
+  alert('Upload failed: ' + (e && e.message ? e.message : String(e)));
+}
+};
 const fetchBets = async () => {
   try {
     const res = await fetch(`${API}/api/bets`);
@@ -531,7 +723,7 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
             Log out
           </button>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '30px' }}>
-  {['house', 'settlement', 'admin'].map(tab => (
+  {['house', 'settlement', 'admin', 'events'].map(tab => (
   <button
     key={tab}
     onClick={() => setActiveTab(tab)}
@@ -609,11 +801,10 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
             const exposure = getExposure(b.stake, b.odds);
             return (
               <div key={b.id} style={cardYellow}>
-                <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
-<div style={muted}>
-  {b.selection} @ {b.odds} — £
+<div style={{ fontSize: '16px', fontWeight: '600' }}>
+  {b.event} – {b.selection} @ {b.odds} — £
   {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
-  {b.eachWay ? ' each way' : ''}
+  {b.eachWay ? ' each way' : ' Win'}
 </div>
                 <div style={{ color: '#999' }}>by {b.punterName}</div>
                 <div style={{ marginTop: '6px', color: '#ff6b6b', fontWeight: '600' }}>Exposure: £{exposure}</div>
@@ -1057,7 +1248,127 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
     </CollapsibleSection>
   </div>
 )}
+{activeTab === 'events' && (
+  <div>
+    <h2 style={{ color: '#00ff88' }}>Events</h2>
+    {eventMessage && <p style={{ color: '#00ff88' }}>{eventMessage}</p>}
 
+    {/* Single add */}
+    <div style={{ background: '#1a1a2e', padding: 16, borderRadius: 8, marginBottom: 16 }}>
+      <div style={{ fontWeight: 600, marginBottom: 10 }}>Add event</div>
+      <select
+        value={eventForm.type}
+        onChange={e => setEventForm({ ...eventForm, type: e.target.value })}
+        style={{ ...inputStyle, marginBottom: 8 }}
+      >
+        <option value="horse">Horse</option>
+        <option value="football">Football</option>
+      </select>
+      <input
+        placeholder="Name (e.g. 330 Doncaster)"
+        value={eventForm.name}
+        onChange={e => setEventForm({ ...eventForm, name: e.target.value })}
+        style={inputStyle}
+      />
+      <input
+        type="datetime-local"
+        value={eventForm.date}
+        onChange={e => setEventForm({ ...eventForm, date: e.target.value })}
+        style={inputStyle}
+      />
+      <button
+        type="button"
+        onClick={addEvent}
+        style={{ background: '#00ff88', color: '#0f0c29', padding: '8px 14px', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}
+      >
+        Add
+      </button>
+    </div>
+
+    {/* CSV file upload */}
+    <div style={{ background: '#1a1a2e', padding: 16, borderRadius: 8, marginBottom: 16 }}>
+      <div style={{ fontWeight: 600, marginBottom: 8 }}>Upload racing CSV</div>
+      <div style={{ color: '#999', fontSize: 13, marginBottom: 8 }}>
+        Select the full racing file (.csv / .tsv). One event is created per race.
+      </div>
+      <input
+        type="file"
+        accept=".csv,.txt,.tsv"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const text = await file.text();
+          uploadCsvFromText(text);
+          e.target.value = '';
+        }}
+        style={{ color: '#e8e8e8', fontSize: 14 }}
+      />
+    </div>
+
+    {/* Stored events – collapsed by default */}
+    <CollapsibleSection title={`Stored events (${events.length})`} defaultOpen={false}>
+{events.length > 0 && (
+  <button
+    type="button"
+    onClick={async () => {
+      if (!window.confirm('Delete ALL stored events?')) return;
+      try {
+        const res = await fetch(`${API}/api/events`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) return alert(data.error || 'Delete failed');
+        setEventMessage(`Deleted ${data.count} events`);
+        fetchEvents();
+      } catch (e) {
+        alert('Delete failed');
+      }
+    }}
+    style={{ background: '#7f1d1d', color: 'white', padding: '6px 10px', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 12, marginBottom: 10 }}
+  >
+    Delete all
+  </button>
+)}
+
+      {events.length === 0 && <p style={{ color: '#999' }}>No events stored.</p>}
+
+      <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+        {events.map(ev => (
+          <div
+            key={ev.id}
+            style={{
+              background: '#1a1a2e',
+              border: '1px solid #3a3a5c',
+              borderRadius: 8,
+              padding: '10px 12px',
+              marginBottom: 6,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 600 }}>{ev.name}</div>
+<div style={{ color: '#999', fontSize: 12 }}>
+  {(() => {
+    const d = new Date(ev.date);
+    const day = d.toLocaleDateString('en-GB', { weekday: 'long' });
+    const date = d.toLocaleDateString('en-GB');
+    return `${day} ${date}`;
+  })()}
+</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => deleteEvent(ev.id)}
+              style={{ background: '#7f1d1d', color: 'white', padding: '5px 10px', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 12 }}
+            >
+              Delete
+            </button>
+          </div>
+        ))}
+      </div>
+    </CollapsibleSection>
+  </div>
+)}
 {showBidConfirm && (
   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
     <div style={{ background: '#1a1a2e', padding: '25px', borderRadius: '10px', maxWidth: '380px', width: '90%', border: '1px solid #3a3a5c', color: '#e8e8e8' }}>

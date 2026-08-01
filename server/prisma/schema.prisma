@@ -67,3 +67,25 @@ model Setting {
   value     String
   updatedAt DateTime @updatedAt
 }
+model Event {
+  id         Int      @id @default(autoincrement())
+  type       String
+  name       String
+  date       DateTime
+  runners Runner[]
+  isHandicap Boolean  @default(false)
+  fieldSize  Int?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+model Runner {
+  id        Int      @id @default(autoincrement())
+  eventId   Int
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name      String   // horse name
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+  @@index([name])
+}
