@@ -143,6 +143,7 @@ const [bet, setBet] = useState({ event: '', selection: '', odds: '', stake: '', 
   const [pwMessage, setPwMessage] = useState('');
   const [customerTab, setCustomerTab] = useState('slip');
   const [slipOpen, setSlipOpen] = useState(false);
+  const [events, setEvents] = useState([]);
   const [eventSuggestions, setEventSuggestions] = useState([]);
 const [showEventDropdown, setShowEventDropdown] = useState(false);
 const [selectionSuggestions, setSelectionSuggestions] = useState([]);
@@ -228,6 +229,10 @@ const searchSelections = async (q) => {
   useEffect(() => {
     fetchBets();
     refreshUser();
+      fetch(`${API}/api/events`)
+    .then(r => r.json())
+    .then(d => setEvents(d.events || []))
+    .catch(() => {});
     const interval = setInterval(() => {
       fetchBets();
       refreshUser();
@@ -238,17 +243,50 @@ useEffect(() => {
   const id = setInterval(() => setNow(Date.now()), 1000);
   return () => clearInterval(id);
 }, []);
-  const calcLiability = (amount, oddsStr) => {
-    const amt = parseFloat(amount) || 0;
-    if (amt <= 0) return 0;
-    const str = String(oddsStr).trim();
-    if (str.includes('/')) {
-      const [n, d] = str.split('/').map(Number);
-      return amt * (n / (d || 1));
-    }
-    const o = parseFloat(str);
-    return o > 1 ? amt * (o - 1) : 0;
+const oddsToLiabilityMultiplier = (oddsStr) => {
+  const str = String(oddsStr || '').trim();
+  if (!str) return 0;
+  if (str.includes('/') || str.includes('-')) {
+    const [n, d] = str.split(/[\/\-]/);
+    const num = parseFloat(n);
+    const den = parseFloat(d) || 1;
+    if (!num || !den) return 0;
+    return num / den;
+  }
+  const o = parseFloat(str);
+  return o > 1 ? (o - 1) : 0;
+};
+
+const getPlaceFraction = (fieldSize, isHandicap) => {
+  const n = parseInt(fieldSize, 10) || 0;
+  if (n < 5) return null;
+  if (n <= 7) return 0.25;
+  if (isHandicap) {
+    if (n >= 12) return 0.25;
+    return 0.2;
+  }
+  return 0.2;
+};
+
+const calcLiability = (stake, oddsStr, opts = {}) => {
+  const s = parseFloat(stake) || 0;
+  if (s <= 0) return 0;
+  const mult = oddsToLiabilityMultiplier(oddsStr);
+  if (!opts.eachWay) return s * mult;
+  const part = s / 2;
+  const frac = getPlaceFraction(opts.fieldSize, opts.isHandicap);
+  if (frac == null) return part * mult;
+  return part * mult + part * mult * frac;
+};
+
+const getBetRaceMeta = (bet) => {
+  const name = (bet.event || '').toLowerCase();
+  const ev = (events || []).find(e => (e.name || '').toLowerCase() === name);
+  return {
+    fieldSize: ev?.fieldSize ?? null,
+    isHandicap: !!ev?.isHandicap,
   };
+};
 
   const openLaysExposure = (() => {
     if (!user.canLay) return 0;
@@ -788,7 +826,12 @@ if (
             {openLays.map(b => {
               const myBid = (b.layerBids || []).find(l => Number(l.layerId) === Number(user.id));
               const laid = parseFloat(myBid?.actualLaid ?? myBid?.amount) || 0;
-              const liability = calcLiability(laid, b.odds);
+const meta = getBetRaceMeta(b);
+const liability = calcLiability(laid, b.odds, {
+  eachWay: !!b.eachWay,
+  fieldSize: meta.fieldSize,
+  isHandicap: meta.isHandicap,
+});
               const hasApportioned = myBid?.actualLaid != null;
               return (
                 <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
@@ -814,7 +857,12 @@ if (
             {settledLays.map(b => {
               const myBid = (b.layerBids || []).find(l => Number(l.layerId) === Number(user.id));
               const laid = parseFloat(myBid?.actualLaid ?? myBid?.amount) || 0;
-              const liability = calcLiability(laid, b.odds);
+const meta = getBetRaceMeta(b);
+const liability = calcLiability(laid, b.odds, {
+  eachWay: !!b.eachWay,
+  fieldSize: meta.fieldSize,
+  isHandicap: meta.isHandicap,
+});
               const isWon = b.result === 'won';
               const isManual = b.result === 'manual';
               let resultLabel = 'YOU WON';
@@ -855,7 +903,14 @@ if (
             const remaining = getLayable(b);
             const displayRemaining = b.eachWay ? remaining / 2 : remaining;
             const currentBid = parseFloat(bidAmount[b.id] || 0);
-            const liability = currentBid > 0 ? calcLiability(currentBid, b.odds).toFixed(2) : '0.00';
+const meta = getBetRaceMeta(b);
+const liability = currentBid > 0
+  ? calcLiability(currentBid, b.odds, {
+      eachWay: !!b.eachWay,
+      fieldSize: meta.fieldSize,
+      isHandicap: meta.isHandicap,
+    }).toFixed(2)
+  : '0.00';
             return (
               <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                 <div style={{ fontWeight: 600 }}>

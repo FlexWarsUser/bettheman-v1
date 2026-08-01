@@ -595,19 +595,59 @@ const handleManualSettle = async (betId, notes, manualPayouts) => {
 
   const getLayableAmount = (b) => Math.max(0, parseFloat(b.stake) - (parseFloat(b.houseAmount) || 0));
 
-  const getExposure = (stake, oddsStr) => {
-    const s = parseFloat(stake);
-    if (!s) return '0.00';
-    const str = String(oddsStr).trim();
-if (str.includes('/') || str.includes('-')) {
-  const [n, d] = str.split(/[\/\-]/);
-      const num = parseFloat(n);
-      const den = parseFloat(d) || 1;
-      return (s * (num / den)).toFixed(2);
-    }
-    const o = parseFloat(str);
-    return o > 1 ? (s * (o - 1)).toFixed(2) : '0.00';
+  const oddsToLiabilityMultiplier = (oddsStr) => {
+  const str = String(oddsStr || '').trim();
+  if (!str) return 0;
+  if (str.includes('/') || str.includes('-')) {
+    const [n, d] = str.split(/[\/\-]/);
+    const num = parseFloat(n);
+    const den = parseFloat(d) || 1;
+    if (!num || !den) return 0;
+    return num / den;
+  }
+  const o = parseFloat(str);
+  return o > 1 ? (o - 1) : 0;
+};
+
+const getPlaceFraction = (fieldSize, isHandicap) => {
+  const n = parseInt(fieldSize, 10) || 0;
+  if (n < 5) return null;
+  if (n <= 7) return 0.25;
+  if (isHandicap) {
+    if (n >= 12) return 0.25;
+    return 0.2;
+  }
+  return 0.2;
+};
+
+const getExposure = (stake, oddsStr, opts = {}) => {
+  const s = parseFloat(stake) || 0;
+  if (s <= 0) return 0;
+
+  const mult = oddsToLiabilityMultiplier(oddsStr);
+  const eachWay = !!opts.eachWay;
+
+  if (!eachWay) {
+    return s * mult;
+  }
+
+  const part = s / 2;
+  const frac = getPlaceFraction(opts.fieldSize, opts.isHandicap);
+
+  if (frac == null) {
+    return part * mult;
+  }
+
+  return part * mult + part * mult * frac;
+};
+const getBetRaceMeta = (bet) => {
+  const name = (bet.event || '').toLowerCase();
+  const ev = (events || []).find(e => (e.name || '').toLowerCase() === name);
+  return {
+    fieldSize: ev?.fieldSize ?? null,
+    isHandicap: !!ev?.isHandicap,
   };
+};
 const getMyExposure = (userId) => {
   let total = 0;
   for (const b of allBets) {
@@ -617,7 +657,12 @@ const getMyExposure = (userId) => {
     if (!bid) continue;
     const amt = parseFloat(bid.actualLaid != null ? bid.actualLaid : bid.amount) || 0;
     if (amt <= 0) continue;
-    total += parseFloat(getExposure(amt, b.odds)) || 0;
+const meta = getBetRaceMeta(b);
+total += getExposure(amt, b.odds, {
+  eachWay: !!b.eachWay,
+  fieldSize: meta.fieldSize,
+  isHandicap: meta.isHandicap,
+}) || 0;
   }
   return total;
 };
@@ -628,7 +673,12 @@ const getHouseExposure = () => {
     if (b.phase === 'settled' || b.settledAt) continue;   // only skip settled
     const houseAmt = parseFloat(b.houseAmount) || 0;
     if (houseAmt <= 0) continue;
-    total += parseFloat(getExposure(houseAmt, b.odds)) || 0;
+const meta = getBetRaceMeta(b);
+total += getExposure(houseAmt, b.odds, {
+  eachWay: !!b.eachWay,
+  fieldSize: meta.fieldSize,
+  isHandicap: meta.isHandicap,
+}) || 0;
   }
   return total;
 };
@@ -798,7 +848,12 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
          
           {pendingReview.length === 0 && <p style={muted}>No bets waiting.</p>}
           {pendingReview.map(b => {
-            const exposure = getExposure(b.stake, b.odds);
+const meta = getBetRaceMeta(b);
+const exposure = getExposure(b.stake, b.odds, {
+  eachWay: !!b.eachWay,
+  fieldSize: meta.fieldSize,
+  isHandicap: meta.isHandicap,
+});
             return (
               <div key={b.id} style={cardYellow}>
 <div style={{ fontSize: '16px', fontWeight: '600' }}>
