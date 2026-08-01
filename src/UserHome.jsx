@@ -761,20 +761,22 @@ if (
             {settledBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No settled bets.</p>}
             {settledBets.map(b => {
               const matched = getMatched(b);
-              const originalStake = Number(b.stake) || 0;
+const originalStake = b.eachWay
+  ? (Number(b.originalStake) || Number(b.stake) / 2)
+  : (Number(b.stake) || 0);
               const isPartial = matched > 0.01 && matched < originalStake - 0.01;
               const isWon = b.result === 'won';
               const isManual = b.result === 'manual';
-              let returns = 0;
-              if (isWon && matched > 0) {
-                const oddsStr = String(b.odds).trim();
-                if (oddsStr.includes('/')) {
-                  const [n, d] = oddsStr.split('/').map(Number);
-                  returns = matched * (1 + n / (d || 1));
-                } else {
-                  returns = matched * (parseFloat(oddsStr) || 1);
-                }
-              }
+let returns = 0;
+if (isWon && matched > 0) {
+  const meta = getBetRaceMeta(b);
+  const profit = calcLiability(matched, b.odds, {
+    eachWay: !!b.eachWay,
+    fieldSize: meta.fieldSize,
+    isHandicap: meta.isHandicap,
+  });
+  returns = matched + profit;
+}
               let resultLabel = 'LOST';
               let resultColor = '#ff6b6b';
               if (isWon) { resultLabel = 'WON'; resultColor = '#00ff88'; }

@@ -139,7 +139,46 @@ function calcReturn(stake, oddsStr) {
   const o = parseFloat(str);
   return o > 0 ? Math.round(s * o * 100) / 100 : 0; // decimal = full return
 }
+function oddsToLiabilityMultiplier(oddsStr) {
+  const str = String(oddsStr || "").trim();
+  if (!str) return 0;
+  if (str.includes("/") || str.includes("-")) {
+    const [n, d] = str.split(/[\/\-]/);
+    const num = parseFloat(n);
+    const den = parseFloat(d) || 1;
+    if (!num || !den) return 0;
+    return num / den;
+  }
+  const o = parseFloat(str);
+  return o > 1 ? o - 1 : 0;
+}
 
+function getPlaceFraction(fieldSize, isHandicap) {
+  const n = parseInt(fieldSize, 10) || 0;
+  if (n < 5) return null;
+  if (n <= 7) return 0.25;
+  if (isHandicap) return n >= 12 ? 0.25 : 0.2;
+  return 0.2;
+}
+
+function calcExposure(stake, oddsStr, eachWay, fieldSize, isHandicap) {
+  const s = parseFloat(stake) || 0;
+  if (s <= 0) return 0;
+  const mult = oddsToLiabilityMultiplier(oddsStr);
+  if (!eachWay) return s * mult;
+  const part = s / 2;
+  const frac = getPlaceFraction(fieldSize, isHandicap);
+  if (frac == null) return part * mult;
+  return part * mult + part * mult * frac;
+}
+
+// Total return to punter (stake + profit) on a winning matched amount
+function calcReturn(matchedStake, oddsStr, eachWay, fieldSize, isHandicap) {
+  const s = parseFloat(matchedStake) || 0;
+  if (s <= 0) return 0;
+  const profit = calcExposure(s, oddsStr, eachWay, fieldSize, isHandicap);
+  return s + profit;
+}
 async function settleBet(bet, result, notes = null, manualPayouts = null) {
   if (bet.settledAt) return { error: "Already settled" };
 
@@ -159,12 +198,22 @@ async function settleBet(bet, result, notes = null, manualPayouts = null) {
   const layers = Array.isArray(bet.layerBids) ? bet.layerBids : [];
 
   if (result === "won") {
-    const matchedStake = houseLaid + layers.reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
-    const payout = calcReturn(matchedStake, bet.odds);
+    console.log("SETTLE", bet.id, "eachWay=", bet.eachWay, "stake=", bet.stake, "odds=", bet.odds, "event=", bet.event);
+    const event = await prisma.event.findFirst({
+      where: { name: { equals: bet.event, mode: "insensitive" } },
+    });
+    const fieldSize = event?.fieldSize ?? null;
+    const isHandicap = !!event?.isHandicap;
+    const eachWay = !!bet.eachWay;
+
+    const matchedStake =
+      houseLaid + layers.reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
+
+    const payout = calcReturn(matchedStake, bet.odds, eachWay, fieldSize, isHandicap);
     await changeUserBalance(bet.punterId, payout);
 
     if (houseLaid > 0) {
-      const houseLiability = calcExposure(houseLaid, bet.odds);
+      const houseLiability = calcExposure(houseLaid, bet.odds, eachWay, fieldSize, isHandicap);
       await changeUserBalance(7, -houseLiability);
     }
 
@@ -172,7 +221,7 @@ async function settleBet(bet, result, notes = null, manualPayouts = null) {
       if (l.rejected) continue;
       const amt = parseFloat(l.actualLaid) || 0;
       if (amt <= 0) continue;
-      const liability = calcExposure(amt, bet.odds);
+      const liability = calcExposure(amt, bet.odds, eachWay, fieldSize, isHandicap);
       await changeUserBalance(l.layerId, -liability);
     }
   } else if (result === "lost") {
