@@ -599,8 +599,8 @@ const handleManualSettle = async (betId, notes, manualPayouts) => {
     const s = parseFloat(stake);
     if (!s) return '0.00';
     const str = String(oddsStr).trim();
-    if (str.includes('/')) {
-      const [n, d] = str.split('/');
+if (str.includes('/') || str.includes('-')) {
+  const [n, d] = str.split(/[\/\-]/);
       const num = parseFloat(n);
       const den = parseFloat(d) || 1;
       return (s * (num / den)).toFixed(2);

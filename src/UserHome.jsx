@@ -614,7 +614,7 @@ const submitLay = async (b) => {
   )}
 </div>
 <input
-  placeholder="Odds - Fractional or Decimal"
+  placeholder="Odds - e.g 2.5, 6/4 or 6-4"
   inputMode="decimal"
   autoComplete="off"
   spellCheck={false}
@@ -627,15 +627,15 @@ const submitLay = async (b) => {
     // - Whole numbers (2)
     // - Decimal odds (2.5)
     // - Fractional odds (11/4)
-    if (
-      value === '' ||
-      /^\d+$/.test(value) ||
-      /^\d+\.\d*$/.test(value) ||
-      /^\d+\/\d*$/.test(value)
-    ) {
-      setBet({ ...bet, odds: value });
-    }
-  }}
+if (
+    value === '' ||
+    /^\d+$/.test(value) ||
+    /^\d+\.\d*$/.test(value) ||
+    /^\d+[\/\-]\d*$/.test(value)   // 4/1 or 4-1
+  ) {
+    setBet({ ...bet, odds: value });
+  }
+}}
   required
   style={inputStyle}
 />
