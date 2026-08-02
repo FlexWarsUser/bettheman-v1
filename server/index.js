@@ -126,18 +126,30 @@ async function setSetting(key, value) {
     update: { value: String(value) },
   });
 }
-function calcReturn(stake, oddsStr) {
-  const s = parseFloat(stake);
-  if (!s) return 0;
-  const str = String(oddsStr).trim();
-  if (str.includes("/")) {
-    const [n, d] = str.split("/");
-    const num = parseFloat(n);
-    const den = parseFloat(d) || 1;
-    return Math.round((s + s * (num / den)) * 100) / 100; // stake + profit
+function calcExposure(stake, oddsStr, eachWay, placeFraction) {
+  const s = parseFloat(stake) || 0;
+  if (s <= 0) return 0;
+  const mult = oddsToLiabilityMultiplier(oddsStr);
+  if (!eachWay || placeFraction === null) {
+    // win-only or non-EW: full stake at win odds
+    return s * mult;
   }
-  const o = parseFloat(str);
-  return o > 0 ? Math.round(s * o * 100) / 100 : 0; // decimal = full return
+  const part = s / 2;
+  return part * mult + part * mult * placeFraction;
+}
+
+function calcReturn(stake, oddsStr, eachWay, placeFraction) {
+  const s = parseFloat(stake) || 0;
+  if (s <= 0) return 0;
+  return s + calcExposure(s, oddsStr, eachWay, placeFraction);
+}
+
+function calcPlaceReturn(matchedStake, oddsStr, placeFraction) {
+  const s = parseFloat(matchedStake) || 0;
+  if (s <= 0 || placeFraction == null) return 0;
+  const part = s / 2;
+  const mult = oddsToLiabilityMultiplier(oddsStr);
+  return part + part * mult * placeFraction;
 }
 function oddsToLiabilityMultiplier(oddsStr) {
   const str = String(oddsStr || "").trim();
@@ -161,25 +173,7 @@ function getPlaceFraction(fieldSize, isHandicap) {
   return 0.2;
 }
 
-function calcExposure(stake, oddsStr, eachWay, fieldSize, isHandicap) {
-  const s = parseFloat(stake) || 0;
-  if (s <= 0) return 0;
-  const mult = oddsToLiabilityMultiplier(oddsStr);
-  if (!eachWay) return s * mult;
-  const part = s / 2;
-  const frac = getPlaceFraction(fieldSize, isHandicap);
-  if (frac == null) return part * mult;
-  return part * mult + part * mult * frac;
-}
-
-// Total return to punter (stake + profit) on a winning matched amount
-function calcReturn(matchedStake, oddsStr, eachWay, fieldSize, isHandicap) {
-  const s = parseFloat(matchedStake) || 0;
-  if (s <= 0) return 0;
-  const profit = calcExposure(s, oddsStr, eachWay, fieldSize, isHandicap);
-  return s + profit;
-}
-async function settleBet(bet, result, notes = null, manualPayouts = null) {
+async function settleBet(bet, result, notes = null, manualPayouts = null, placeFraction = undefined) {
   if (bet.settledAt) return { error: "Already settled" };
 
   // 1. Mark settled FIRST
@@ -198,22 +192,29 @@ async function settleBet(bet, result, notes = null, manualPayouts = null) {
   const layers = Array.isArray(bet.layerBids) ? bet.layerBids : [];
 
   if (result === "won") {
-    console.log("SETTLE", bet.id, "eachWay=", bet.eachWay, "stake=", bet.stake, "odds=", bet.odds, "event=", bet.event);
-    const event = await prisma.event.findFirst({
-      where: { name: { equals: bet.event, mode: "insensitive" } },
-    });
-    const fieldSize = event?.fieldSize ?? null;
-    const isHandicap = !!event?.isHandicap;
     const eachWay = !!bet.eachWay;
+    let frac = placeFraction;
+    if (eachWay && frac === undefined) {
+      const event = await prisma.event.findFirst({
+        where: { name: { equals: bet.event, mode: "insensitive" } },
+      });
+      frac = getPlaceFraction(event?.fieldSize, !!event?.isHandicap);
+    }
+    // non-EW: ignore fraction
+    if (!eachWay) frac = undefined;
 
     const matchedStake =
       houseLaid + layers.reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
 
-    const payout = calcReturn(matchedStake, bet.odds, eachWay, fieldSize, isHandicap);
+    const payout = eachWay
+      ? calcReturn(matchedStake, bet.odds, true, frac)
+      : calcReturn(matchedStake, bet.odds, false, undefined);
     await changeUserBalance(bet.punterId, payout);
 
     if (houseLaid > 0) {
-      const houseLiability = calcExposure(houseLaid, bet.odds, eachWay, fieldSize, isHandicap);
+      const houseLiability = eachWay
+        ? calcExposure(houseLaid, bet.odds, true, frac)
+        : calcExposure(houseLaid, bet.odds, false, undefined);
       await changeUserBalance(7, -houseLiability);
     }
 
@@ -221,8 +222,48 @@ async function settleBet(bet, result, notes = null, manualPayouts = null) {
       if (l.rejected) continue;
       const amt = parseFloat(l.actualLaid) || 0;
       if (amt <= 0) continue;
-      const liability = calcExposure(amt, bet.odds, eachWay, fieldSize, isHandicap);
+      const liability = eachWay
+        ? calcExposure(amt, bet.odds, true, frac)
+        : calcExposure(amt, bet.odds, false, undefined);
       await changeUserBalance(l.layerId, -liability);
+    }
+  } else if (result === "placed") {
+    // place only; client sends placeFraction as a number (not win-only)
+    let frac = placeFraction;
+    if (frac === undefined || frac === null) {
+      const event = await prisma.event.findFirst({
+        where: { name: { equals: bet.event, mode: "insensitive" } },
+      });
+      frac = getPlaceFraction(event?.fieldSize, !!event?.isHandicap);
+    }
+    if (frac == null) {
+      // win only → treat as lost
+      if (houseLaid > 0) await changeUserBalance(7, houseLaid);
+      for (const l of layers) {
+        if (l.rejected) continue;
+        const amt = parseFloat(l.actualLaid) || 0;
+        if (amt <= 0) continue;
+        await changeUserBalance(l.layerId, amt);
+      }
+    } else {
+      const matchedStake =
+        houseLaid + layers.reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
+      const placePayout = calcPlaceReturn(matchedStake, bet.odds, frac);
+      await changeUserBalance(bet.punterId, placePayout);
+
+      if (houseLaid > 0) {
+        const part = houseLaid / 2;
+        const placeProfit = part * oddsToLiabilityMultiplier(bet.odds) * frac;
+        await changeUserBalance(7, part - placeProfit);
+      }
+      for (const l of layers) {
+        if (l.rejected) continue;
+        const amt = parseFloat(l.actualLaid) || 0;
+        if (amt <= 0) continue;
+        const part = amt / 2;
+        const placeProfit = part * oddsToLiabilityMultiplier(bet.odds) * frac;
+        await changeUserBalance(l.layerId, part - placeProfit);
+      }
     }
   } else if (result === "lost") {
     if (houseLaid > 0) {
@@ -1044,9 +1085,9 @@ app.post("/api/bets/:id/layer-bid", async (req, res) => {
 app.post("/api/bets/:id/settle", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { result, notes, manualPayouts } = req.body; // result = "won" | "lost" | "manual"
+    const { result, notes, manualPayouts, placeFraction } = req.body; // result = "won" | "lost" | "manual"
 
-    const bet = await prisma.bet.findUnique({ where: { id } });
+    const bet = await prisma.bet.findUnique({ where: { id } }); 
     if (!bet) return res.status(404).json({ success: false, error: "Bet not found" });
     if (bet.phase !== "finalized" && bet.phase !== "settled") {
       return res.status(400).json({ success: false, error: "Bet is not ready for settlement" });
@@ -1055,7 +1096,7 @@ app.post("/api/bets/:id/settle", async (req, res) => {
       return res.status(400).json({ success: false, error: "Already settled" });
     }
 
-    const outcome = await settleBet(bet, result, notes, manualPayouts);
+    const outcome = await settleBet(bet, result, notes, manualPayouts, placeFraction);
     if (outcome.error) return res.status(400).json({ success: false, error: outcome.error });
 
     const serialized = serializeBet(outcome.bet);

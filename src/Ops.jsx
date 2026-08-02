@@ -490,6 +490,68 @@ const handleSettle = async (betId, result) => {
     alert('Settlement failed');
   }
 };
+const askPlaceFraction = () => {
+  const choice = window.prompt(
+    'Place terms for this each-way bet?\n\n' +
+      '5 = 1/5\n' +
+      '4 = 1/4\n' +
+      '3 = 1/3\n' +
+      '2 = 1/2\n' +
+      '0 = Win only\n\n' +
+      'Enter 5, 4, 3, 2 or 0:'
+  );
+  const map = {
+    '5': 0.2,
+    '4': 0.25,
+    '3': 1 / 3,
+    '2': 0.5,
+    '0': null,
+  };
+  if (choice == null) return undefined;
+  if (!(choice in map)) {
+    alert('Invalid choice');
+    return undefined;
+  }
+  return map[choice];
+};
+
+const settleEachWay = async (bet, result) => {
+  const placeFraction = askPlaceFraction();
+  if (placeFraction === undefined) return;
+
+  if (result === 'placed' && placeFraction === null) {
+    if (!window.confirm('Win only — settle as LOST?')) return;
+    return handleSettle(bet.id, 'lost');
+  }
+
+  const label =
+    placeFraction === null ? 'Win only' :
+    placeFraction === 0.2 ? '1/5' :
+    placeFraction === 0.25 ? '1/4' :
+    placeFraction === 0.5 ? '1/2' : '1/3';
+
+  if (!window.confirm(`Confirm ${result.toUpperCase()} with place terms: ${label}?`)) return;
+
+  try {
+    const res = await fetch(`${API}/api/bets/${bet.id}/settle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        result,
+        placeFraction,
+        notes: `EW terms: ${label}`,
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return alert(data.error || 'Settlement failed');
+    }
+    fetchBets();
+    if (typeof fetchUsers === 'function') fetchUsers();
+  } catch (e) {
+    alert('Settlement failed');
+  }
+};
 
 const openManualSettle = (bet) => {
   const notes = window.prompt('Settlement notes (e.g. Dead heat, Rule 4, Void):', '');
@@ -804,8 +866,14 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
       const residual = Math.max(0, Math.round((parseFloat(b.residualStake) || (parseFloat(b.stake) - houseLaid - layerTotal)) * 100) / 100);
       return (
         <div key={b.id} style={{ ...cardYellow, border: '2px solid #ff9800' }}>
-          <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event} — RESIDUAL</div>
-          <div style={muted}>{b.selection} @ {b.odds} — £{b.stake}</div>
+          <div style={{ fontSize: '16px', fontWeight: '600' }}>
+  {b.event} – {b.selection} @ {b.odds}
+</div>
+<div style={{ color: '#b0b0b0', marginTop: 4 }}>
+  £{b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+  {b.eachWay ? ' E/W' : ' Win'}
+  {' requested by '}{b.punterName}
+</div>
           <div style={{ marginTop: '8px', fontSize: '13px' }}>
             <strong>Already Laid:</strong> House £{houseLaid.toFixed(2)} + Layers £{layerTotal.toFixed(2)} = £{(houseLaid + layerTotal).toFixed(2)}
           </div>
@@ -857,11 +925,14 @@ const exposure = getExposure(b.stake, b.odds, {
             return (
               <div key={b.id} style={cardYellow}>
 <div style={{ fontSize: '16px', fontWeight: '600' }}>
-  {b.event} – {b.selection} @ {b.odds} — £
-  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
-  {b.eachWay ? ' each way' : ' Win'}
+  {b.event} – {b.selection} @ {b.odds}
 </div>
-                <div style={{ color: '#999' }}>by {b.punterName}</div>
+<div style={{ color: '#b0b0b0', marginTop: 4 }}>
+  £{b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+  {b.eachWay ? ' E/W' : ' Win'}
+  {' requested by '}{b.punterName}
+</div>
+
                 <div style={{ marginTop: '6px', color: '#ff6b6b', fontWeight: '600' }}>Exposure: £{exposure}</div>
                 {b.houseTimerEnd && (
                   <div style={{ marginTop: '6px' }}>Time left: <Countdown endTime={b.houseTimerEnd} /></div>
@@ -999,7 +1070,10 @@ const exposure = getExposure(b.stake, b.odds, {
           <div style={{ marginTop: '6px', fontSize: '13px' }}>
             House laid: £{houseLaid.toFixed(2)} | Layers: £{layersLaid.toFixed(2)}
           </div>
-          <div style={{ marginTop: '6px', fontWeight: '600', color: b.result === 'won' ? '#ff6b6b' : b.result === 'lost' ? '#00ff88' : '#ffb347' }}>
+          <div style={{ marginTop: '6px', fontWeight: '600', color: b.result === 'won' ? '#00ff88'
+  : b.result === 'placed' ? '#ffb347'
+  : b.result === 'lost' ? '#ff6b6b'
+  : '#ffb347' }}>
             {/* From House view: punter won = house lost */}
             Result: {b.result === 'won' ? 'PUNTER WON (House lost)' : b.result === 'lost' ? 'PUNTER LOST (House won)' : (b.result || 'SETTLED').toUpperCase()}
           </div>
@@ -1052,19 +1126,44 @@ const exposure = getExposure(b.stake, b.odds, {
                 Punter: {b.punterName}
               </div>
 
-              <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => handleSettle(b.id, 'won')}
-                  style={{ background: '#2d6a4f', color: 'white', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
-                >
-                  Won
-                </button>
-                <button
-                  onClick={() => handleSettle(b.id, 'lost')}
-                  style={{ background: '#7f1d1d', color: 'white', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
-                >
-                  Lost
-                </button>
+                <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {b.eachWay ? (
+                  <>
+                    <button
+                      onClick={() => settleEachWay(b, 'won')}
+                      style={{ background: '#2d6a4f', color: 'white', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+                    >
+                      Won
+                    </button>
+                    <button
+                      onClick={() => settleEachWay(b, 'placed')}
+                      style={{ background: '#d4a017', color: '#0f0c29', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+                    >
+                      Placed
+                    </button>
+                    <button
+                      onClick={() => handleSettle(b.id, 'lost')}
+                      style={{ background: '#7f1d1d', color: 'white', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+                    >
+                      Lost
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleSettle(b.id, 'won')}
+                      style={{ background: '#2d6a4f', color: 'white', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+                    >
+                      Won
+                    </button>
+                    <button
+                      onClick={() => handleSettle(b.id, 'lost')}
+                      style={{ background: '#7f1d1d', color: 'white', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+                    >
+                      Lost
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => openManualSettle(b)}
                   style={{ background: '#3a3a5c', color: 'white', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
@@ -1092,7 +1191,10 @@ const exposure = getExposure(b.stake, b.odds, {
   {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
   {b.eachWay ? ' each way' : ''}
 </div>
-            <div style={{ marginTop: '6px', fontWeight: '600', color: b.result === 'won' ? '#00ff88' : b.result === 'lost' ? '#ff6b6b' : '#ffb347' }}>
+            <div style={{ marginTop: '6px', fontWeight: '600', color: b.result === 'won' ? '#00ff88'
+  : b.result === 'placed' ? '#ffb347'
+  : b.result === 'lost' ? '#ff6b6b'
+  : '#ffb347' }}>
               Result: {(b.result || '').toUpperCase()}
             </div>
             {b.settlementNotes && (
@@ -1348,7 +1450,7 @@ const exposure = getExposure(b.stake, b.odds, {
       </div>
       <input
         type="file"
-        accept=".csv,.txt,.tsv"
+        accept="*/*"
         onChange={async (e) => {
           const file = e.target.files?.[0];
           if (!file) return;
@@ -1439,5 +1541,4 @@ const exposure = getExposure(b.stake, b.odds, {
     </div>
   );
 }
-
 export default Ops;

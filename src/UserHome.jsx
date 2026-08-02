@@ -465,11 +465,11 @@ const submitLay = async (b) => {
       <span style={{ color: '#ff6b6b', fontWeight: 600, marginLeft: 16 }}>
         Open Lays Exposure: £{openLaysExposure.toFixed(2)}
       </span>
-    )}
+    )}``
   </div>
 
       {/* Forced password change */}
-      {user.mustChangePassword && (
+{user.mustChangePassword && user.role !== 'admin' && user.role !== 'house' && (
         <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginTop: 16, marginBottom: 16 }}>
           <div style={{ color: '#00ff88', fontWeight: 600, marginBottom: 8 }}>You must change your password</div>
           <input type="password" placeholder="Current password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} style={inputStyle} />
@@ -714,16 +714,23 @@ if (
     <div style={{ color: '#ffb347', fontWeight: 600, marginBottom: 10 }}>
       In Process ({inProcess.length})
     </div>
-    {inProcess.map(b => (
-      <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
-        <div style={{ fontWeight: 600 }}>{b.event}</div>
-<div style={{ color: '#b0b0b0' }}>
-  {b.selection} @ {b.odds} — £{b.originalStake || (b.eachWay ? b.stake / 2 : b.stake)}
-  {b.eachWay ? ' each way' : ''}
-</div>
-        <div style={{ marginTop: 6, color: '#ffb347' }}>Pending</div>
-      </div>
-    ))}
+{inProcess.map(b => (
+  <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+    <div style={{ fontWeight: 600 }}>
+      {b.event} – {b.selection} @ {b.odds}
+    </div>
+    <div style={{ color: '#b0b0b0', marginTop: 4 }}>
+      £{b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+      {b.eachWay ? ' E/W' : ' Win'}
+    </div>
+    <div style={{ marginTop: 6, color: '#ffb347' }}>Pending</div>
+    <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>
+      Submitted: {b.createdAt
+        ? new Date(b.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC'
+        : '—'}
+    </div>
+  </div>
+))}
   </div>
 )}
         </>
@@ -738,22 +745,34 @@ if (
               const matched = getMatched(b);
               return (
                 <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
-                  <div style={{ fontWeight: 600 }}>{b.event}</div>
-                  <div style={{ color: '#b0b0b0' }}>
-  {b.selection} @ {b.odds} — £
-  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
-  {b.eachWay ? ' each way' : ''}
-</div>
-<div style={{ marginTop: 6, color: '#00ff88' }}>
-  Matched £
-  {b.eachWay ? (matched / 2).toFixed(2) : matched.toFixed(2)}
-  {b.eachWay ? ' each way' : ''}
-  {' of £'}
-  {b.eachWay ? (b.stake / 2).toFixed(2) : b.stake}
-  {b.eachWay ? ' each way' : ''}
-</div>
-                </div>
-              );
+          <div style={{ fontWeight: 600 }}>
+            {b.event} – {b.selection} @ {b.odds}
+          </div>
+          <div style={{ color: '#b0b0b0', marginTop: 4 }}>
+            {(() => {
+              const total = Number(b.stake) || 0;
+              const perSide = b.eachWay ? (Number(b.originalStake) || total / 2) : total;
+              const matchedSide = b.eachWay ? matched / 2 : matched;
+              const isFull = matched >= total - 0.01;
+              const unit = b.eachWay ? 'each way' : 'Win';
+              if (isFull) {
+                return `£${Number(perSide).toFixed(0)} ${unit} — fully laid`;
+              }
+              return `£${Number(perSide).toFixed(0)} ${unit} — partially laid (£${matchedSide.toFixed(2)} ${unit})`;
+            })()}
+          </div>
+          <div style={{ fontSize: 13, color: '#999', marginTop: 6 }}>
+            Submitted: {b.createdAt
+              ? new Date(b.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC'
+              : '—'}
+          </div>
+          <div style={{ fontSize: 13, color: '#999', marginTop: 2 }}>
+            Accepted: {(b.acceptedAt || b.houseActedAt)
+              ? new Date(b.acceptedAt || b.houseActedAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC'
+              : '—'}
+          </div>
+        </div>
+                          );
             })}
           </CollapsibleSection>
 
@@ -765,41 +784,82 @@ const originalStake = b.eachWay
   ? (Number(b.originalStake) || Number(b.stake) / 2)
   : (Number(b.stake) || 0);
               const isPartial = matched > 0.01 && matched < originalStake - 0.01;
-              const isWon = b.result === 'won';
-              const isManual = b.result === 'manual';
-let returns = 0;
-if (isWon && matched > 0) {
-  const meta = getBetRaceMeta(b);
-  const profit = calcLiability(matched, b.odds, {
-    eachWay: !!b.eachWay,
-    fieldSize: meta.fieldSize,
-    isHandicap: meta.isHandicap,
-  });
-  returns = matched + profit;
-}
-              let resultLabel = 'LOST';
-              let resultColor = '#ff6b6b';
-              if (isWon) { resultLabel = 'WON'; resultColor = '#00ff88'; }
-              else if (isManual) { resultLabel = 'SETTLED (Manual)'; resultColor = '#ffb347'; }
+      const isWon = b.result === 'won';
+      const isPlaced = b.result === 'placed';
+      const isManual = b.result === 'manual';
 
-              return (
-                <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
-                  <div style={{ fontWeight: 600 }}>{b.event}</div>
-                  <div style={{ color: '#b0b0b0' }}>{b.selection} @ {b.odds}</div>
-                  <div style={{ marginTop: 6, fontSize: 14, color: '#b0b0b0' }}>
-                    Original stake: £{originalStake.toFixed(2)}
-                    {isPartial && <span style={{ color: '#ffb347' }}> — Partially matched £{matched.toFixed(2)}</span>}
-                    {!isPartial && matched > 0.01 && <span> — Fully matched £{matched.toFixed(2)}</span>}
-                  </div>
-                  <div style={{ marginTop: 6, fontWeight: 600, color: resultColor }}>
-                    {resultLabel}{isWon && returns > 0 ? ` — Returns £${returns.toFixed(2)}` : ''}
-                  </div>
-                  {b.settlementNotes && <div style={{ fontSize: 14, color: '#ffb347', marginTop: 4 }}>Note: {b.settlementNotes}</div>}
-                  <div style={{ fontSize: 14, color: '#999', marginTop: 4 }}>
-                    Settled: {b.settledAt ? new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '—'}
-                  </div>
-                </div>
-              );
+      let returns = 0;
+      if ((isWon || isPlaced) && matched > 0) {
+        const meta = getBetRaceMeta(b);
+        if (isWon) {
+          const profit = calcLiability(matched, b.odds, {
+            eachWay: !!b.eachWay,
+            fieldSize: meta.fieldSize,
+            isHandicap: meta.isHandicap,
+          });
+          returns = matched + profit;
+} else if (isPlaced && b.eachWay) {
+  const part = matched / 2;
+  const mult = oddsToLiabilityMultiplier(b.odds);
+  // Prefer fraction from settlement notes
+  let frac = null;
+  const notes = b.settlementNotes || '';
+  if (notes.includes('1/5')) frac = 0.2;
+  else if (notes.includes('1/4')) frac = 0.25;
+  else if (notes.includes('1/3')) frac = 1 / 3;
+  else if (notes.includes('1/2')) frac = 0.5;
+  else if (notes.includes('Win only')) frac = null;
+
+  if (frac == null && !notes.includes('Win only')) {
+    const meta = getBetRaceMeta(b);
+    frac = getPlaceFraction(meta.fieldSize, meta.isHandicap) ?? 0.25;
+  }
+
+  returns = frac == null ? 0 : part + part * mult * frac;
+}
+      }
+
+      let resultLabel = 'LOST';
+      let resultColor = '#ff6b6b';
+      if (isWon) {
+        resultLabel = 'WON';
+        resultColor = '#00ff88';
+      } else if (isPlaced) {
+        resultLabel = 'PLACED';
+        resultColor = '#ffb347';
+      } else if (isManual) {
+        resultLabel = 'SETTLED (Manual)';
+        resultColor = '#ffb347';
+      }
+
+      return (
+        <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+          <div style={{ fontWeight: 600 }}>
+            {b.event} – {b.selection} @ {b.odds}
+          </div>
+          <div style={{ color: '#b0b0b0', marginTop: 4 }}>
+            £{b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+            {b.eachWay ? ' E/W' : ''}
+            {b.eachWay && b.settlementNotes && b.settlementNotes.includes('1/5') ? ' (1/5)' :
+             b.eachWay && b.settlementNotes && b.settlementNotes.includes('1/4') ? ' (1/4)' :
+             b.eachWay && b.settlementNotes && b.settlementNotes.includes('1/3') ? ' (1/3)' :
+             b.eachWay && b.settlementNotes && b.settlementNotes.includes('1/2') ? ' (1/2)' :
+             b.eachWay && b.settlementNotes && b.settlementNotes.includes('Win only') ? ' (Win only)' : ''}
+            {' — '}
+            {matched >= (Number(b.stake) || 0) - 0.01 ? 'Fully laid' : `Part matched £${matched.toFixed(2)}`}
+          </div>
+          <div style={{ marginTop: 6, fontWeight: 600, color: resultColor }}>
+            {resultLabel}
+            {(isWon || isPlaced) && returns > 0 ? ` — Returns £${returns.toFixed(2)}` : ''}
+          </div>
+          <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>
+            Submitted: {b.createdAt ? new Date(b.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '—'}
+          </div>
+          <div style={{ fontSize: 13, color: '#999', marginTop: 2 }}>
+            Settled: {b.settledAt ? new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '—'}
+          </div>
+        </div>
+      );
             })}
           </CollapsibleSection>
 
@@ -865,12 +925,22 @@ const liability = calcLiability(laid, b.odds, {
   fieldSize: meta.fieldSize,
   isHandicap: meta.isHandicap,
 });
-              const isWon = b.result === 'won';
-              const isManual = b.result === 'manual';
-              let resultLabel = 'YOU WON';
-              let resultColor = '#00ff88';
-              if (isWon) { resultLabel = 'YOU LOST'; resultColor = '#ff6b6b'; }
-              else if (isManual) { resultLabel = 'SETTLED (Manual)'; resultColor = '#ffb347'; }
+const isWon = b.result === 'won';
+const isPlaced = b.result === 'placed';
+const isManual = b.result === 'manual';
+
+let resultLabel = 'LOST';
+let resultColor = '#ff6b6b';
+if (isWon) {
+  resultLabel = 'WON';
+  resultColor = '#00ff88';
+} else if (isPlaced) {
+  resultLabel = 'PLACED';
+  resultColor = '#ffb347';
+} else if (isManual) {
+  resultLabel = 'SETTLED (Manual)';
+  resultColor = '#ffb347';
+}
               return (
                 <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                   <div style={{ fontWeight: 600 }}>{b.event}</div>
