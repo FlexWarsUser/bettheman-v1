@@ -188,25 +188,186 @@ const searchEvents = async (q) => {
     setEventSuggestions([]);
   }
 };
-const searchSelections = async (q) => {
-  if (!q || q.length < 2) {
-    setSelectionSuggestions([]);
-    setShowSelectionDropdown(false);
-    return;
+  const searchSelections = async (q) => {
+    const query = (q || '').trim();
+
+    // Football: markets from templates
+    const FOOTBALL_MARKETS = [
+  'Home Win',
+  'Draw',
+  'Away Win',
+  'Over 1.5 Goals',
+  'Over 2.5 Goals',
+  'Over 3.5 Goals',
+  'Over 4.5 Goals',
+  'Both Teams to Score BTTS',
+  'Over 7.5 Corners',
+  'Over 8.5 Corners',
+  'Over 9.5 Corners',
+  'Over 10.5 Corners',
+  'Over 11.5 Corners',
+  'Over 12.5 Corners',
+  'Over 13.5 Corners',
+  'Under 7.5 Corners',
+  'Under 8.5 Corners',
+  'Under 9.5 Corners',
+  'Under 10.5 Corners',
+  'Under 11.5 Corners',
+  'Under 12.5 Corners',
+  'Under 13.5 Corners',
+  'Over 1.5 Home Goals',
+  'Over 2.5 Home Goals',
+  'Over 3.5 Home Goals',
+  'Under 1.5 Home Goals',
+  'Under 2.5 Home Goals',
+  'Under 3.5 Home Goals',
+  'Over 1.5 Away Goals',
+  'Over 2.5 Away Goals',
+  'Over 3.5 Away Goals',
+  'Under 1.5 Away Goals',
+  'Under 2.5 Away Goals',
+  'Under 3.5 Away Goals',
+  'Over 1.5 Home Corners',
+  'Over 2.5 Home Corners',
+  'Over 3.5 Home Corners',
+  'Over 4.5 Home Corners',
+  'Over 5.5 Home Corners',
+  'Over 6.5 Home Corners',
+  'Over 7.5 Home Corners',
+  'Over 8.5 Home Corners',
+  'Over 9.5 Home Corners',
+  'Over 10.5 Home Corners',
+  'Over 1.5 Away Corners',
+  'Over 2.5 Away Corners',
+  'Over 3.5 Away Corners',
+  'Over 4.5 Away Corners',
+  'Over 5.5 Away Corners',
+  'Over 6.5 Away Corners',
+  'Over 7.5 Away Corners',
+  'Over 8.5 Away Corners',
+  'Over 9.5 Away Corners',
+  'Over 10.5 Away Corners',
+  'Under 1.5 Home Corners',
+  'Under 2.5 Home Corners',
+  'Under 3.5 Home Corners',
+  'Under 4.5 Home Corners',
+  'Under 5.5 Home Corners',
+  'Under 6.5 Home Corners',
+  'Under 7.5 Home Corners',
+  'Under 8.5 Home Corners',
+  'Under 9.5 Home Corners',
+  'Under 10.5 Home Corners',
+  'Under 1.5 Away Corners',
+  'Under 2.5 Away Corners',
+  'Under 3.5 Away Corners',
+  'Under 4.5 Away Corners',
+  'Under 5.5 Away Corners',
+  'Under 6.5 Away Corners',
+  'Under 7.5 Away Corners',
+  'Under 8.5 Away Corners',
+  'Under 9.5 Away Corners',
+  'Under 10.5 Away Corners',
+  'Over 1.5 Match Cards',
+  'Over 2.5 Match Cards',
+  'Over 3.5 Match Cards',
+  'Over 4.5 Match Cards',
+  'Over 6.5 Match Cards',
+  'Over 7.5 Match Cards',
+  'Under 1.5 Match Cards',
+  'Under 2.5 Match Cards',
+  'Under 3.5 Match Cards',
+  'Under 4.5 Match Cards',
+  'Under 6.5 Match Cards',
+  'Under 7.5 Match Cards',
+  'Over 0.5 Home Cards',
+  'Over 1.5 Home Cards',
+  'Over 2.5 Home Cards',
+  'Over 3.5 Home Cards',
+  'Over 4.5 Home Cards',
+  'Under 0.5 Home Cards',
+  'Under 1.5 Home Cards',
+  'Under 2.5 Home Cards',
+  'Under 3.5 Home Cards',
+  'Under 4.5 Home Cards',
+  'Over 0.5 Away Cards',
+  'Over 1.5 Away Cards',
+  'Over 2.5 Away Cards',
+  'Over 3.5 Away Cards',
+  'Over 4.5 Away Cards',
+  'Under 0.5 Away Cards',
+  'Under 1.5 Away Cards',
+  'Under 2.5 Away Cards',
+  'Under 3.5 Away Cards',
+  'Under 4.5 Away Cards',
+  'Home Team -0.5 Handicap',
+  'Home Team -1.5 Handicap',
+  'Home Team -2.5 Handicap',
+  'Home Team -3.5 Handicap',
+  'Home Team +0.5 Handicap',
+  'Home Team +1.5 Handicap',
+  'Home Team +2.5 Handicap',
+  'Home Team +3.5 Handicap',
+  'Away Team -0.5 Handicap',
+  'Away Team -1.5 Handicap',
+  'Away Team -2.5 Handicap',
+  'Away Team -3.5 Handicap',
+  'Away Team +0.5 Handicap',
+  'Away Team +1.5 Handicap',
+  'Away Team +2.5 Handicap',
+  'Away Team +3.5 Handicap',
+];
+
+function parseFootballTeams(eventName) {
+  const parts = String(eventName || '').split(/\s+v\s+/i);
+  if (parts.length === 2 && parts[0].trim() && parts[1].trim()) {
+    return { home: parts[0].trim(), away: parts[1].trim() };
   }
-  try {
-    const params = new URLSearchParams({ q });
-    if (bet.event) params.set('eventName', bet.event);
-    const res = await fetch(`${API}/api/runners?${params}`);
-    const data = await res.json();
-    const list = (data && data.runners) ? data.runners : [];
-    setSelectionSuggestions(list);
-    setShowSelectionDropdown(list.length > 0);
-  } catch (e) {
-    setSelectionSuggestions([]);
-    setShowSelectionDropdown(false);
-  }
-};
+  return null;
+}
+
+function footballSelectionsForEvent(eventName) {
+  const teams = parseFootballTeams(eventName);
+  if (!teams) return [];
+  const { home, away } = teams;
+  return FOOTBALL_MARKETS.map(label =>
+    label
+      .replace(/\bHome Team\b/g, home)
+      .replace(/\bAway Team\b/g, away)
+      .replace(/\bHome\b/g, home)
+      .replace(/\bAway\b/g, away)
+  );
+}
+    const teams = parseFootballTeams(bet.event);
+    if (teams) {
+      let list = footballSelectionsForEvent(bet.event);
+      if (query) {
+        list = list.filter(s => s.toLowerCase().includes(query.toLowerCase()));
+      }
+      setSelectionSuggestions(list.slice(0, 40));
+      setShowSelectionDropdown(list.length > 0);
+      return;
+    }
+
+    // Horse: need at least 2 chars
+    if (!query || query.length < 2) {
+      setSelectionSuggestions([]);
+      setShowSelectionDropdown(false);
+      return;
+    }
+
+    try {
+      const params = new URLSearchParams({ q: query });
+      if (bet.event) params.set('eventName', bet.event);
+      const res = await fetch(`${API}/api/runners?${params}`);
+      const data = await res.json();
+      const list = (data && data.runners) ? data.runners : [];
+      setSelectionSuggestions(list);
+      setShowSelectionDropdown(list.length > 0);
+    } catch (e) {
+      setSelectionSuggestions([]);
+      setShowSelectionDropdown(false);
+    }
+  };
   const refreshUser = async () => {
     try {
       const res = await fetch(`${API}/api/users/${user.id}`);
@@ -465,7 +626,7 @@ const submitLay = async (b) => {
       <span style={{ color: '#ff6b6b', fontWeight: 600, marginLeft: 16 }}>
         Open Lays Exposure: £{openLaysExposure.toFixed(2)}
       </span>
-    )}``
+    )}
   </div>
 
       {/* Forced password change */}
@@ -614,43 +775,46 @@ const submitLay = async (b) => {
     style={inputStyle}
     autoComplete="off"
   />
-  {showSelectionDropdown && selectionSuggestions.length > 0 && (
-    <div style={{
-      position: 'absolute',
-      top: '100%',
-      left: 0,
-      right: 0,
-      background: '#1a1a2e',
-      border: '1px solid #3a3a5c',
-      borderRadius: 6,
-      zIndex: 50,
-      maxHeight: 200,
-      overflowY: 'auto',
-    }}>
-      {selectionSuggestions.map(r => (
-        <div
-          key={r.id}
-          onMouseDown={() => {
-            setBet({ ...bet, selection: r.name });
-            setShowSelectionDropdown(false);
-            setSelectionSuggestions([]);
-          }}
-          style={{
-            padding: '10px 12px',
-            cursor: 'pointer',
-            borderBottom: '1px solid #2a2a40',
-            color: '#e8e8e8',
-            fontSize: 14,
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = '#252540'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-        >
-          {r.name}
-        </div>
-      ))}
-    </div>
-  )}
-</div>
+          {showSelectionDropdown && selectionSuggestions.length > 0 && (
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            background: '#1a1a2e',
+            border: '1px solid #3a3a5c',
+            borderRadius: 6,
+            zIndex: 50,
+            maxHeight: 200,
+            overflowY: 'auto',
+          }}>
+            {selectionSuggestions.map((s, i) => {
+              const label = typeof s === 'string' ? s : (s.name || '');
+              return (
+                <div
+                  key={i}
+                  onClick={() => {
+                    setBet({ ...bet, selection: label });
+                    setShowSelectionDropdown(false);
+                    setSelectionSuggestions([]);
+                  }}
+                  style={{
+                    padding: '10px 12px',
+                    cursor: 'pointer',
+                    borderBottom: '1px solid #2a2a40',
+                    color: '#e8e8e8',
+                    fontSize: 14,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#252540'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  {label}
+                </div>
+              );
+            })}
+          </div>
+        )}
+              </div>
 <input
   placeholder="Odds - e.g 2.5, 6/4 or 6-4"
   inputMode="decimal"

@@ -1161,12 +1161,17 @@ app.post("/api/settings", async (req, res) => {
 app.get("/api/events", async (req, res) => {
   try {
     const q = (req.query.q || "").trim();
-    const from = req.query.from ? new Date(req.query.from) : new Date();
+
+    const from = new Date();
     from.setHours(0, 0, 0, 0);
+
+    const to = new Date(from);
+    to.setDate(to.getDate() + 25);
+    to.setHours(23, 59, 59, 999);
 
     const where = {
       active: true,
-      date: { gte: from },
+      date: { gte: from, lte: to },
     };
     if (q) {
       where.name = { contains: q, mode: "insensitive" };

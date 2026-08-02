@@ -278,6 +278,105 @@ const seen = new Set();
   alert('Upload failed: ' + (e && e.message ? e.message : String(e)));
 }
 };
+const uploadFootballCsvFromText = async (text) => {
+  const lines = text.replace(/\r/g, '').trim().split('\n');
+  if (lines.length < 2) {
+    setEventMessage('Empty CSV');
+    return;
+  }
+
+  const delim = lines[0].includes('\t') ? '\t' : ',';
+  const headers = lines[0].split(delim).map(h => h.trim().toLowerCase().replace(/['"]/g, ''));
+
+  const idx = (names) => {
+    for (const n of names) {
+      const i = headers.findIndex(h => h === n || h.includes(n));
+      if (i >= 0) return i;
+    }
+    return -1;
+  };
+
+  const iDate = idx(['date']);
+  const iTime = idx(['time']);
+  const iHome = idx(['home_team', 'home']);
+  const iAway = idx(['away_team', 'away']);
+
+  if (iDate < 0 || iHome < 0 || iAway < 0) {
+    setEventMessage('Need columns: date, home_team, away_team (time optional)');
+    return;
+  }
+
+  const events = [];
+  for (let r = 1; r < lines.length; r++) {
+         const cols = lines[r].split(delim).map(c => c.trim().replace(/^["']|["']$/g, ''));
+      const home = (cols[iHome] || '').trim();
+      const away = (cols[iAway] || '').trim();
+      if (!home || !away) continue;
+
+      const dateStr = (cols[iDate] || '').trim();
+      const timeStr = (iTime >= 0 ? (cols[iTime] || '15:00') : '15:00').trim();
+
+      // Support 21/08/2026, 21-08-26, 2026-08-21
+      let dd, mm, yyyy;
+      const parts = dateStr.split(/[\/\-]/).map(p => parseInt(String(p).trim(), 10));
+
+      if (parts.length >= 3 && parts[0] > 31) {
+        // yyyy-mm-dd
+        yyyy = parts[0];
+        mm = parts[1];
+        dd = parts[2];
+      } else if (parts.length >= 3) {
+        // dd/mm/yyyy
+        dd = parts[0];
+        mm = parts[1];
+        yyyy = parts[2];
+      } else {
+        continue;
+      }
+
+      if (yyyy < 100) yyyy += 2000;
+
+      const timeParts = timeStr.split(':');
+      const hh = parseInt(timeParts[0], 10) || 15;
+      const min = parseInt(timeParts[1], 10) || 0;
+
+      if (!dd || !mm || !yyyy || yyyy < 2020) continue;
+
+      const iso = new Date(yyyy, mm - 1, dd, hh, min);
+      if (isNaN(iso.getTime())) continue;
+
+      events.push({
+        type: 'football',
+        name: `${home} v ${away}`,
+        date: iso.toISOString(),
+        isHandicap: false,
+        fieldSize: null,
+        active: true,
+      });
+  }
+
+  if (!events.length) {
+    setEventMessage('No football rows parsed');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/events/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ events }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      setEventMessage(data.error || 'Upload failed');
+      return;
+    }
+    setEventMessage(`Uploaded ${data.count} football fixtures`);
+    fetchEvents();
+  } catch (e) {
+    setEventMessage('Upload failed');
+  }
+};
 const fetchBets = async () => {
   try {
     const res = await fetch(`${API}/api/bets`);
@@ -1448,18 +1547,26 @@ const exposure = getExposure(b.stake, b.odds, {
       <div style={{ color: '#999', fontSize: 13, marginBottom: 8 }}>
         Select the full racing file (.csv / .tsv). One event is created per race.
       </div>
-      <input
-        type="file"
-        accept="*/*"
-        onChange={async (e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          const text = await file.text();
-          uploadCsvFromText(text);
-          e.target.value = '';
-        }}
-        style={{ color: '#e8e8e8', fontSize: 14 }}
-      />
+<input
+  type="file"
+  accept="*/*"
+  onChange={e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || '');
+      const head = text.slice(0, 200).toLowerCase();
+      if (head.includes('home_team') || head.includes('away_team')) {
+        uploadFootballCsvFromText(text);
+      } else {
+        uploadCsvFromText(text);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }}
+/>
     </div>
 
     {/* Stored events – collapsed by default */}
