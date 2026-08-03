@@ -66,7 +66,13 @@ function CollapsibleSection({ title, children, defaultOpen = false }) {
 
 function Ops() {
   const [activeTab, setActiveTab] = useState('house');   // was 'punter'
-const [currentUser, setCurrentUser] = useState(MOCK_USERS.find(u => u.id === 1) || MOCK_USERS[0]);
+const [currentUser, setCurrentUser] = useState(() => {
+  try {
+    return JSON.parse(localStorage.getItem('btm_user'));
+  } catch {
+    return null;
+  }
+});
 const [authName, setAuthName] = useState('');
   const [bet, setBet] = useState({ event: '', selection: '', odds: '', stake: '' });
   const [message, setMessage] = useState('');
@@ -890,31 +896,15 @@ const cardRed = { ...card, borderLeft: '3px solid #ef4444' };
 const muted = { color: '#94a3b8', fontSize: '12px' };
 
   return (
-    <div style={{ maxWidth: '780px', margin: '0 auto', padding: '30px 20px', fontFamily: 'system-ui, sans-serif', color: '#e8e8e8' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '30px', color: '#00ff88' }}>BetTheMan</h1>
-
-      <div style={{ textAlign: 'center', marginBottom: '25px' }}>
-
-        <div style={{ marginTop: '8px', color: '#00ff88', fontWeight: '600' }}>
-                  <div style={{ marginTop: '8px', fontWeight: '600' }}>
-<span style={{ color: '#00ff88' }}>
-  Balance: £{Number(
-users.find(u => Number(u.id) === 7)?.balance ?? 0
-  ).toFixed(2)}
-</span>
-{(activeTab === 'house' || currentUser.canLay) && (
-  <span style={{ color: '#ff6b6b', marginLeft: '16px' }}>
-    Open Lays Exposure: £{(
-      activeTab === 'house' 
-        ? getHouseExposure() 
-        : getMyExposure(currentUser.id)
-    ).toFixed(2)}
-  </span>
-)}
-
-        </div>
-        </div>
-      </div>
+    <div style={{ maxWidth: 520, margin: '10px auto', padding: 20, color: '#e8e8e8', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+        <h1 style={{ textAlign: 'left', margin: 0 }}>
+          <img src="/logo2.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />
+        </h1>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ color: '#b0b0b0', marginBottom: 6, fontSize: 14 }}>
+            {currentUser?.name}
+          </div>
           <button
             type="button"
             onClick={() => {
@@ -922,8 +912,7 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
               window.location.href = '/';
             }}
             style={{
-              marginLeft: 12,
-              padding: '6px 12px',
+              padding: '8px 12px',
               background: '#3a3a5c',
               color: '#e8e8e8',
               border: 'none',
@@ -933,7 +922,24 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
           >
             Log out
           </button>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '30px' }}>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 4, marginBottom: 12 }}>
+        <span style={{ color: '#00ff88', fontWeight: 600 }}>
+          Balance: £{Number(users.find(u => Number(u.id) === 7)?.balance ?? 0).toFixed(2)}
+        </span>
+        {(activeTab === 'house' || currentUser?.canLay) && (
+          <span style={{ color: '#ff6b6b', fontWeight: 600, marginLeft: 16 }}>
+            Open Lays Exposure: £{(
+              activeTab === 'house'
+                ? getHouseExposure()
+                : getMyExposure(currentUser.id)
+            ).toFixed(2)}
+          </span>
+        )}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '10px' }}>
   {['house', 'settlement', 'admin'].map(tab => (
   <button
     key={tab}
@@ -942,10 +948,11 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
       background: activeTab === tab ? '#00ff88' : '#252540',
       color: activeTab === tab ? '#0f0c29' : '#e8e8e8',
       border: '1px solid #3a3a5c',
-      padding: '10px 18px',
+      padding: '12px 22px',
       borderRadius: '8px',
       cursor: 'pointer',
       fontWeight: '600',
+      fontSize: '15px',
       textTransform: 'capitalize'
     }}
   >
@@ -1193,7 +1200,6 @@ const exposure = getExposure(b.stake, b.odds, {
       )}
       {activeTab === 'settlement' && (
   <div>
-    <h2 style={{ color: '#00ff88' }}>Settlement</h2>
 
     <CollapsibleSection title="Awaiting Settlement" defaultOpen={false}>
       {allBets.filter(b => b.phase === 'finalized' && !b.settledAt).length === 0 && (
