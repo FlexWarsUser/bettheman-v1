@@ -934,7 +934,7 @@ users.find(u => Number(u.id) === 7)?.balance ?? 0
             Log out
           </button>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '30px' }}>
-  {['house', 'settlement', 'admin', 'events'].map(tab => (
+  {['house', 'settlement', 'admin'].map(tab => (
   <button
     key={tab}
     onClick={() => setActiveTab(tab)}
@@ -1195,7 +1195,7 @@ const exposure = getExposure(b.stake, b.odds, {
   <div>
     <h2 style={{ color: '#00ff88' }}>Settlement</h2>
 
-    <CollapsibleSection title="Awaiting Settlement" defaultOpen={true}>
+    <CollapsibleSection title="Awaiting Settlement" defaultOpen={false}>
       {allBets.filter(b => b.phase === 'finalized' && !b.settledAt).length === 0 && (
         <p style={muted}>No bets waiting to be settled.</p>
       )}
@@ -1379,7 +1379,113 @@ const exposure = getExposure(b.stake, b.odds, {
         </div>
       </div>
     </CollapsibleSection>
+    <CollapsibleSection title="Events" defaultOpen={false}>
+      {eventMessage && <p style={{ color: '#00ff88' }}>{eventMessage}</p>}
+      <div style={{ background: '#1a1a2e', padding: 16, borderRadius: 8, marginBottom: 16 }}>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>Upload racing / football CSV</div>
+        <p style={{ color: '#999', fontSize: 13, marginBottom: 8 }}>
+          Racing or football CSV. Football needs home_team / away_team columns.
+        </p>
+        <input
+          type="file"
+          accept="*/*"
+          onChange={e => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+              const text = String(reader.result || '');
+              const head = text.slice(0, 200).toLowerCase();
+              if (head.includes('home_team') || head.includes('away_team')) {
+                uploadFootballCsvFromText(text);
+              } else {
+                uploadCsvFromText(text);
+              }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+          }}
+        />
+      </div>
+            <CollapsibleSection title={`Stored events (${events.length})`} defaultOpen={false}>
+        {events.length > 0 && (
+          <button
+            type="button"
+            onClick={async () => {
+              if (!window.confirm('Delete ALL stored events?')) return;
+              try {
+                const res = await fetch(`${API}/api/events`, { method: 'DELETE' });
+                const data = await res.json();
+                if (!res.ok) return alert(data.error || 'Delete failed');
+                setEventMessage(`Deleted ${data.count} events`);
+                fetchEvents();
+              } catch (e) {
+                alert('Delete failed');
+              }
+            }}
+            style={{
+              background: '#7f1d1d',
+              color: 'white',
+              padding: '6px 10px',
+              border: 'none',
+              borderRadius: 5,
+              cursor: 'pointer',
+              fontSize: 12,
+              marginBottom: 10,
+            }}
+          >
+            Delete all
+          </button>
+        )}
 
+        {events.length === 0 && <p style={{ color: '#999' }}>No events stored.</p>}
+
+        <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+          {events.map(ev => (
+            <div
+              key={ev.id}
+              style={{
+                background: '#1a1a2e',
+                border: '1px solid #3a3a5c',
+                borderRadius: 8,
+                padding: '10px 12px',
+                marginBottom: 6,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 600 }}>{ev.name}</div>
+                <div style={{ color: '#999', fontSize: 12 }}>
+                  {(() => {
+                    const d = new Date(ev.date);
+                    const day = d.toLocaleDateString('en-GB', { weekday: 'long' });
+                    const date = d.toLocaleDateString('en-GB');
+                    return `${day} ${date}`;
+                  })()}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => deleteEvent(ev.id)}
+                style={{
+                  background: '#7f1d1d',
+                  color: 'white',
+                  padding: '5px 10px',
+                  border: 'none',
+                  borderRadius: 5,
+                  cursor: 'pointer',
+                  fontSize: 12,
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          ))}
+        </div>
+      </CollapsibleSection>
+    </CollapsibleSection>
     <CollapsibleSection title="Layer pro-rata weights" defaultOpen={false}>
       <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px' }}>
         <p style={{ color: '#b0b0b0', fontSize: '13px' }}>1.0 = equal share. 2.0 = double share. Range 1.0–2.0.</p>
@@ -1501,135 +1607,6 @@ const exposure = getExposure(b.stake, b.odds, {
           )}
         </div>
       ))}
-    </CollapsibleSection>
-  </div>
-)}
-{activeTab === 'events' && (
-  <div>
-    <h2 style={{ color: '#00ff88' }}>Events</h2>
-    {eventMessage && <p style={{ color: '#00ff88' }}>{eventMessage}</p>}
-
-    {/* Single add */}
-    <div style={{ background: '#1a1a2e', padding: 16, borderRadius: 8, marginBottom: 16 }}>
-      <div style={{ fontWeight: 600, marginBottom: 10 }}>Add event</div>
-      <select
-        value={eventForm.type}
-        onChange={e => setEventForm({ ...eventForm, type: e.target.value })}
-        style={{ ...inputStyle, marginBottom: 8 }}
-      >
-        <option value="horse">Horse</option>
-        <option value="football">Football</option>
-      </select>
-      <input
-        placeholder="Name (e.g. 330 Doncaster)"
-        value={eventForm.name}
-        onChange={e => setEventForm({ ...eventForm, name: e.target.value })}
-        style={inputStyle}
-      />
-      <input
-        type="datetime-local"
-        value={eventForm.date}
-        onChange={e => setEventForm({ ...eventForm, date: e.target.value })}
-        style={inputStyle}
-      />
-      <button
-        type="button"
-        onClick={addEvent}
-        style={{ background: '#00ff88', color: '#0f0c29', padding: '8px 14px', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}
-      >
-        Add
-      </button>
-    </div>
-
-    {/* CSV file upload */}
-    <div style={{ background: '#1a1a2e', padding: 16, borderRadius: 8, marginBottom: 16 }}>
-      <div style={{ fontWeight: 600, marginBottom: 8 }}>Upload racing CSV</div>
-      <div style={{ color: '#999', fontSize: 13, marginBottom: 8 }}>
-        Select the full racing file (.csv / .tsv). One event is created per race.
-      </div>
-<input
-  type="file"
-  accept="*/*"
-  onChange={e => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = String(reader.result || '');
-      const head = text.slice(0, 200).toLowerCase();
-      if (head.includes('home_team') || head.includes('away_team')) {
-        uploadFootballCsvFromText(text);
-      } else {
-        uploadCsvFromText(text);
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  }}
-/>
-    </div>
-
-    {/* Stored events – collapsed by default */}
-    <CollapsibleSection title={`Stored events (${events.length})`} defaultOpen={false}>
-{events.length > 0 && (
-  <button
-    type="button"
-    onClick={async () => {
-      if (!window.confirm('Delete ALL stored events?')) return;
-      try {
-        const res = await fetch(`${API}/api/events`, { method: 'DELETE' });
-        const data = await res.json();
-        if (!res.ok) return alert(data.error || 'Delete failed');
-        setEventMessage(`Deleted ${data.count} events`);
-        fetchEvents();
-      } catch (e) {
-        alert('Delete failed');
-      }
-    }}
-    style={{ background: '#7f1d1d', color: 'white', padding: '6px 10px', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 12, marginBottom: 10 }}
-  >
-    Delete all
-  </button>
-)}
-
-      {events.length === 0 && <p style={{ color: '#999' }}>No events stored.</p>}
-
-      <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-        {events.map(ev => (
-          <div
-            key={ev.id}
-            style={{
-              background: '#1a1a2e',
-              border: '1px solid #3a3a5c',
-              borderRadius: 8,
-              padding: '10px 12px',
-              marginBottom: 6,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: 600 }}>{ev.name}</div>
-<div style={{ color: '#999', fontSize: 12 }}>
-  {(() => {
-    const d = new Date(ev.date);
-    const day = d.toLocaleDateString('en-GB', { weekday: 'long' });
-    const date = d.toLocaleDateString('en-GB');
-    return `${day} ${date}`;
-  })()}
-</div>
-            </div>
-            <button
-              type="button"
-              onClick={() => deleteEvent(ev.id)}
-              style={{ background: '#7f1d1d', color: 'white', padding: '5px 10px', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 12 }}
-            >
-              Delete
-            </button>
-          </div>
-        ))}
-      </div>
     </CollapsibleSection>
   </div>
 )}
