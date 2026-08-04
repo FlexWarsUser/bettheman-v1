@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { io } from 'socket.io-client';
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
@@ -30,7 +31,28 @@ function Countdown({ endTime, onExpire }) {
   }, [endTime, onExpire]);
   return <span style={{ color: timeLeft === 'EXPIRED' ? '#ff6b6b' : '#ffb347', fontWeight: '600' }}>{timeLeft}</span>;
 }
+function requestNotifyPermission() {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "default") {
+    Notification.requestPermission();
+  }
+}
 
+function showBetNotification(title, body) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  try {
+    const n = new Notification(title, {
+      body,
+      icon: "/logo2.png",
+tag: `btm-bet-${Date.now()}`,
+    });
+    n.onclick = () => {
+      window.focus();
+      n.close();
+    };
+  } catch (e) {}
+}
 function CollapsibleSection({ title, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -114,37 +136,68 @@ const fetchEvents = async () => {
   } catch (e) {}
 };
 
-useEffect(() => {
-  fetchEvents();
-}, []);
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+    useEffect(() => {
+      requestNotifyPermission();
+    }, []);
+     useEffect(() => {
+    const socket = io(API, { transports: ["websocket", "polling"] });
 
-const addEvent = async () => {
-  if (!eventForm.name || !eventForm.date) return alert('Name and date required');
-  try {
-    const res = await fetch(`${API}/api/events`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(eventForm),
+    socket.on("bet:notify", (payload) => {
+      const stakeLabel = payload.eachWay
+        ? `£${Number(payload.originalStake ?? payload.stake / 2).toFixed(0)} each way`
+        : `£${payload.stake} Win`;
+
+      if (payload.phase === "house_review") {
+        showBetNotification(
+          "New bet — House review",
+          `${payload.event} – ${payload.selection} @ ${payload.odds} — ${stakeLabel} (${payload.punterName || ""})`
+        );
+        if (typeof fetchBets === "function") fetchBets();
+      }
+      if (payload.phase === "house_residual") {
+        showBetNotification(
+          "Residual look",
+          `${payload.event} – ${payload.selection} @ ${payload.odds} — ${stakeLabel}`
+        );
+        if (typeof fetchBets === "function") fetchBets();
+      }
     });
-    const data = await res.json();
-    if (!res.ok) return alert(data.error || 'Failed');
-    setEventForm({ type: 'horse', name: '', date: '' });
-    setEventMessage('Event added');
-    fetchEvents();
-  } catch (e) {
-    alert('Failed to add event');
-  }
-};
 
-const deleteEvent = async (id) => {
-  if (!window.confirm('Delete this event?')) return;
-  try {
-    await fetch(`${API}/api/events/${id}`, { method: 'DELETE' });
-    fetchEvents();
-  } catch (e) {
-    alert('Delete failed');
-  }
-};
+    return () => {
+      socket.off("bet:notify");
+      socket.disconnect();
+    };
+  }, []);
+  const addEvent = async () => {
+    if (!eventForm.name || !eventForm.date) return alert('Name and date required');
+    try {
+      const res = await fetch(`${API}/api/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eventForm),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Failed');
+      setEventForm({ type: 'horse', name: '', date: '' });
+      setEventMessage('Event added');
+      fetchEvents();
+    } catch (e) {
+      alert('Failed to add event');
+    }
+  };
+
+  const deleteEvent = async (id) => {
+    if (!window.confirm('Delete this event?')) return;
+    try {
+      await fetch(`${API}/api/events/${id}`, { method: 'DELETE' });
+      fetchEvents();
+    } catch (e) {
+      alert('Delete failed');
+    }
+  };
 
 const uploadCsvFromText = async (text) => {
   const raw = (text || '').trim();

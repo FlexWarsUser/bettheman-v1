@@ -1,8 +1,30 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+function requestNotifyPermission() {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "default") {
+    Notification.requestPermission();
+  }
+}
 
+function showBetNotification(title, body) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  try {
+    const n = new Notification(title, {
+      body,
+      icon: "/logo2.png",
+      tag: "btm-bet",
+    });
+    n.onclick = () => {
+      window.focus();
+      n.close();
+    };
+  } catch (e) {}
+}
 function CollapsibleSection({ title, children, defaultOpen = false, open: controlledOpen, onToggle }) {
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
   const isControlled = controlledOpen !== undefined;
@@ -149,7 +171,34 @@ const [showEventDropdown, setShowEventDropdown] = useState(false);
 const [selectionSuggestions, setSelectionSuggestions] = useState([]);
 const [showSelectionDropdown, setShowSelectionDropdown] = useState(false);
 const [now, setNow] = useState(Date.now());   // ← add this line
+  useEffect(() => {
+    requestNotifyPermission();
+  }, []);
+    useEffect(() => {
+    if (!user?.canLay) return;
 
+    const socket = io(API, { transports: ["websocket", "polling"] });
+
+    socket.on("bet:notify", (payload) => {
+      if (payload.phase !== "layer_bidding") return;
+      if (Number(payload.punterId) === Number(user.id)) return;
+
+      const stakeLabel = payload.eachWay
+        ? `£${Number(payload.originalStake ?? payload.stake / 2).toFixed(0)} each way`
+        : `£${payload.stake} Win`;
+
+      showBetNotification(
+        "Available to lay",
+        `${payload.event} – ${payload.selection} @ ${payload.odds} — ${stakeLabel}`
+      );
+      fetchBets();
+    });
+
+    return () => {
+      socket.off("bet:notify");
+      socket.disconnect();
+    };
+  }, [user?.canLay, user?.id]);
   const fetchBets = async () => {
     try {
       const res = await fetch(`${API}/api/bets`);

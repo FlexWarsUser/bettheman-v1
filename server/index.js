@@ -831,6 +831,19 @@ status: "pending",
 });
     console.log("🆕 New Bet:", serialized.id, serialized.event);
     io.emit("betUpdated", serialized);
+        console.log("🆕 New Bet:", serialized.id, serialized.event);
+    io.emit("betUpdated", serialized);
+    io.emit("bet:notify", {
+      phase: bet.phase,
+      betId: bet.id,
+      event: bet.event,
+      selection: bet.selection,
+      odds: bet.odds,
+      stake: bet.stake,
+      eachWay: !!bet.eachWay,
+      punterName: bet.punterName,
+      punterId: bet.punterId,
+    });
     res.json({ success: true, bet: serialized });
   } catch (err) {
     console.error(err);
@@ -931,6 +944,20 @@ app.post("/api/bets/:id/action", async (req, res) => {
   });
     console.log(`🏠 House ${action} bet ${id} - HouseAmount: £${serialized.houseAmount}`);
     io.emit("betUpdated", serialized);
+        io.emit("betUpdated", serialized);
+    if (updated.phase === "layer_bidding" || updated.phase === "house_residual") {
+      io.emit("bet:notify", {
+        phase: updated.phase,
+        betId: updated.id,
+        event: updated.event,
+        selection: updated.selection,
+        odds: updated.odds,
+        stake: updated.stake,
+        eachWay: !!updated.eachWay,
+        punterName: updated.punterName,
+        punterId: updated.punterId,
+      });
+    }
     res.json({ success: true, bet: serialized });
   } catch (err) {
     console.error(err);
@@ -1075,8 +1102,21 @@ app.post("/api/bets/:id/layer-bid", async (req, res) => {
     }
 
     const serialized = serializeBet(updated);
-    io.emit("betUpdated", serialized);
-    res.json({ success: true, bet: serialized });
+io.emit("betUpdated", serialized);
+if (updated.phase === "house_residual" || updated.phase === "layer_bidding") {
+  io.emit("bet:notify", {
+    phase: updated.phase,
+    betId: updated.id,
+    event: updated.event,
+    selection: updated.selection,
+    odds: updated.odds,
+    stake: updated.stake,
+    eachWay: !!updated.eachWay,
+    punterName: updated.punterName,
+    punterId: updated.punterId,
+  });
+}
+res.json({ success: true, bet: serialized });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
