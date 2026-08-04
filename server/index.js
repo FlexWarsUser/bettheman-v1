@@ -944,7 +944,6 @@ app.post("/api/bets/:id/action", async (req, res) => {
   });
     console.log(`🏠 House ${action} bet ${id} - HouseAmount: £${serialized.houseAmount}`);
     io.emit("betUpdated", serialized);
-        io.emit("betUpdated", serialized);
     if (updated.phase === "layer_bidding" || updated.phase === "house_residual") {
       io.emit("bet:notify", {
         phase: updated.phase,
