@@ -13,17 +13,19 @@ function requestNotifyPermission() {
 function showBetNotification(title, body) {
   if (!("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
-  try {
-    const n = new Notification(title, {
-      body,
-      icon: "/logo2.png",
-      tag: "btm-bet",
-    });
-    n.onclick = () => {
-      window.focus();
-      n.close();
-    };
-  } catch (e) {}
+
+  const opts = {
+    body,
+    icon: "/logo2.png",
+    badge: "/logo2.png",
+    tag: "btm-bet-" + Date.now(),
+  };
+
+  if (!("serviceWorker" in navigator)) return;
+
+  navigator.serviceWorker.ready
+    .then((reg) => reg.showNotification(title, opts))
+    .catch(() => {});
 }
 function CollapsibleSection({ title, children, defaultOpen = false, open: controlledOpen, onToggle }) {
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
@@ -171,9 +173,12 @@ const [showEventDropdown, setShowEventDropdown] = useState(false);
 const [selectionSuggestions, setSelectionSuggestions] = useState([]);
 const [showSelectionDropdown, setShowSelectionDropdown] = useState(false);
 const [now, setNow] = useState(Date.now());   // ← add this line
-  useEffect(() => {
-    requestNotifyPermission();
-  }, []);
+useEffect(() => {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+  requestNotifyPermission();
+}, []);
     useEffect(() => {
     if (!user?.canLay) return;
 

@@ -41,17 +41,19 @@ function requestNotifyPermission() {
 function showBetNotification(title, body) {
   if (!("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
-  try {
-    const n = new Notification(title, {
-      body,
-      icon: "/logo2.png",
-tag: `btm-bet-${Date.now()}`,
-    });
-    n.onclick = () => {
-      window.focus();
-      n.close();
-    };
-  } catch (e) {}
+
+  const opts = {
+    body,
+    icon: "/logo2.png",
+    badge: "/logo2.png",
+    tag: "btm-bet-" + Date.now(),
+  };
+
+  if (!("serviceWorker" in navigator)) return;
+
+  navigator.serviceWorker.ready
+    .then((reg) => reg.showNotification(title, opts))
+    .catch(() => {});
 }
 function CollapsibleSection({ title, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -139,9 +141,12 @@ const fetchEvents = async () => {
   useEffect(() => {
     fetchEvents();
   }, []);
-    useEffect(() => {
-      requestNotifyPermission();
-    }, []);
+useEffect(() => {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+  requestNotifyPermission();
+}, []);
      useEffect(() => {
     const socket = io(API, { transports: ["websocket", "polling"] });
 
@@ -977,20 +982,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
           </button>
           <button
   type="button"
-  onClick={() => {
-    alert("Permission: " + (window.Notification ? Notification.permission : "no Notification API"));
-    if (!window.Notification) return;
-    if (Notification.permission !== "granted") {
-      Notification.requestPermission().then(p => alert("After request: " + p));
-      return;
-    }
-    try {
-      new Notification("Test", { body: "Phone test", tag: "btm-test-" + Date.now() });
-      alert("Notification() called");
-    } catch (e) {
-      alert("Error: " + e.message);
-    }
-  }}
+  onClick={() => showBetNotification("Test", "Phone test")}
   style={{ marginTop: 8, padding: "8px 12px", background: "#3a3a5c", color: "#e8e8e8", border: "none", borderRadius: 6 }}
 >
   Test notify
