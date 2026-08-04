@@ -669,27 +669,59 @@ const submitLay = async (b) => {
           <button
             type="button"
             onClick={onLogout}
-            style={{ padding: '2px 3px', background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}
+            style={{ padding: '8px 12px', fontSize: 14, background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 16 }}
           >
             Log out
           </button>
-          {typeof Notification !== "undefined" && Notification.permission !== "granted" && (
-            <button
-              type="button"
-              onClick={() => {
-                Notification.requestPermission().then((p) => {
-                  if (p === "granted") showBetNotification("Test", "Notifications on");
-                  else alert("Permission: " + p);
-                });
-              }}
-              style={{ marginTop: 8, padding: "6px 10px", background: "#3a3a5c", color: "#e8e8e8", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, display: "block", marginLeft: "auto" }}
-            >
-              Enable notifications
-            </button>
-          )}
+                  {(() => {
+            const supported = typeof Notification !== "undefined";
+            const needsEnable = !supported || Notification.permission !== "granted";
+            if (!needsEnable) return null;
+
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!supported) {
+                    alert(
+                      "On iPhone: tap Share → Add to Home Screen, then open BetTheMan from the home screen icon and try again."
+                    );
+                    return;
+                  }
+                  Notification.requestPermission().then((p) => {
+                    if (p === "granted") showBetNotification("Test", "Notifications on");
+                    else alert("Permission: " + p);
+                  });
+                }}
+                style={{
+                  marginTop: 8,
+                  padding: "6px 10px",
+                  background: "#3a3a5c",
+                  color: "#e8e8e8",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  fontSize: 12,
+                  display: "block",
+                  marginLeft: "auto",
+                }}
+              >
+                Enable notifications
+              </button>
+            );
+          })()}
         </div>
       </div>
-
+      <div style={{ marginBottom: 8 }}>
+        <span style={{ color: '#00ff88', fontWeight: 600 }}>
+          Balance: £{Number(user.balance || 0).toFixed(2)}
+        </span>
+        {user.canLay && (
+          <span style={{ color: '#ff6b6b', fontWeight: 600, marginLeft: 16 }}>
+            Open Lays Exposure: £{openLaysExposure.toFixed(2)}
+          </span>
+        )}
+      </div>
       {/* Forced password change */}
 {user.mustChangePassword && user.role !== 'admin' && user.role !== 'house' && (
         <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginTop: 16, marginBottom: 16 }}>

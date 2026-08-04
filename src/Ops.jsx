@@ -980,20 +980,40 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
           >
             Log out
           </button>
- {typeof Notification !== "undefined" && Notification.permission !== "granted" && (
-  <button
-    type="button"
-    onClick={() => {
-      Notification.requestPermission().then((p) => {
-        if (p === "granted") showBetNotification("Test", "Notifications on");
-        else alert("Permission: " + p);
-      });
-    }}
-    style={{ marginTop: 8, padding: "8px 12px", background: "#3a3a5c", color: "#e8e8e8", border: "none", borderRadius: 6, cursor: "pointer" }}
-  >
-    Enable notifications
-  </button>
-)}
+{(() => {
+  const supported = typeof Notification !== "undefined";
+  const needsEnable = !supported || Notification.permission !== "granted";
+  if (!needsEnable) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!supported) {
+          alert(
+            "On iPhone: tap Share → Add to Home Screen, then open BetTheMan from the home screen icon and try again."
+          );
+          return;
+        }
+        Notification.requestPermission().then((p) => {
+          if (p === "granted") showBetNotification("Test", "Notifications on");
+          else alert("Permission: " + p);
+        });
+      }}
+      style={{
+        marginTop: 8,
+        padding: "8px 12px",
+        background: "#3a3a5c",
+        color: "#e8e8e8",
+        border: "none",
+        borderRadius: 6,
+        cursor: "pointer",
+      }}
+    >
+      Enable notifications
+    </button>
+  );
+})()}
         </div>
       </div>
 
