@@ -660,28 +660,35 @@ const submitLay = async (b) => {
   return (
  <div style={{ maxWidth: 520, margin: '10px auto', padding: 20, color: '#e8e8e8' }}>
   {/* Header */}
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-    <h1 style={{ textAlign: 'left', margin: 0 }}>
-      <img src="/logo2.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />
-    </h1>
-    <div style={{ textAlign: 'right' }}>
-      <div style={{ color: '#b0b0b0', fontSize: 14, marginBottom: 6 }}>{user.name}</div>
-      <button type="button" onClick={onLogout} style={{ padding: '2px 3px', background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
-        Log out
-      </button>
-    </div>
-  </div>
-
-  <div style={{ marginBottom: 8 }}>
-    <span style={{ color: '#00ff88', fontWeight: 600 }}>
-      Balance: £{Number(user.balance || 0).toFixed(2)}
-    </span>
-    {user.canLay && (
-      <span style={{ color: '#ff6b6b', fontWeight: 600, marginLeft: 16 }}>
-        Open Lays Exposure: £{openLaysExposure.toFixed(2)}
-      </span>
-    )}
-  </div>
+       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+        <h1 style={{ textAlign: 'left', margin: 0 }}>
+          <img src="/logo2.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />
+        </h1>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ color: '#b0b0b0', fontSize: 14, marginBottom: 6 }}>{user.name}</div>
+          <button
+            type="button"
+            onClick={onLogout}
+            style={{ padding: '2px 3px', background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}
+          >
+            Log out
+          </button>
+          {typeof Notification !== "undefined" && Notification.permission !== "granted" && (
+            <button
+              type="button"
+              onClick={() => {
+                Notification.requestPermission().then((p) => {
+                  if (p === "granted") showBetNotification("Test", "Notifications on");
+                  else alert("Permission: " + p);
+                });
+              }}
+              style={{ marginTop: 8, padding: "6px 10px", background: "#3a3a5c", color: "#e8e8e8", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, display: "block", marginLeft: "auto" }}
+            >
+              Enable notifications
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Forced password change */}
 {user.mustChangePassword && user.role !== 'admin' && user.role !== 'house' && (
