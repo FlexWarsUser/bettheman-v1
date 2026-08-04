@@ -975,6 +975,21 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
           >
             Log out
           </button>
+                    <button
+            type="button"
+            onClick={() => showBetNotification("Test", "Phone test")}
+            style={{
+              marginTop: 8,
+              padding: "8px 12px",
+              background: "#3a3a5c",
+              color: "#e8e8e8",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
+            }}
+          >
+            Test notify
+          </button>
         </div>
       </div>
 
