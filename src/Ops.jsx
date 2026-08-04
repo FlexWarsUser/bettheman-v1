@@ -954,7 +954,7 @@ const cardRed = { ...card, borderLeft: '3px solid #ef4444' };
 const muted = { color: '#94a3b8', fontSize: '12px' };
 
   return (
-    <div style={{ maxWidth: 520, margin: '10px auto', padding: 20, color: '#e8e8e8', fontFamily: 'system-ui, sans-serif' }}>
+<div style={{ maxWidth: 520, width: '100%', margin: '10px auto', padding: 12, boxSizing: 'border-box', color: '#e8e8e8', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <h1 style={{ textAlign: 'left', margin: 0 }}>
           <img src="/logo2.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />

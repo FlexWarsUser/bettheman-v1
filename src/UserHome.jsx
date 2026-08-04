@@ -658,7 +658,7 @@ const submitLay = async (b) => {
     .sort((a, b) => new Date(b.settledAt || b.createdAt) - new Date(a.settledAt || a.createdAt));
 
   return (
- <div style={{ maxWidth: 520, margin: '10px auto', padding: 20, color: '#e8e8e8' }}>
+<div style={{ maxWidth: 520, width: '100%', margin: '10px auto', padding: 12, boxSizing: 'border-box', color: '#e8e8e8' }}>
   {/* Header */}
        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <h1 style={{ textAlign: 'left', margin: 0 }}>
