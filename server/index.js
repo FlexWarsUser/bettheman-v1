@@ -1102,19 +1102,6 @@ app.post("/api/bets/:id/layer-bid", async (req, res) => {
 
     const serialized = serializeBet(updated);
 io.emit("betUpdated", serialized);
-if (updated.phase === "house_residual" || updated.phase === "layer_bidding") {
-  io.emit("bet:notify", {
-    phase: updated.phase,
-    betId: updated.id,
-    event: updated.event,
-    selection: updated.selection,
-    odds: updated.odds,
-    stake: updated.stake,
-    eachWay: !!updated.eachWay,
-    punterName: updated.punterName,
-    punterId: updated.punterId,
-  });
-}
 res.json({ success: true, bet: serialized });
   } catch (err) {
     console.error(err);
