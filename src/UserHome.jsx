@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const ODDS_LIST = [
+"2/1","4/1","1/2","8/15","4/5","8/13","4/6","8/11","4/7","5/1","20/21","1/1",
+"11/10","6/5","5/4","11/8","6/4","7/4","15/8","2/5","9/4","12/5","5/2","11/4",
+"3/1","10/3","7/2","4/9","9/2","5/6","11/2","6/1","13/2","7/1","15/2","8/1",
+"17/2","9/1","10/1","11/1","12/1","14/1","16/1","18/1","20/1","22/1","25/1",
+"28/1","33/1","40/1","50/1","66/1","80/1","100/1",
+];
 function requestNotifyPermission() {
   if (!("Notification" in window)) return;
   if (Notification.permission === "default") {
@@ -172,6 +179,7 @@ const [bet, setBet] = useState({ event: '', selection: '', odds: '', stake: '', 
 const [showEventDropdown, setShowEventDropdown] = useState(false);
 const [selectionSuggestions, setSelectionSuggestions] = useState([]);
 const [showSelectionDropdown, setShowSelectionDropdown] = useState(false);
+const [oddsSuggestions, setOddsSuggestions] = useState([]);
 const [now, setNow] = useState(Date.now());   // ← add this line
 useEffect(() => {
   if ("serviceWorker" in navigator) {
@@ -910,35 +918,60 @@ const submitLay = async (b) => {
               </div>
 <input
   placeholder="Odds - e.g 2.5, 6/4 or 6-4"
-inputMode={
-  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-    ? "text"
-    : "decimal"
-}
+inputMode="decimal"
   autoComplete="off"
   spellCheck={false}
   value={bet.odds}
-  onChange={e => {
-    const value = e.target.value;
-
-    // Allow:
-    // - Empty (so the user can delete)
-    // - Whole numbers (2)
-    // - Decimal odds (2.5)
-    // - Fractional odds (11/4)
-if (
-    value === '' ||
-    /^\d+$/.test(value) ||
-    /^\d+\.\d*$/.test(value) ||
-    /^\d+[\/\-]\d*$/.test(value)   // 4/1 or 4-1
-  ) {
-    setBet({ ...bet, odds: value });
-  }
-}}
+                     onChange={e => {
+                      const value = e.target.value;
+                      if (
+                        value === '' ||
+                        /^\d+$/.test(value) ||
+                        /^\d+\.\d*$/.test(value) ||
+                        /^\d+[\/\-]\d*$/.test(value)
+                      ) {
+                        setBet({ ...bet, odds: value });
+                        if (value === '') {
+                          setOddsSuggestions([]);
+                        } else {
+                          setOddsSuggestions(
+                            ODDS_LIST.filter(o => o.startsWith(value)).slice(0, 12)
+                          );
+                        }
+                      }
+                    }}
   required
   style={inputStyle}
 />
+                     {oddsSuggestions.length > 0 && (
+                      <div style={{
+                        background: '#1a1a2e',
+                        border: '1px solid #3a3a5c',
+                        borderRadius: 6,
+                        marginTop: 4,
+                        maxHeight: 180,
+                        overflowY: 'auto',
+                      }}>
+                        {oddsSuggestions.map(o => (
+                          <div
+                            key={o}
+                            onClick={() => {
+                              setBet({ ...bet, odds: o });
+                              setOddsSuggestions([]);
+                            }}
+                            style={{
+                              padding: '8px 12px',
+                              cursor: 'pointer',
+                              color: '#e8e8e8',
+                              fontSize: 14,
+                              borderBottom: '1px solid #2a2a40',
+                            }}
+                          >
+                            {o}
+                          </div>
+                        ))}
+                      </div>
+                    )}
               <input placeholder="Stake" type="number" value={bet.stake} onChange={e => setBet({ ...bet, stake: e.target.value })} required style={inputStyle} />
 <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 0, color: '#ccc', fontSize: 14, cursor: 'pointer' }}>
   <input
