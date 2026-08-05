@@ -387,17 +387,30 @@ async function processExpiredTimers() {
     where: { phase: "house_review", houseTimerEnd: { lte: now } }
   });
 
-  for (const bet of houseReviewBets) {
+   for (const bet of houseReviewBets) {
     const settings = await getSettings();
-    await prisma.bet.update({
+    const updated = await prisma.bet.update({
       where: { id: bet.id },
       data: {
         phase: "layer_bidding",
         layerTimerEnd: new Date(now.getTime() + settings.layerTimerSeconds * 1000),
         houseTimerEnd: null,
-      }
+      },
     });
     console.log(`[HOUSE TIMER] Bet ${bet.id} moved to layer_bidding`);
+    const serialized = serializeBet(updated);
+    io.emit("betUpdated", serialized);
+    io.emit("bet:notify", {
+      phase: "layer_bidding",
+      betId: updated.id,
+      event: updated.event,
+      selection: updated.selection,
+      odds: updated.odds,
+      stake: updated.stake,
+      eachWay: !!updated.eachWay,
+      punterName: updated.punterName,
+      punterId: updated.punterId,
+    });
     changed = true;
   }
 
