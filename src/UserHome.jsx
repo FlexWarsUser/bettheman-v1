@@ -712,16 +712,16 @@ const submitLay = async (b) => {
           })()}
         </div>
       </div>
-      <div style={{ marginBottom: 8 }}>
-        <span style={{ color: '#00ff88', fontWeight: 600 }}>
-          Balance: £{Number(user.balance || 0).toFixed(2)}
-        </span>
-        {user.canLay && (
-          <span style={{ color: '#ff6b6b', fontWeight: 600, marginLeft: 16 }}>
-            Open Lays Exposure: £{openLaysExposure.toFixed(2)}
+<div style={{ marginBottom: 8, display: 'flex', flexWrap: 'wrap', gap: '8px 16px' }}>
+  <span style={{ color: '#00ff88', fontWeight: 600 }}>
+    Balance: £{Number(user.balance || 0).toFixed(2)}
+  </span>
+          {user.canLay && openLaysExposure > 0 && (
+          <span style={{ color: '#ff6b6b', fontWeight: 600 }}>
+            Open lays: £{openLaysExposure.toFixed(2)}
           </span>
         )}
-      </div>
+</div>
       {/* Forced password change */}
 {user.mustChangePassword && user.role !== 'admin' && user.role !== 'house' && (
         <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginTop: 16, marginBottom: 16 }}>
@@ -736,7 +736,7 @@ const submitLay = async (b) => {
       )}
 
      {/* Tabs */}
-<div style={{ display: 'flex', gap: 6, marginBottom: 16, marginTop: 10 }}>
+<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
   <button
     type="button"
     onClick={() => setCustomerTab('slip')}
@@ -910,7 +910,12 @@ const submitLay = async (b) => {
               </div>
 <input
   placeholder="Odds - e.g 2.5, 6/4 or 6-4"
-  inputMode="decimal"
+inputMode={
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+    ? "text"
+    : "decimal"
+}
   autoComplete="off"
   spellCheck={false}
   value={bet.odds}

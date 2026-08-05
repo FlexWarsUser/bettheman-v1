@@ -1021,15 +1021,20 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
         <span style={{ color: '#00ff88', fontWeight: 600 }}>
           Balance: £{Number(users.find(u => Number(u.id) === 7)?.balance ?? 0).toFixed(2)}
         </span>
-        {(activeTab === 'house' || currentUser?.canLay) && (
-          <span style={{ color: '#ff6b6b', fontWeight: 600, marginLeft: 16 }}>
-            Open Lays Exposure: £{(
-              activeTab === 'house'
-                ? getHouseExposure()
-                : getMyExposure(currentUser.id)
-            ).toFixed(2)}
-          </span>
-        )}
+         {(() => {
+          const exp =
+            activeTab === 'house'
+              ? getHouseExposure()
+              : currentUser?.canLay
+                ? getMyExposure(currentUser.id)
+                : 0;
+          if (!(exp > 0)) return null;
+          return (
+            <span style={{ color: '#ff6b6b', fontWeight: 600, marginLeft: 16 }}>
+              Open lays: £{exp.toFixed(2)}
+            </span>
+          );
+        })()}
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '10px' }}>
   {['house', 'settlement', 'admin'].map(tab => (
