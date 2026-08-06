@@ -1150,16 +1150,16 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
           )}
           <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
             <button onClick={() => handleHouseAction(b.id, 'Accepted', residual)} style={{ background: '#2d6a4f', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
-              Accept Residual Full
+              Accept Full
             </button>
             <button onClick={() => handleHouseAction(b.id, 'Rejected')} style={{ background: '#7f1d1d', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
-              Reject Residual
+              Reject
             </button>
           </div>
           <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
             <input type="number" placeholder="Partial residual amount" value={partialAmount[b.id] || ''} onChange={e => setPartialAmount({ ...partialAmount, [b.id]: e.target.value })} style={{ flex: 1, padding: '9px', background: '#1a1a2e', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: '6px' }} />
             <button onClick={() => handleHouseAction(b.id, 'Partial', partialAmount[b.id])} style={{ background: '#d4a017', color: '#0f0c29', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>
-              Accept Partial Residual
+              Accept Partial 
             </button>
           </div>
         </div>
