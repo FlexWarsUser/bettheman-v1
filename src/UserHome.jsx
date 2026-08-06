@@ -1345,14 +1345,14 @@ const liability = currentBid > 0
                   </div>
                 )}
                 <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (displayRemaining * 0.1).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '3px 7px', fontSize: 11, border: 'none', borderRadius: 4, cursor: 'pointer' }}>10%</button>
-                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (displayRemaining * 0.25).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '3px 7px', fontSize: 11, border: 'none', borderRadius: 4, cursor: 'pointer' }}>25%</button>
-                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (displayRemaining * 0.5).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '3px 7px', fontSize: 11, border: 'none', borderRadius: 4, cursor: 'pointer' }}>50%</button>
-                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: displayRemaining.toFixed(2) }))} style={{ background: '#2d6a4f', color: 'white', padding: '3px 9px', fontSize: 11, border: 'none', borderRadius: 4, cursor: 'pointer' }}>Full</button>
+                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (displayRemaining * 0.1).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '8px 14px', fontSize: 14, border: 'none', borderRadius: 5, cursor: 'pointer' }}>10%</button>
+                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (displayRemaining * 0.25).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '8px 14px', fontSize: 14, border: 'none', borderRadius: 5, cursor: 'pointer' }}>25%</button>
+                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (displayRemaining * 0.5).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '8px 14px', fontSize: 14, border: 'none', borderRadius: 5, cursor: 'pointer' }}>50%</button>
+                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: displayRemaining.toFixed(2) }))} style={{ background: '#2d6a4f', color: 'white', padding: '8px 14px', fontSize: 14, border: 'none', borderRadius: 5, cursor: 'pointer' }}>Full</button>
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <input type="number" placeholder="Your lay amount" value={bidAmount[b.id] || ''} onChange={e => setBidAmount(prev => ({ ...prev, [b.id]: e.target.value }))} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
-                  <button type="button" onClick={() => submitLay(b)} style={{ padding: '6px 12px', fontSize: 13, background: '#0066cc', color: 'white', border: 'none', borderRadius: 5, cursor: 'pointer' }}>Lay</button>
+                  <button type="button" onClick={() => submitLay(b)} style={{ padding: '12px 12px', fontSize: 14, background: '#0066cc', color: 'white', border: 'none', borderRadius: 5, cursor: 'pointer' }}>Lay</button>
                 </div>
                 {currentBid > 0 && <div style={{ marginTop: 8, color: '#ff6b6b', fontWeight: 600 }}>Liability: £{liability}</div>}
                 <button
@@ -1369,7 +1369,17 @@ const liability = currentBid > 0
                       else { setLayerMessage('Bet rejected'); fetchBets(); }
                     }).catch(e => setLayerMessage(e.message));
                   }}
-                  style={{ marginTop: 9, width: '100%', padding: 7, background: '#7f1d1d', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
+                style={{
+                  marginTop: 8,
+                  padding: '7px 14px',
+                  fontSize: 13,
+                  background: '#7f1d1d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}  
                 >
                   Reject Bet
                 </button>
