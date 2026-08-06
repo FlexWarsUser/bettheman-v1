@@ -31,6 +31,60 @@ function Countdown({ endTime, onExpire }) {
   }, [endTime, onExpire]);
   return <span style={{ color: timeLeft === 'EXPIRED' ? '#ff6b6b' : '#ffb347', fontWeight: '600' }}>{timeLeft}</span>;
 }
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+async function subscribePush(userId) {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    alert("Push not supported on this browser");
+    return false;
+  }
+  try {
+    const reg = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
+
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      alert("Permission: " + permission);
+      return false;
+    }
+
+    const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    if (!vapidKey) {
+      alert("Missing VITE_VAPID_PUBLIC_KEY");
+      return false;
+    }
+
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+    });
+
+    const res = await fetch(`${API}/api/push/subscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, subscription: sub.toJSON() }),
+    });
+    if (!res.ok) {
+      alert("Failed to save subscription");
+      return false;
+    }
+
+    if (typeof showBetNotification === "function") {
+      showBetNotification("Test", "Push enabled");
+    }
+    return true;
+  } catch (e) {
+    alert("Push error: " + (e.message || e));
+    return false;
+  }
+}
 function requestNotifyPermission() {
   if (!("Notification" in window)) return;
   if (Notification.permission === "default") {
@@ -988,18 +1042,15 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
   return (
     <button
       type="button"
-      onClick={() => {
-        if (!supported) {
-          alert(
-            "On iPhone: tap Share → Add to Home Screen, then open BetTheMan from the home screen icon and try again."
-          );
-          return;
-        }
-        Notification.requestPermission().then((p) => {
-          if (p === "granted") showBetNotification("Test", "Notifications on");
-          else alert("Permission: " + p);
-        });
-      }}
+                  onClick={() => {
+                if (!supported) {
+                  alert(
+                    "On iPhone: tap Share → Add to Home Screen, then open BetTheMan from the home screen icon and try again."
+                  );
+                  return;
+                }
+                subscribePush(currentUser?.id || 7);
+              }}
       style={{
         marginTop: 8,
         padding: "8px 12px",

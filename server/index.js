@@ -7,8 +7,16 @@ const http = require("http");
 const { Server } = require("socket.io");
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
+const webpush = require("web-push");
 
 const prisma = new PrismaClient();
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || "mailto:admin@bettheman.com",
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+}
 const app = express();
 const server = http.createServer(app);
 
@@ -21,6 +29,56 @@ app.use(cors({ origin: FRONTEND_URL === "*" ? true : FRONTEND_URL }));
 app.use(express.json());
 
 const LAYER_IDS = [1, 3, 5];
+async function sendPushToUser(userId, title, body, tag) {
+  if (!process.env.VAPID_PUBLIC_KEY) return;
+  try {
+    const subs = await prisma.pushSubscription.findMany({
+      where: { userId: Number(userId) },
+    });
+    for (const s of subs) {
+      try {
+        await webpush.sendNotification(
+          {
+            endpoint: s.endpoint,
+            keys: { p256dh: s.p256dh, auth: s.auth },
+          },
+          JSON.stringify({
+            title,
+            body,
+            tag: tag || "btm-" + Date.now(),
+          })
+        );
+      } catch (err) {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          await prisma.pushSubscription.delete({ where: { id: s.id } }).catch(() => {});
+        }
+      }
+    }
+  } catch (e) {
+    console.error("sendPushToUser", e.message);
+  }
+}
+
+async function sendPushToHouse(title, body, tag) {
+  const users = await prisma.user.findMany({
+    where: {
+      OR: [{ role: "admin" }, { role: "house" }, { id: 7 }],
+    },
+  });
+  for (const u of users) {
+    await sendPushToUser(u.id, title, body, tag);
+  }
+}
+
+async function sendPushToLayers(title, body, tag, excludeUserId = null) {
+  const users = await prisma.user.findMany({
+    where: { canLay: true },
+  });
+  for (const u of users) {
+    if (excludeUserId != null && Number(u.id) === Number(excludeUserId)) continue;
+    await sendPushToUser(u.id, title, body, tag);
+  }
+}
 function calcExposure(stake, oddsStr) {
   const s = parseFloat(stake);
   if (!s) return 0;
@@ -411,6 +469,12 @@ async function processExpiredTimers() {
       punterName: updated.punterName,
       punterId: updated.punterId,
     });
+        await sendPushToLayers(
+      "Available to lay",
+      `${updated.event} – ${updated.selection} @ ${updated.odds}`,
+      "btm-layer-" + updated.id,
+      updated.punterId
+    );
     changed = true;
   }
 
@@ -844,8 +908,6 @@ status: "pending",
 });
     console.log("🆕 New Bet:", serialized.id, serialized.event);
     io.emit("betUpdated", serialized);
-        console.log("🆕 New Bet:", serialized.id, serialized.event);
-    io.emit("betUpdated", serialized);
     io.emit("bet:notify", {
       phase: bet.phase,
       betId: bet.id,
@@ -857,6 +919,21 @@ status: "pending",
       punterName: bet.punterName,
       punterId: bet.punterId,
     });
+        if (bet.phase === "house_review" || bet.phase === "house_residual") {
+      await sendPushToHouse(
+        bet.phase === "house_residual" ? "Residual — House" : "New bet — House review",
+        `${bet.event} – ${bet.selection} @ ${bet.odds}`,
+        "btm-house-" + bet.id
+      );
+    }
+    if (bet.phase === "layer_bidding") {
+      await sendPushToLayers(
+        "Available to lay",
+        `${bet.event} – ${bet.selection} @ ${bet.odds}`,
+        "btm-layer-" + bet.id,
+        bet.punterId
+      );
+    }
     res.json({ success: true, bet: serialized });
   } catch (err) {
     console.error(err);
@@ -969,6 +1046,21 @@ app.post("/api/bets/:id/action", async (req, res) => {
         punterName: updated.punterName,
         punterId: updated.punterId,
       });
+            if (updated.phase === "layer_bidding") {
+        await sendPushToLayers(
+          "Available to lay",
+          `${updated.event} – ${updated.selection} @ ${updated.odds}`,
+          "btm-layer-" + updated.id,
+          updated.punterId
+        );
+      }
+      if (updated.phase === "house_residual") {
+        await sendPushToHouse(
+          "Residual — House",
+          `${updated.event} – ${updated.selection} @ ${updated.odds}`,
+          "btm-house-" + updated.id
+        );
+      }
     }
     res.json({ success: true, bet: serialized });
   } catch (err) {
@@ -1177,7 +1269,32 @@ app.get("/api/settings", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
+app.post("/api/push/subscribe", async (req, res) => {
+  try {
+    const { userId, subscription } = req.body;
+    if (!userId || !subscription?.endpoint || !subscription?.keys) {
+      return res.status(400).json({ success: false, error: "Missing data" });
+    }
+    await prisma.pushSubscription.upsert({
+      where: { endpoint: subscription.endpoint },
+      create: {
+        userId: Number(userId),
+        endpoint: subscription.endpoint,
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth,
+      },
+      update: {
+        userId: Number(userId),
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth,
+      },
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 app.post("/api/settings", async (req, res) => {
   try {
     const { skipHouseFirstLook, skipHouseResidual, layerTimerSeconds } = req.body;

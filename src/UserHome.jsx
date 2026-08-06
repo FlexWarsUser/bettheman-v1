@@ -10,6 +10,60 @@ const ODDS_LIST = [
 "17/2","9/1","10/1","11/1","12/1","14/1","16/1","18/1","20/1","22/1","25/1",
 "28/1","33/1","40/1","50/1","66/1","80/1","100/1",
 ];
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+async function subscribePush(userId) {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    alert("Push not supported on this browser");
+    return false;
+  }
+  try {
+    const reg = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
+
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      alert("Permission: " + permission);
+      return false;
+    }
+
+    const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    if (!vapidKey) {
+      alert("Missing VITE_VAPID_PUBLIC_KEY");
+      return false;
+    }
+
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+    });
+
+    const res = await fetch(`${API}/api/push/subscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, subscription: sub.toJSON() }),
+    });
+    if (!res.ok) {
+      alert("Failed to save subscription");
+      return false;
+    }
+
+    if (typeof showBetNotification === "function") {
+      showBetNotification("Test", "Push enabled");
+    }
+    return true;
+  } catch (e) {
+    alert("Push error: " + (e.message || e));
+    return false;
+  }
+}
 function requestNotifyPermission() {
   if (!("Notification" in window)) return;
   if (Notification.permission === "default") {
@@ -696,10 +750,7 @@ const submitLay = async (b) => {
                     );
                     return;
                   }
-                  Notification.requestPermission().then((p) => {
-                    if (p === "granted") showBetNotification("Test", "Notifications on");
-                    else alert("Permission: " + p);
-                  });
+                                 subscribePush(user.id);
                 }}
                 style={{
                   marginTop: 8,
