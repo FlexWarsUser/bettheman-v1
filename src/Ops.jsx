@@ -899,26 +899,27 @@ const getPlaceFraction = (fieldSize, isHandicap) => {
   return 0.2;
 };
 
-const getExposure = (stake, oddsStr, opts = {}) => {
-  const s = parseFloat(stake) || 0;
-  if (s <= 0) return 0;
+  const getExposure = (stake, oddsStr, opts = {}) => {
+    const s = parseFloat(stake) || 0;
+    if (s <= 0) return 0;
 
-  const mult = oddsToLiabilityMultiplier(oddsStr);
-  const eachWay = !!opts.eachWay;
+    const mult = oddsToLiabilityMultiplier(oddsStr);
+    const eachWay = !!opts.eachWay;
+    const round2 = (n) => Math.round(Number(n) * 100) / 100;
 
-  if (!eachWay) {
-    return s * mult;
-  }
+    if (!eachWay) {
+      return round2(s * mult);
+    }
 
-  const part = s / 2;
-  const frac = getPlaceFraction(opts.fieldSize, opts.isHandicap);
+    const part = s / 2;
+    const frac = getPlaceFraction(opts.fieldSize, opts.isHandicap);
 
-  if (frac == null) {
-    return part * mult;
-  }
+    if (frac == null) {
+      return round2(part * mult);
+    }
 
-  return part * mult + part * mult * frac;
-};
+    return round2(part * mult + part * mult * frac);
+  };
 const getBetRaceMeta = (bet) => {
   const name = (bet.event || '').toLowerCase();
   const ev = (events || []).find(e => (e.name || '').toLowerCase() === name);
@@ -943,7 +944,7 @@ total += getExposure(amt, b.odds, {
   isHandicap: meta.isHandicap,
 }) || 0;
   }
-  return total;
+    return Math.round(total * 100) / 100;
 };
 const getHouseExposure = () => {
   let total = 0;
@@ -959,7 +960,7 @@ total += getExposure(houseAmt, b.odds, {
   isHandicap: meta.isHandicap,
 }) || 0;
   }
-  return total;
+    return Math.round(total * 100) / 100;
 };
   const pendingReview = allBets.filter(b => b.phase === 'house_review').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const layerBidding = allBets.filter(b =>
@@ -1187,7 +1188,7 @@ const exposure = getExposure(b.stake, b.odds, {
   {' requested by '}{b.punterName}
 </div>
 
-                <div style={{ marginTop: '6px', color: '#ff6b6b', fontWeight: '600' }}>Exposure: £{exposure}</div>
+                <div style={{ marginTop: '6px', color: '#ff6b6b', fontWeight: '600' }}>Exposure: £{Number(exposure).toFixed(2)}</div>
                 {b.houseTimerEnd && (
                   <div style={{ marginTop: '6px' }}>Time left: <Countdown endTime={b.houseTimerEnd} /></div>
                 )}

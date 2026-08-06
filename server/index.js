@@ -992,6 +992,7 @@ app.post("/api/bets/:id/action", async (req, res) => {
     data.phase = "layer_bidding";
     const settings = await getSettings();
     data.layerTimerEnd = new Date(now.getTime() + settings.layerTimerSeconds * 1000);
+    
   }
 } else if (action === "Rejected") {
   data = { houseAction: "Rejected" };
