@@ -195,17 +195,12 @@ const fetchEvents = async () => {
   useEffect(() => {
     fetchEvents();
   }, []);
-useEffect(() => {
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
-  }
   useEffect(() => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
   }, []);
-}, []);
-     useEffect(() => {
+  useEffect(() => {
     const socket = io(API, { transports: ["websocket", "polling"] });
 
     socket.on("bet:notify", (payload) => {
@@ -215,15 +210,15 @@ useEffect(() => {
 
       if (payload.phase === "house_review") {
         showBetNotification(
-          "New bet — House review",
-          `${payload.event} – ${payload.selection} @ ${payload.odds} — ${stakeLabel} (${payload.punterName || ""})`
+          "New bet – House review",
+          `${payload.event} – ${payload.selection} @ ${payload.odds} – ${stakeLabel} (${payload.punterName || ""})`
         );
         if (typeof fetchBets === "function") fetchBets();
       }
       if (payload.phase === "house_residual") {
         showBetNotification(
           "Residual look",
-          `${payload.event} – ${payload.selection} @ ${payload.odds} — ${stakeLabel}`
+          `${payload.event} – ${payload.selection} @ ${payload.odds} – ${stakeLabel}`
         );
         if (typeof fetchBets === "function") fetchBets();
       }
