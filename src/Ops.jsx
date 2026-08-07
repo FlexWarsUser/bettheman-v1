@@ -199,7 +199,11 @@ useEffect(() => {
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   }
-  requestNotifyPermission();
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  }, []);
 }, []);
      useEffect(() => {
     const socket = io(API, { transports: ["websocket", "polling"] });

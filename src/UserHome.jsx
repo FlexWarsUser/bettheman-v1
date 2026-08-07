@@ -235,12 +235,11 @@ const [selectionSuggestions, setSelectionSuggestions] = useState([]);
 const [showSelectionDropdown, setShowSelectionDropdown] = useState(false);
 const [oddsSuggestions, setOddsSuggestions] = useState([]);
 const [now, setNow] = useState(Date.now());   // ← add this line
-useEffect(() => {
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
-  }
-  requestNotifyPermission();
-}, []);
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  }, []);
     useEffect(() => {
     if (!user?.canLay) return;
 
