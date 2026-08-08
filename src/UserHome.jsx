@@ -247,6 +247,7 @@ const [now, setNow] = useState(Date.now());   // ← add this line
   const [chatText, setChatText] = useState('');
   const [chatImage, setChatImage] = useState(null); // data URL or null
   const [chatSending, setChatSending] = useState(false);
+  const [chatUnread, setChatUnread] = useState(0);
   const HOUSE_ID = 7;
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -299,10 +300,13 @@ const [now, setNow] = useState(Date.now());   // ← add this line
         (msg.fromUserId === user.id && msg.toUserId === HOUSE_ID) ||
         (msg.fromUserId === HOUSE_ID && msg.toUserId === user.id);
       if (!involvesMe) return;
-      setChatMessages((prev) => {
+        setChatMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
       });
+      if (Number(msg.fromUserId) === HOUSE_ID) {
+        setChatUnread((n) => n + 1);
+      }
     });
     socket.on('chat:ended', ({ userA, userB }) => {
       if (userA === user.id || userB === user.id) {
@@ -1503,10 +1507,13 @@ const liability = currentBid > 0
           })}
         </>
       )}
-            {/* Chat button */}
+          {/* Chat button */}
       <button
         type="button"
-        onClick={() => setChatOpen(true)}
+        onClick={() => {
+          setChatOpen(true);
+          setChatUnread(0);
+        }}
         style={{
           position: 'fixed',
           right: 16,
@@ -1522,7 +1529,7 @@ const liability = currentBid > 0
           boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
         }}
       >
-        Chat
+        Chat{chatUnread > 0 ? ` (${chatUnread})` : ''}
       </button>
 
       {/* Chat panel */}

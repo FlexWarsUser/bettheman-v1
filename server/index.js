@@ -632,21 +632,22 @@ app.get("/api/chat", async (req, res) => {
       take: 500,
     });
 
-    const map = new Map();
+     const map = new Map();
     for (const m of all) {
       const otherId = m.fromUserId === HOUSE_ID ? m.toUserId : m.fromUserId;
-      const otherName = m.fromUserId === HOUSE_ID ? null : m.fromName;
       if (!map.has(otherId)) {
         map.set(otherId, {
           userId: otherId,
-          name: otherName || `User ${otherId}`,
+          name: `User ${otherId}`,
           lastBody: m.body || (m.imageData ? "[image]" : ""),
           lastAt: m.createdAt,
           unread: 0,
         });
       }
       const row = map.get(otherId);
-      if (!row.name && otherName) row.name = otherName;
+      if (m.fromUserId !== HOUSE_ID && m.fromName) {
+        row.name = m.fromName;
+      }
       if (m.toUserId === HOUSE_ID && !m.read) row.unread += 1;
     }
 
