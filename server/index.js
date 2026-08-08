@@ -582,7 +582,168 @@ const { bids, totalLaid } = await applyProRata(currentBids, remainingForLayers);
 setInterval(processExpiredTimers, 2000);
 
 app.get("/api/health", (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+const HOUSE_ID = 7;
 
+// GET history with the other user
+app.get("/api/chat/:otherUserId", async (req, res) => {
+  try {
+    const me = parseInt(req.query.userId, 10);
+    const other = parseInt(req.params.otherUserId, 10);
+    if (!me || !other) {
+      return res.status(400).json({ success: false, error: "userId required" });
+    }
+    // Only House <-> punter
+    if (me !== HOUSE_ID && other !== HOUSE_ID) {
+      return res.status(403).json({ success: false, error: "Chat only with House" });
+    }
+    if (me === HOUSE_ID && other === HOUSE_ID) {
+      return res.status(400).json({ success: false, error: "Invalid" });
+    }
+
+    const messages = await prisma.chatMessage.findMany({
+      where: {
+        OR: [
+          { fromUserId: me, toUserId: other },
+          { fromUserId: other, toUserId: me },
+        ],
+      },
+      orderBy: { createdAt: "asc" },
+      take: 200,
+    });
+    res.json({ success: true, messages });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// House: list conversations (latest message per punter)
+app.get("/api/chat", async (req, res) => {
+  try {
+    const me = parseInt(req.query.userId, 10);
+    if (me !== HOUSE_ID) {
+      return res.status(403).json({ success: false, error: "House only" });
+    }
+
+    const all = await prisma.chatMessage.findMany({
+      where: {
+        OR: [{ fromUserId: HOUSE_ID }, { toUserId: HOUSE_ID }],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    });
+
+    const map = new Map();
+    for (const m of all) {
+      const otherId = m.fromUserId === HOUSE_ID ? m.toUserId : m.fromUserId;
+      const otherName = m.fromUserId === HOUSE_ID ? null : m.fromName;
+      if (!map.has(otherId)) {
+        map.set(otherId, {
+          userId: otherId,
+          name: otherName || `User ${otherId}`,
+          lastBody: m.body || (m.imageData ? "[image]" : ""),
+          lastAt: m.createdAt,
+          unread: 0,
+        });
+      }
+      const row = map.get(otherId);
+      if (!row.name && otherName) row.name = otherName;
+      if (m.toUserId === HOUSE_ID && !m.read) row.unread += 1;
+    }
+
+    const conversations = [...map.values()].sort(
+      (a, b) => new Date(b.lastAt) - new Date(a.lastAt)
+    );
+    res.json({ success: true, conversations });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Send message (text and/or image)
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { fromUserId, fromName, toUserId, body, imageData } = req.body;
+    const from = parseInt(fromUserId, 10);
+    const to = parseInt(toUserId, 10);
+    const text = String(body || "").trim();
+    const img = imageData ? String(imageData) : null;
+
+    if (!from || !to) {
+      return res.status(400).json({ success: false, error: "Missing users" });
+    }
+    if (!text && !img) {
+      return res.status(400).json({ success: false, error: "Empty message" });
+    }
+    // Size guard ~1.5MB base64
+    if (img && img.length > 1_500_000) {
+      return res.status(400).json({ success: false, error: "Image too large (max ~1MB)" });
+    }
+    // Only House <-> punter
+    if (from !== HOUSE_ID && to !== HOUSE_ID) {
+      return res.status(403).json({ success: false, error: "Chat only with House" });
+    }
+    if (from === to) {
+      return res.status(400).json({ success: false, error: "Invalid" });
+    }
+
+    const msg = await prisma.chatMessage.create({
+      data: {
+        fromUserId: from,
+        fromName: String(fromName || "User"),
+        toUserId: to,
+        body: text,
+        imageData: img,
+      },
+    });
+
+    const payload = {
+      id: msg.id,
+      fromUserId: msg.fromUserId,
+      fromName: msg.fromName,
+      toUserId: msg.toUserId,
+      body: msg.body,
+      imageData: msg.imageData,
+      createdAt: msg.createdAt,
+      read: msg.read,
+    };
+
+    // Live notify both sides
+    io.emit("chat:message", payload);
+
+    res.json({ success: true, message: payload });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// End chat — delete all messages between punter and House (images go too)
+app.delete("/api/chat/:otherUserId", async (req, res) => {
+  try {
+    const me = parseInt(req.query.userId, 10);
+    const other = parseInt(req.params.otherUserId, 10);
+    if (!me || !other) {
+      return res.status(400).json({ success: false, error: "userId required" });
+    }
+    if (me !== HOUSE_ID && other !== HOUSE_ID) {
+      return res.status(403).json({ success: false, error: "Chat only with House" });
+    }
+
+    const result = await prisma.chatMessage.deleteMany({
+      where: {
+        OR: [
+          { fromUserId: me, toUserId: other },
+          { fromUserId: other, toUserId: me },
+        ],
+      },
+    });
+
+    io.emit("chat:ended", { userA: me, userB: other });
+
+    res.json({ success: true, deleted: result.count });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 app.post("/api/bets/clear", async (req, res) => {
   await prisma.bet.deleteMany({});
   io.emit("betUpdated", { type: "bulk", bets: [] });

@@ -242,6 +242,12 @@ const [selectionSuggestions, setSelectionSuggestions] = useState([]);
 const [showSelectionDropdown, setShowSelectionDropdown] = useState(false);
 const [oddsSuggestions, setOddsSuggestions] = useState([]);
 const [now, setNow] = useState(Date.now());   // ← add this line
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatText, setChatText] = useState('');
+  const [chatImage, setChatImage] = useState(null); // data URL or null
+  const [chatSending, setChatSending] = useState(false);
+  const HOUSE_ID = 7;
   useEffect(() => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
@@ -272,6 +278,44 @@ const [now, setNow] = useState(Date.now());   // ← add this line
       socket.disconnect();
     };
   }, [user?.canLay, user?.id]);
+    const loadChat = async () => {
+    try {
+      const res = await fetch(`${API}/api/chat/${HOUSE_ID}?userId=${user.id}`);
+      const data = await res.json();
+      if (data.success) setChatMessages(data.messages || []);
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    if (!chatOpen || !user?.id) return;
+    loadChat();
+  }, [chatOpen, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const socket = io(API, { transports: ['websocket', 'polling'] });
+    socket.on('chat:message', (msg) => {
+      const involvesMe =
+        (msg.fromUserId === user.id && msg.toUserId === HOUSE_ID) ||
+        (msg.fromUserId === HOUSE_ID && msg.toUserId === user.id);
+      if (!involvesMe) return;
+      setChatMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+    });
+    socket.on('chat:ended', ({ userA, userB }) => {
+      if (userA === user.id || userB === user.id) {
+        setChatMessages([]);
+        setChatOpen(false);
+      }
+    });
+    return () => {
+      socket.off('chat:message');
+      socket.off('chat:ended');
+      socket.disconnect();
+    };
+  }, [user?.id]);
   const fetchBets = async () => {
     try {
       const res = await fetch(`${API}/api/bets`);
@@ -280,6 +324,71 @@ const [now, setNow] = useState(Date.now());   // ← add this line
         if (Array.isArray(data)) setBets(data);
       }
     } catch (e) {}
+  };
+    const sendChat = async () => {
+    const text = chatText.trim();
+    if (!text && !chatImage) return;
+    setChatSending(true);
+    try {
+      const res = await fetch(`${API}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fromUserId: user.id,
+          fromName: user.name,
+          toUserId: HOUSE_ID,
+          body: text,
+          imageData: chatImage,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert(data.error || 'Send failed');
+      } else {
+        setChatText('');
+        setChatImage(null);
+        // message also arrives via socket; optional optimistic:
+        if (data.message) {
+          setChatMessages((prev) =>
+            prev.some((m) => m.id === data.message.id) ? prev : [...prev, data.message]
+          );
+        }
+      }
+    } catch (e) {
+      alert(e.message);
+    }
+    setChatSending(false);
+  };
+
+  const endChat = async () => {
+    if (!window.confirm('End this chat? All messages and images will be deleted.')) return;
+    try {
+      const res = await fetch(`${API}/api/chat/${HOUSE_ID}?userId=${user.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) alert(data.error || 'Failed');
+      else {
+        setChatMessages([]);
+        setChatOpen(false);
+      }
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  const onPickImage = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 900_000) {
+      alert('Image too large (keep under ~900KB)');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setChatImage(String(reader.result));
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 const searchEvents = async (q) => {
   if (!q || q.length < 2) {
@@ -1393,6 +1502,216 @@ const liability = currentBid > 0
             );
           })}
         </>
+      )}
+            {/* Chat button */}
+      <button
+        type="button"
+        onClick={() => setChatOpen(true)}
+        style={{
+          position: 'fixed',
+          right: 16,
+          bottom: 16,
+          zIndex: 900,
+          padding: '12px 16px',
+          borderRadius: 24,
+          border: 'none',
+          background: '#00ff88',
+          color: '#0f0c29',
+          fontWeight: 700,
+          cursor: 'pointer',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
+        }}
+      >
+        Chat
+      </button>
+
+      {/* Chat panel */}
+      {chatOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            right: 12,
+            bottom: 12,
+            width: 'min(360px, calc(100vw - 24px))',
+            height: 'min(480px, calc(100vh - 24px))',
+            background: '#1a1a2e',
+            border: '1px solid #3a3a5c',
+            borderRadius: 12,
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            color: '#e8e8e8',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          }}
+        >
+          <div
+            style={{
+              padding: '10px 12px',
+              borderBottom: '1px solid #3a3a5c',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontWeight: 600,
+            }}
+          >
+            <span>Chat with House</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={endChat}
+                style={{
+                  background: '#7f1d1d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '4px 8px',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                End
+              </button>
+              <button
+                type="button"
+                onClick={() => setChatOpen(false)}
+                style={{
+                  background: '#3a3a5c',
+                  color: '#e8e8e8',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '4px 8px',
+                  cursor: 'pointer',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
+            {chatMessages.length === 0 && (
+              <div style={{ color: '#999', fontSize: 13 }}>No messages yet.</div>
+            )}
+            {chatMessages.map((m) => {
+              const mine = Number(m.fromUserId) === Number(user.id);
+              return (
+                <div
+                  key={m.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: mine ? 'flex-end' : 'flex-start',
+                    marginBottom: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      maxWidth: '80%',
+                      background: mine ? '#2d6a4f' : '#252540',
+                      borderRadius: 10,
+                      padding: '8px 10px',
+                      fontSize: 14,
+                    }}
+                  >
+                    {!mine && (
+                      <div style={{ fontSize: 11, color: '#00ff88', marginBottom: 4 }}>
+                        {m.fromName}
+                      </div>
+                    )}
+                    {m.body ? <div>{m.body}</div> : null}
+                    {m.imageData && (
+                      <img
+                        src={m.imageData}
+                        alt="attachment"
+                        style={{
+                          maxWidth: '100%',
+                          borderRadius: 6,
+                          marginTop: m.body ? 6 : 0,
+                        }}
+                      />
+                    )}
+                    <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>
+                      {new Date(m.createdAt).toLocaleTimeString()}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {chatImage && (
+            <div style={{ padding: '0 12px 8px' }}>
+              <img src={chatImage} alt="preview" style={{ maxHeight: 80, borderRadius: 6 }} />
+              <button
+                type="button"
+                onClick={() => setChatImage(null)}
+                style={{
+                  marginLeft: 8,
+                  background: '#3a3a5c',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 4,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          )}
+
+          <div
+            style={{
+              padding: 10,
+              borderTop: '1px solid #3a3a5c',
+              display: 'flex',
+              gap: 6,
+              alignItems: 'center',
+            }}
+          >
+            <label
+              style={{
+                background: '#3a3a5c',
+                padding: '8px 10px',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              📎
+              <input type="file" accept="image/*" onChange={onPickImage} style={{ display: 'none' }} />
+            </label>
+            <input
+              value={chatText}
+              onChange={(e) => setChatText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChat()}
+              placeholder="Message House..."
+              style={{
+                flex: 1,
+                padding: '8px 10px',
+                borderRadius: 6,
+                border: '1px solid #3a3a5c',
+                background: '#0f0c29',
+                color: '#e8e8e8',
+              }}
+            />
+            <button
+              type="button"
+              onClick={sendChat}
+              disabled={chatSending}
+              style={{
+                background: '#00ff88',
+                color: '#0f0c29',
+                border: 'none',
+                borderRadius: 6,
+                padding: '8px 12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Send
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

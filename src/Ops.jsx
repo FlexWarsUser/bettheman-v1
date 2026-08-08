@@ -174,6 +174,14 @@ const [settings, setSettings] = useState({
   skipHouseResidual: false,
   layerTimerSeconds: 30,
 });
+  const [chatConversations, setChatConversations] = useState([]);
+  const [chatOtherId, setChatOtherId] = useState(null);
+  const [chatOtherName, setChatOtherName] = useState('');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatText, setChatText] = useState('');
+  const [chatImage, setChatImage] = useState(null);
+  const [chatSending, setChatSending] = useState(false);
+  const HOUSE_ID = 7;
 const inputStyle = {
   width: '100%',
   padding: '10px',
@@ -256,7 +264,126 @@ const fetchEvents = async () => {
       alert('Delete failed');
     }
   };
+    const loadConversations = async () => {
+    try {
+      const res = await fetch(`${API}/api/chat?userId=${HOUSE_ID}`);
+      const data = await res.json();
+      if (data.success) setChatConversations(data.conversations || []);
+    } catch (e) {}
+  };
 
+  const loadThread = async (otherId) => {
+    try {
+      const res = await fetch(`${API}/api/chat/${otherId}?userId=${HOUSE_ID}`);
+      const data = await res.json();
+      if (data.success) setChatMessages(data.messages || []);
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'chat') return;
+    loadConversations();
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'chat' || !chatOtherId) return;
+    loadThread(chatOtherId);
+  }, [activeTab, chatOtherId]);
+
+  useEffect(() => {
+    const socket = io(API, { transports: ['websocket', 'polling'] });
+    socket.on('chat:message', (msg) => {
+      if (msg.fromUserId !== HOUSE_ID && msg.toUserId !== HOUSE_ID) return;
+      loadConversations();
+      if (
+        chatOtherId &&
+        (msg.fromUserId === chatOtherId || msg.toUserId === chatOtherId)
+      ) {
+        setChatMessages((prev) =>
+          prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]
+        );
+      }
+    });
+    socket.on('chat:ended', ({ userA, userB }) => {
+      if (userA === chatOtherId || userB === chatOtherId) {
+        setChatMessages([]);
+        setChatOtherId(null);
+      }
+      loadConversations();
+    });
+    return () => {
+      socket.off('chat:message');
+      socket.off('chat:ended');
+      socket.disconnect();
+    };
+  }, [chatOtherId]);
+  const sendChat = async () => {
+    if (!chatOtherId) return;
+    const text = chatText.trim();
+    if (!text && !chatImage) return;
+    setChatSending(true);
+    try {
+      const res = await fetch(`${API}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fromUserId: HOUSE_ID,
+          fromName: 'House',
+          toUserId: chatOtherId,
+          body: text,
+          imageData: chatImage,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) alert(data.error || 'Send failed');
+      else {
+        setChatText('');
+        setChatImage(null);
+        if (data.message) {
+          setChatMessages((prev) =>
+            prev.some((m) => m.id === data.message.id) ? prev : [...prev, data.message]
+          );
+        }
+      }
+    } catch (e) {
+      alert(e.message);
+    }
+    setChatSending(false);
+  };
+
+  const endChat = async () => {
+    if (!chatOtherId) return;
+    if (!window.confirm('End this chat? All messages and images will be deleted.')) return;
+    try {
+      const res = await fetch(
+        `${API}/api/chat/${chatOtherId}?userId=${HOUSE_ID}`,
+        { method: 'DELETE' }
+      );
+      const data = await res.json();
+      if (!res.ok || !data.success) alert(data.error || 'Failed');
+      else {
+        setChatMessages([]);
+        setChatOtherId(null);
+        loadConversations();
+      }
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  const onPickImage = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 900_000) {
+      alert('Image too large (keep under ~900KB)');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setChatImage(String(reader.result));
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 const uploadCsvFromText = async (text) => {
   const raw = (text || '').trim();
   if (!raw) return alert('No file content');
@@ -1088,7 +1215,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
         })()}
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '10px' }}>
-  {['house', 'settlement', 'admin'].map(tab => (
+  {['house', 'settlement', 'admin', 'chat'].map(tab => (
   <button
     key={tab}
     onClick={() => setActiveTab(tab)}
@@ -1762,6 +1889,187 @@ const exposure = getExposure(b.stake, b.odds, {
         </div>
       ))}
     </CollapsibleSection>
+  </div>
+)}
+{activeTab === 'chat' && (
+  <div>
+    <h2 style={{ color: '#00ff88' }}>Chat</h2>
+    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      {/* Conversation list */}
+      <div style={{ flex: '1 1 200px', minWidth: 180 }}>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>Conversations</div>
+        {chatConversations.length === 0 && (
+          <p style={{ color: '#999' }}>No messages yet.</p>
+        )}
+        {chatConversations.map((c) => (
+          <button
+            key={c.userId}
+            type="button"
+            onClick={() => {
+              setChatOtherId(c.userId);
+              setChatOtherName(c.name);
+            }}
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'left',
+              marginBottom: 6,
+              padding: 10,
+              background: chatOtherId === c.userId ? '#2d6a4f' : '#1a1a2e',
+              border: '1px solid #3a3a5c',
+              borderRadius: 8,
+              color: '#e8e8e8',
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ fontWeight: 600 }}>{c.name}</div>
+            <div style={{ fontSize: 12, color: '#999' }}>
+              {c.lastBody?.slice(0, 40) || '—'}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Thread */}
+      <div
+        style={{
+          flex: '2 1 280px',
+          background: '#1a1a2e',
+          border: '1px solid #3a3a5c',
+          borderRadius: 10,
+          minHeight: 360,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {!chatOtherId ? (
+          <div style={{ padding: 16, color: '#999' }}>Select a conversation</div>
+        ) : (
+          <>
+            <div
+              style={{
+                padding: 10,
+                borderBottom: '1px solid #3a3a5c',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span style={{ fontWeight: 600 }}>{chatOtherName}</span>
+              <button
+                type="button"
+                onClick={endChat}
+                style={{
+                  background: '#7f1d1d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '4px 10px',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                End chat
+              </button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
+              {chatMessages.map((m) => {
+                const mine = Number(m.fromUserId) === HOUSE_ID;
+                return (
+                  <div
+                    key={m.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: mine ? 'flex-end' : 'flex-start',
+                      marginBottom: 10,
+                    }}
+                  >
+                    <div
+                      style={{
+                        maxWidth: '80%',
+                        background: mine ? '#2d6a4f' : '#252540',
+                        borderRadius: 10,
+                        padding: '8px 10px',
+                        fontSize: 14,
+                      }}
+                    >
+                      {!mine && (
+                        <div style={{ fontSize: 11, color: '#00ff88', marginBottom: 4 }}>
+                          {m.fromName}
+                        </div>
+                      )}
+                      {m.body ? <div>{m.body}</div> : null}
+                      {m.imageData && (
+                        <img
+                          src={m.imageData}
+                          alt=""
+                          style={{
+                            maxWidth: '100%',
+                            borderRadius: 6,
+                            marginTop: m.body ? 6 : 0,
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {chatImage && (
+              <div style={{ padding: '0 12px 8px' }}>
+                <img src={chatImage} alt="" style={{ maxHeight: 80, borderRadius: 6 }} />
+                <button type="button" onClick={() => setChatImage(null)}>
+                  Remove
+                </button>
+              </div>
+            )}
+            <div
+              style={{
+                padding: 10,
+                borderTop: '1px solid #3a3a5c',
+                display: 'flex',
+                gap: 6,
+              }}
+            >
+              <label style={{ background: '#3a3a5c', padding: '8px 10px', borderRadius: 6, cursor: 'pointer' }}>
+                📎
+                <input type="file" accept="image/*" onChange={onPickImage} style={{ display: 'none' }} />
+              </label>
+              <input
+                value={chatText}
+                onChange={(e) => setChatText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && sendChat()}
+                placeholder="Reply..."
+                style={{
+                  flex: 1,
+                  padding: 8,
+                  borderRadius: 6,
+                  border: '1px solid #3a3a5c',
+                  background: '#0f0c29',
+                  color: '#e8e8e8',
+                }}
+              />
+              <button
+                type="button"
+                onClick={sendChat}
+                disabled={chatSending}
+                style={{
+                  background: '#00ff88',
+                  color: '#0f0c29',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '8px 12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Send
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   </div>
 )}
 {showBidConfirm && (
