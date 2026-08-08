@@ -248,12 +248,17 @@ const [now, setNow] = useState(Date.now());   // ← add this line
   const [chatImage, setChatImage] = useState(null); // data URL or null
   const [chatSending, setChatSending] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
+  const chatOpenRef = useRef(false);
   const HOUSE_ID = 7;
   useEffect(() => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
   }, []);
+  useEffect(() => {
+  chatOpenRef.current = chatOpen;
+  if (chatOpen) setChatUnread(0);
+}, [chatOpen]);
     useEffect(() => {
     if (!user?.canLay) return;
 
@@ -295,14 +300,17 @@ const [now, setNow] = useState(Date.now());   // ← add this line
     if (!user?.id) return;
     const tick = async () => {
       try {
-        const res = await fetch(`${API}/api/chat/${HOUSE_ID}?userId=${user.id}`);
+        const res = await fetch(
+          `${API}/api/chat/${HOUSE_ID}?userId=${user.id}`,
+          { cache: 'no-store' }
+        );
         const data = await res.json();
         if (!data.success) return;
         const msgs = data.messages || [];
         setChatMessages((prev) => {
           if (msgs.length > prev.length) {
             const last = msgs[msgs.length - 1];
-            if (Number(last.fromUserId) === HOUSE_ID) {
+            if (Number(last.fromUserId) === HOUSE_ID && !chatOpenRef.current) {
               setChatUnread((n) => n + 1);
               if (typeof showBetNotification === 'function') {
                 showBetNotification('New message from House', last.body || 'Image');
@@ -331,7 +339,7 @@ const [now, setNow] = useState(Date.now());   // ← add this line
         return [...prev, msg];
       });
 
-      if (Number(msg.fromUserId) === HOUSE_ID) {
+           if (Number(msg.fromUserId) === HOUSE_ID && !chatOpenRef.current) {
         setChatUnread((n) => n + 1);
         if (typeof showBetNotification === 'function') {
           showBetNotification('New message from House', msg.body || 'Image');

@@ -169,6 +169,7 @@ const [events, setEvents] = useState([]);
 const [eventForm, setEventForm] = useState({ type: 'horse', name: '', date: '' });
 const [csvText, setCsvText] = useState('');
 const [eventMessage, setEventMessage] = useState('');
+const [chatTabUnread, setChatTabUnread] = useState(0);
 const [settings, setSettings] = useState({
   skipHouseFirstLook: false,
   skipHouseResidual: false,
@@ -291,19 +292,47 @@ const fetchEvents = async () => {
   }, [activeTab, chatOtherId]);
 
   useEffect(() => {
-    const socket = io(API, { transports: ['websocket', 'polling'] });
+const socket = io(API, { transports: ['websocket', 'polling'] });
+socket.emit('chat:join', HOUSE_ID);
     socket.on('chat:message', (msg) => {
-      if (msg.fromUserId !== HOUSE_ID && msg.toUserId !== HOUSE_ID) return;
-      loadConversations();
-      if (
-        chatOtherId &&
-        (msg.fromUserId === chatOtherId || msg.toUserId === chatOtherId)
-      ) {
-        setChatMessages((prev) =>
-          prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]
+  if (Number(msg.fromUserId) !== HOUSE_ID && Number(msg.toUserId) !== HOUSE_ID) return;
+
+  loadConversations();
+
+  if (Number(msg.fromUserId) !== HOUSE_ID) {
+    const viewingThis =
+      chatOtherId &&
+      (Number(msg.fromUserId) === Number(chatOtherId) ||
+        Number(msg.toUserId) === Number(chatOtherId));
+
+    if (!viewingThis) {
+      setChatTabUnread((n) => n + 1);
+      if (typeof showBetNotification === 'function') {
+        showBetNotification(
+          'New chat message',
+          `${msg.fromName || 'Punter'}: ${msg.body || 'Image'}`
         );
       }
-    });
+    }
+
+    if (viewingThis) {
+      setChatMessages((prev) =>
+        prev.some((m) => Number(m.id) === Number(msg.id)) ? prev : [...prev, msg]
+      );
+    }
+    return;
+  }
+
+  if (
+    chatOtherId &&
+    (Number(msg.fromUserId) === Number(chatOtherId) ||
+      Number(msg.toUserId) === Number(chatOtherId))
+  ) {
+    setChatMessages((prev) =>
+      prev.some((m) => Number(m.id) === Number(msg.id)) ? prev : [...prev, msg]
+    );
+  }
+});
     socket.on('chat:ended', ({ userA, userB }) => {
       if (userA === chatOtherId || userB === chatOtherId) {
         setChatMessages([]);
@@ -1218,7 +1247,10 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
   {['house', 'settlement', 'admin', 'chat'].map(tab => (
   <button
     key={tab}
-    onClick={() => setActiveTab(tab)}
+    onClick={() => {
+      setActiveTab(tab);
+      if (tab === 'chat') setChatTabUnread(0);
+    }}
     style={{
       background: activeTab === tab ? '#00ff88' : '#252540',
       color: activeTab === tab ? '#0f0c29' : '#e8e8e8',
@@ -1231,7 +1263,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
       textTransform: 'capitalize'
     }}
   >
-    {tab}
+    {tab === 'chat' && chatTabUnread > 0 ? `chat (${chatTabUnread})` : tab}
   </button>
 ))}
       </div>
