@@ -295,17 +295,22 @@ const [now, setNow] = useState(Date.now());   // ← add this line
   useEffect(() => {
     if (!user?.id) return;
     const socket = io(API, { transports: ['websocket', 'polling'] });
-    socket.on('chat:message', (msg) => {
+        socket.on('chat:message', (msg) => {
       const involvesMe =
-        (msg.fromUserId === user.id && msg.toUserId === HOUSE_ID) ||
-        (msg.fromUserId === HOUSE_ID && msg.toUserId === user.id);
+        (Number(msg.fromUserId) === Number(user.id) && Number(msg.toUserId) === HOUSE_ID) ||
+        (Number(msg.fromUserId) === HOUSE_ID && Number(msg.toUserId) === Number(user.id));
       if (!involvesMe) return;
-        setChatMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev;
+
+      setChatMessages((prev) => {
+        if (prev.some((m) => Number(m.id) === Number(msg.id))) return prev;
         return [...prev, msg];
       });
+
       if (Number(msg.fromUserId) === HOUSE_ID) {
         setChatUnread((n) => n + 1);
+        if (typeof showBetNotification === 'function') {
+          showBetNotification('New message from House', msg.body || 'Image');
+        }
       }
     });
     socket.on('chat:ended', ({ userA, userB }) => {
