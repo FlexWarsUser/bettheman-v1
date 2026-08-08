@@ -4,11 +4,13 @@
   box-sizing: border-box;
 }
 
-body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-  color: white;
+html, body, #root {
+  margin: 0;
   min-height: 100vh;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #e0f7fa, #b2ebf2, #80deea);
+  background-attachment: fixed;
+  color: #1a1a2e;
 }
 
 .app {
