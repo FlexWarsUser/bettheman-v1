@@ -1926,6 +1926,38 @@ const exposure = getExposure(b.stake, b.odds, {
 {activeTab === 'chat' && (
   <div>
     <h2 style={{ color: '#00ff88' }}>Chat</h2>
+        <div style={{ marginBottom: 12, maxWidth: 320 }}>
+      <div style={{ fontWeight: 600, marginBottom: 6 }}>Start chat with</div>
+      <select
+        defaultValue=""
+        onChange={(e) => {
+          const id = parseInt(e.target.value, 10);
+          if (!id) return;
+          const u = users.find((x) => Number(x.id) === id);
+          setChatOtherId(id);
+          setChatOtherName(u?.name || `User ${id}`);
+          setChatMessages([]);
+          e.target.value = '';
+        }}
+        style={{
+          width: '100%',
+          padding: 8,
+          background: '#1a1a2e',
+          color: '#e8e8e8',
+          border: '1px solid #3a3a5c',
+          borderRadius: 6,
+        }}
+      >
+        <option value="">Select user...</option>
+        {users
+          .filter((u) => Number(u.id) !== HOUSE_ID)
+          .map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name} (#{u.id})
+            </option>
+          ))}
+      </select>
+    </div>
     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
       {/* Conversation list */}
       <div style={{ flex: '1 1 200px', minWidth: 180 }}>
