@@ -291,11 +291,36 @@ const [now, setNow] = useState(Date.now());   // ← add this line
     if (!chatOpen || !user?.id) return;
     loadChat();
   }, [chatOpen, user?.id]);
-
+  useEffect(() => {
+    if (!user?.id) return;
+    const tick = async () => {
+      try {
+        const res = await fetch(`${API}/api/chat/${HOUSE_ID}?userId=${user.id}`);
+        const data = await res.json();
+        if (!data.success) return;
+        const msgs = data.messages || [];
+        setChatMessages((prev) => {
+          if (msgs.length > prev.length) {
+            const last = msgs[msgs.length - 1];
+            if (Number(last.fromUserId) === HOUSE_ID) {
+              setChatUnread((n) => n + 1);
+              if (typeof showBetNotification === 'function') {
+                showBetNotification('New message from House', last.body || 'Image');
+              }
+            }
+          }
+          return msgs;
+        });
+      } catch (e) {}
+    };
+    const id = setInterval(tick, 5000);
+    return () => clearInterval(id);
+  }, [user?.id]);
   useEffect(() => {
     if (!user?.id) return;
     const socket = io(API, { transports: ['websocket', 'polling'] });
-        socket.on('chat:message', (msg) => {
+    socket.emit('chat:join', user.id);
+    socket.on('chat:message', (msg) => {
       const involvesMe =
         (Number(msg.fromUserId) === Number(user.id) && Number(msg.toUserId) === HOUSE_ID) ||
         (Number(msg.fromUserId) === HOUSE_ID && Number(msg.toUserId) === Number(user.id));

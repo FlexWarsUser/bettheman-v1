@@ -709,7 +709,8 @@ app.post("/api/chat", async (req, res) => {
     };
 
     // Live notify both sides
-    io.emit("chat:message", payload);
+io.to("user:" + String(from)).emit("chat:message", payload);
+io.to("user:" + String(to)).emit("chat:message", payload);
 
     res.json({ success: true, message: payload });
   } catch (err) {
@@ -738,7 +739,8 @@ app.delete("/api/chat/:otherUserId", async (req, res) => {
       },
     });
 
-    io.emit("chat:ended", { userA: me, userB: other });
+io.to("user:" + String(me)).emit("chat:ended", { userA: me, userB: other });
+io.to("user:" + String(other)).emit("chat:ended", { userA: me, userB: other });
 
     res.json({ success: true, deleted: result.count });
   } catch (err) {
@@ -1643,6 +1645,9 @@ app.post("/api/users/:id/rights", async (req, res) => {
 });
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
+  socket.on("chat:join", (userId) => {
+    if (userId) socket.join("user:" + String(userId));
+  });
 });
 
 const PORT = process.env.PORT || 3001;
