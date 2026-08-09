@@ -128,14 +128,14 @@ function CollapsibleSection({ title, children, defaultOpen = false, open: contro
 
 const inputStyle = {
   width: '100%',
-  padding: '9px 12px',
-  marginBottom: 0,        // was 10
-  borderRadius: 0,
-  border: '1px solid #3a3a5c',  
-  background: '#252540',
+  display: 'block',
+  padding: '12px 14px',
+  marginBottom: 10,
+  background: 'rgba(15, 18, 40, 0.9)',
   color: '#e8e8e8',
-  boxSizing: 'border-box',
-  fontSize: 14,
+  border: '1px solid #2f3a5c',
+  borderRadius: 10,
+  fontSize: 15,
 };
 
 export default function UserHome() {
@@ -929,11 +929,21 @@ const submitLay = async (b) => {
         </div>
       </div>
 <div style={{ marginBottom: 8, display: 'flex', flexWrap: 'wrap', gap: '8px 16px' }}>
-  <span style={{ color: '#00ff88', fontWeight: 600 }}>
+  <span style={{
+  color: '#00ff88',
+  fontWeight: 700,
+  fontSize: 18,
+  letterSpacing: '0.2px',
+}}>
     Balance: £{Number(user.balance || 0).toFixed(2)}
   </span>
           {user.canLay && openLaysExposure > 0 && (
-          <span style={{ color: '#ff6b6b', fontWeight: 600 }}>
+          <span style={{
+  color: '#ff6b6b',
+  fontWeight: 600,
+  fontSize: 14,
+  marginLeft: 14,
+}}>
             Open lays: £{openLaysExposure.toFixed(2)}
           </span>
         )}
@@ -952,38 +962,50 @@ const submitLay = async (b) => {
       )}
 
      {/* Tabs */}
-<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
   <button
     type="button"
     onClick={() => setCustomerTab('slip')}
-    style={{
-      flex: 1,
-      padding: '8px 10px',
-      borderRadius: 7,
-      border: '1px solid #3a3a5c',
-      cursor: 'pointer',
-      fontWeight: 600,
-      fontSize: 14,
-      background: customerTab === 'slip' ? '#00ff88' : '#252540',
-      color: customerTab === 'slip' ? '#0f0c29' : '#e8e8e8',
-    }}
+  style={{
+  flex: 1,
+  minWidth: 100,
+  padding: '10px 12px',
+  borderRadius: 10,
+  border: customerTab === 'slip' ? 'none' : '1px solid #2f3a5c',
+  cursor: 'pointer',
+  fontWeight: 700,
+  fontSize: 13,
+  background:
+    customerTab === 'slip'
+      ? 'linear-gradient(135deg, #00ff88, #00c6ff)'
+      : 'rgba(15, 18, 40, 0.9)',
+  color: customerTab === 'slip' ? '#0a0a14' : '#c8c8d8',
+  boxShadow:
+    customerTab === 'slip' ? '0 4px 14px rgba(0, 255, 136, 0.25)' : 'none',
+}}
   >
     Betting Slip
   </button>
   <button
     type="button"
     onClick={() => setCustomerTab('bets')}
-    style={{
-      flex: 1,
-      padding: '8px 10px',
-      borderRadius: 7,
-      border: '1px solid #3a3a5c',
-      cursor: 'pointer',
-      fontWeight: 600,
-      fontSize: 14,
-      background: customerTab === 'bets' ? '#00ff88' : '#252540',
-      color: customerTab === 'bets' ? '#0f0c29' : '#e8e8e8',
-    }}
+style={{
+  flex: 1,
+  minWidth: 100,
+  padding: '10px 12px',
+  borderRadius: 10,
+  border: customerTab === 'bets' ? 'none' : '1px solid #2f3a5c',
+  cursor: 'pointer',
+  fontWeight: 700,
+  fontSize: 13,
+  background:
+    customerTab === 'bets'
+      ? 'linear-gradient(135deg, #00ff88, #00c6ff)'
+      : 'rgba(15, 18, 40, 0.9)',
+  color: customerTab === 'bets' ? '#0a0a14' : '#c8c8d8',
+  boxShadow:
+    customerTab === 'bets' ? '0 4px 14px rgba(0, 255, 136, 0.25)' : 'none',
+}}
   >
     My Bets
   </button>
@@ -991,17 +1013,23 @@ const submitLay = async (b) => {
     <button
       type="button"
       onClick={() => setCustomerTab('lays')}
-      style={{
-        flex: 1,
-        padding: '8px 10px',
-        borderRadius: 7,
-        border: '1px solid #3a3a5c',
-        cursor: 'pointer',
-        fontWeight: 600,
-        fontSize: 14,
-        background: customerTab === 'lays' ? '#00ff88' : '#252540',
-        color: customerTab === 'lays' ? '#0f0c29' : '#e8e8e8',
-      }}
+style={{
+  flex: 1,
+  minWidth: 100,
+  padding: '10px 12px',
+  borderRadius: 10,
+  border: customerTab === 'lays' ? 'none' : '1px solid #2f3a5c',
+  cursor: 'pointer',
+  fontWeight: 700,
+  fontSize: 13,
+  background:
+    customerTab === 'lays'
+      ? 'linear-gradient(135deg, #00ff88, #00c6ff)'
+      : 'rgba(15, 18, 40, 0.9)',
+  color: customerTab === 'lays' ? '#0a0a14' : '#c8c8d8',
+  boxShadow:
+    customerTab === 'lays' ? '0 4px 14px rgba(0, 255, 136, 0.25)' : 'none',
+}}
     >
       My Lays
     </button>
@@ -1192,19 +1220,20 @@ inputMode="decimal"
 </label>
 <button
   type="submit"
-  style={{
-    width: '33%',
-    padding: '10px 12px',
-    marginTop: 4,
-    background: '#00ff88',
-    color: '#0f0c29',
-    border: 'none',
-    borderRadius: 7,
-    fontWeight: 700,
-    fontSize: 14,
-    cursor: 'pointer',
-    letterSpacing: '0.3px',
-  }}
+style={{
+  width: '100%',
+  maxWidth: 220,
+  padding: '12px 16px',
+  marginTop: 8,
+  background: 'linear-gradient(135deg, #00ff88, #00c6ff)',
+  color: '#0a0a14',
+  border: 'none',
+  borderRadius: 10,
+  fontWeight: 700,
+  fontSize: 15,
+  cursor: 'pointer',
+  boxShadow: '0 6px 20px rgba(0, 255, 136, 0.25)',
+}}
 >
   Submit bet
 </button>
@@ -1552,20 +1581,21 @@ const liability = currentBid > 0
           setChatOpen(true);
           setChatUnread(0);
         }}
-        style={{
-          position: 'fixed',
-          right: 16,
-          bottom: 16,
-          zIndex: 900,
-          padding: '12px 16px',
-          borderRadius: 24,
-          border: 'none',
-          background: '#00ff88',
-          color: '#0f0c29',
-          fontWeight: 700,
-          cursor: 'pointer',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
-        }}
+style={{
+  position: 'fixed',
+  right: 16,
+  bottom: 16,
+  zIndex: 900,
+  padding: '14px 18px',
+  borderRadius: 28,
+  border: 'none',
+  background: 'linear-gradient(135deg, #00ff88, #00c6ff)',
+  color: '#0a0a14',
+  fontWeight: 800,
+  fontSize: 14,
+  cursor: 'pointer',
+  boxShadow: '0 8px 24px rgba(0, 255, 136, 0.4)',
+}}
       >
         Chat{chatUnread > 0 ? ` (${chatUnread})` : ''}
       </button>

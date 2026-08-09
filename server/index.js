@@ -652,9 +652,22 @@ app.get("/api/chat", async (req, res) => {
       if (m.toUserId === HOUSE_ID && !m.read) row.unread += 1;
     }
 
-    const conversations = [...map.values()].sort(
+     const conversations = [...map.values()].sort(
       (a, b) => new Date(b.lastAt) - new Date(a.lastAt)
     );
+
+    const ids = conversations.map((c) => c.userId);
+    if (ids.length) {
+      const dbUsers = await prisma.user.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, name: true },
+      });
+      const nameById = Object.fromEntries(dbUsers.map((u) => [u.id, u.name]));
+      for (const c of conversations) {
+        if (nameById[c.userId]) c.name = nameById[c.userId];
+      }
+    }
+
     res.json({ success: true, conversations });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
