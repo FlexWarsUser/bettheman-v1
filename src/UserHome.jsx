@@ -77,8 +77,8 @@ function showBetNotification(title, body) {
 
   const opts = {
     body,
-    icon: "/logo2.png",
-    badge: "/logo2.png",
+    icon: "/logo4.png",
+    badge: "/logo4.png",
     tag: "btm-bet-" + Date.now(),
   };
 
@@ -203,7 +203,7 @@ if (data.user.role === 'admin' || data.user.role === 'house') {
   return (
     <div style={{ maxWidth: 400, margin: '60px auto', padding: 20, color: '#e8e8e8' }}>
       <h1 style={{ textAlign: 'center', margin: 0 }}>
-        <img src="/logo2.png" alt="BetTheMan" style={{ maxWidth: '280px', height: 'auto' }} />
+        <img src="/logo4.png" alt="BetTheMan" style={{ maxWidth: '280px', height: 'auto' }} />
       </h1>
       <div style={{ marginTop: 12 }}>
         <div style={{  marginBottom: 8, color: '#b0b0b0' }}>Email</div>
@@ -881,10 +881,21 @@ const submitLay = async (b) => {
   {/* Header */}
        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <h1 style={{ textAlign: 'left', margin: 0 }}>
-          <img src="/logo2.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />
+          <img src="/logo4.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ color: '#b0b0b0', fontSize: 14, marginBottom: 6 }}>{user.name}</div>
+<div
+  style={{
+    color: '#00ffcc',
+    fontSize: 15,
+    fontWeight: 800,
+    marginBottom: 8,
+    letterSpacing: '0.3px',
+    textShadow: '0 0 10px rgba(0, 255, 200, 0.55)',
+  }}
+>
+  {user.name}
+</div>
           <button
             type="button"
             onClick={onLogout}

@@ -98,8 +98,8 @@ function showBetNotification(title, body) {
 
   const opts = {
     body,
-    icon: "/logo2.png",
-    badge: "/logo2.png",
+    icon: "/logo4.png",
+    badge: "/logo4.png",
     tag: "btm-bet-" + Date.now(),
   };
 
@@ -1167,7 +1167,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
 <div style={{ maxWidth: 520, width: '100%', margin: '10px auto', padding: 12, boxSizing: 'border-box', color: '#e8e8e8', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <h1 style={{ textAlign: 'left', margin: 0 }}>
-          <img src="/logo2.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />
+          <img src="/logo4.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
           <div style={{ color: '#b0b0b0', marginBottom: 6, fontSize: 14 }}>
