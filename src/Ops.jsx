@@ -403,11 +403,11 @@ socket.emit('chat:join', HOUSE_ID);
   const onPickImage = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 900_000) {
-      alert('Image too large (keep under ~900KB)');
-      e.target.value = '';
-      return;
-    }
+if (file.size > 700000) {
+  alert("Image too large — use a screenshot under ~700KB");
+  e.target.value = "";
+  return;
+}
     const reader = new FileReader();
     reader.onload = () => setChatImage(String(reader.result));
     reader.readAsDataURL(file);
