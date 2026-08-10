@@ -833,8 +833,8 @@ app.post("/api/users/:id/reset-password", async (req, res) => {
 });
 app.get("/api/users", async (req, res) => {
   try {
-    const users = await prisma.$queryRaw`
-SELECT id, name, "canLay", balance, weight, "createdAt", "updatedAt"
+          const users = await prisma.$queryRaw`
+      SELECT id, name, "canLay", balance, weight, role, "createdAt", "updatedAt"
       FROM "User"
       ORDER BY id ASC
     `;

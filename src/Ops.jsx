@@ -1727,9 +1727,19 @@ const exposure = getExposure(b.stake, b.odds, {
           onChange={e => setBalanceUserId(parseInt(e.target.value))}
           style={{ background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', padding: '8px', borderRadius: '6px', width: '100%', marginBottom: '8px' }}
         >
-          {users.map(u => (
-            <option key={u.id} value={u.id}>{u.name} — £{Number(u.balance || 0).toFixed(2)}</option>
-          ))}
+{users
+  .filter(u => {
+    const role = String(u.role || '').toLowerCase();
+    // Keep House; hide other admin accounts
+    if (Number(u.id) === 7) return true;
+    if (role === 'admin') return false;
+    return true;
+  })
+  .map(u => (
+    <option key={u.id} value={u.id}>
+      {u.name} — £{Number(u.balance || 0).toFixed(2)}
+    </option>
+  ))}
         </select>
         <input
           type="number"
