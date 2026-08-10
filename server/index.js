@@ -964,7 +964,6 @@ app.post('/api/auth/create-user', async (req, res) => {
         name,
         email,
         passwordHash,
-        name,
         role: 'punter',
         canLay: false,
         balance: 0,
