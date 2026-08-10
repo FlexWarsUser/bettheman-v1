@@ -778,6 +778,26 @@ app.delete("/api/bets", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+app.post("/api/users/:id/reset-password", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { password } = req.body;
+    if (!id || !password || String(password).length < 4) {
+      return res.status(400).json({ success: false, error: "Password required (min 4 chars)" });
+    }
+    const hash = await bcrypt.hash(String(password), 10);
+    await prisma.user.update({
+      where: { id },
+      data: {
+        password: hash,
+        mustChangePassword: true,
+      },
+    });
+    res.json({ success: true, id });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 app.get("/api/users", async (req, res) => {
   try {
     const users = await prisma.$queryRaw`

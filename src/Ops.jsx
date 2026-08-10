@@ -164,6 +164,7 @@ const [authName, setAuthName] = useState('');
   const [balanceAmount, setBalanceAmount] = useState('');
   const [authEmail, setAuthEmail] = useState(''); 
   const [authPassword, setAuthPassword] = useState('');
+  const [resetPw, setResetPw] = useState({});
 const [ledger, setLedger] = useState([]);
 const [events, setEvents] = useState([]);
 const [eventForm, setEventForm] = useState({ type: 'horse', name: '', date: '' });
@@ -697,7 +698,26 @@ useEffect(() => {
       console.log('USERS ERROR', e);
     }
   };
-
+const resetUserPassword = async (userId) => {
+  const password = (resetPw[userId] || '').trim();
+  if (!password || password.length < 4) {
+    return alert('Enter a temporary password (min 4 characters)');
+  }
+  if (!window.confirm(`Reset password for user #${userId}? They must change it on next login.`)) return;
+  try {
+    const res = await fetch(`${API}/api/users/${userId}/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) return alert(data.error || 'Reset failed');
+    alert('Password reset. Give them the temporary password.');
+    setResetPw((prev) => ({ ...prev, [userId]: '' }));
+  } catch (e) {
+    alert('Reset failed');
+  }
+};
   const adjustBalance = async (mode) => {
     if (!balanceAmount || parseFloat(balanceAmount) < 0) return alert('Enter a valid amount');
     try {
@@ -1866,25 +1886,60 @@ const exposure = getExposure(b.stake, b.odds, {
       <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
         <p style={{ color: '#b0b0b0', fontSize: 13 }}>Default is punter. Tick Can lay to allow laying.</p>
         {users.filter(u => Number(u.id) > 0 && u.name !== 'House').map(u => (
-          <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <span style={{ flex: 1 }}>{u.name}</span>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#e8e8e8', fontSize: 13 }}>
-              <input
-                type="checkbox"
-                checked={!!u.canLay}
-                onChange={async (e) => {
-                  const canLay = e.target.checked;
-                  await fetch(`${API}/api/users/${u.id}/rights`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ canLay, role: u.role || 'punter' }),
-                  });
-                  fetchUsers();
-                }}
-              />
-              Can lay
-            </label>
-          </div>
+                     <div key={u.id} style={{ marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid #2a2a40' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <span style={{ flex: 1 }}>{u.name}</span>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#e8e8e8', fontSize: 13 }}>
+                  <input
+                    type="checkbox"
+                    checked={!!u.canLay}
+                    onChange={async (e) => {
+                      const canLay = e.target.checked;
+                      await fetch(`${API}/api/users/${u.id}/rights`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ canLay, role: u.role || 'punter' }),
+                      });
+                      fetchUsers();
+                    }}
+                  />
+                  Can lay
+                </label>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  placeholder="Temp password"
+                  value={resetPw[u.id] || ''}
+                  onChange={(e) => setResetPw((prev) => ({ ...prev, [u.id]: e.target.value }))}
+                  style={{
+                    flex: 1,
+                    minWidth: 120,
+                    padding: '8px 10px',
+                    background: '#252540',
+                    color: '#e8e8e8',
+                    border: '1px solid #3a3a5c',
+                    borderRadius: 6,
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => resetUserPassword(u.id)}
+                  style={{
+                    padding: '8px 12px',
+                    background: '#d4a017',
+                    color: '#0f0c29',
+                    border: 'none',
+                    borderRadius: 6,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: 13,
+                  }}
+                >
+                  Reset password
+                </button>
+              </div>
+            </div>
         ))}
       </div>
     </CollapsibleSection>
