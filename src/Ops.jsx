@@ -1385,19 +1385,19 @@ const exposure = getExposure(b.stake, b.odds, {
                 {b.houseTimerEnd && (
                   <div style={{ marginTop: '6px' }}>Time left: <Countdown endTime={b.houseTimerEnd} /></div>
                 )}
-                               <button
+<button
   type="button"
   onClick={() => extendHouseTimer(b.id)}
   style={{
-    marginTop: 4,
-    padding: '2px 8px',
-    background: 'transparent',
-    color: '#888',
+    marginTop: 6,
+    padding: '5px 12px',
+    background: 'rgba(58, 58, 92, 0.5)',
+    color: '#b0b0b0',
     border: '1px solid #3a3a5c',
-    borderRadius: 4,
+    borderRadius: 5,
     cursor: 'pointer',
-    fontWeight: 500,
-    fontSize: 11,
+    fontWeight: 600,
+    fontSize: 12,
     width: 'auto',
   }}
 >
