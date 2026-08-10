@@ -1325,10 +1325,10 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
     })}
   </CollapsibleSection>
 )}
-          <h2 style={{ color: '#00ff88' }}>Pending House Review</h2>
-         
-          {pendingReview.length === 0 && <p style={muted}>No bets waiting.</p>}
-          {pendingReview.map(b => {
+{pendingReview.length > 0 && (
+  <h2 style={{ color: '#00ff88' }}>Pending House Review</h2>
+)}
+{pendingReview.map(b => {
 const meta = getBetRaceMeta(b);
 const exposure = getExposure(b.stake, b.odds, {
   eachWay: !!b.eachWay,
