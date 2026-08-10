@@ -215,7 +215,22 @@ if (data.user.role === 'admin' || data.user.role === 'house') {
           type="button"
           onClick={login}
           disabled={loading}
-          style={{ width: '100%', padding: 12, background: '#00ff88', color: '#0f0c29', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}
+          style={{
+  width: '100%',
+  padding: '14px 16px',
+  marginTop: 8,
+  background: loading
+    ? '#2a2a40'
+    : 'linear-gradient(135deg, #00ff88, #00c6ff)',
+  color: loading ? '#888' : '#0a0a14',
+  border: 'none',
+  borderRadius: 10,
+  fontWeight: 800,
+  fontSize: 16,
+  cursor: loading ? 'default' : 'pointer',
+  boxShadow: loading ? 'none' : '0 6px 20px rgba(0, 255, 136, 0.3)',
+  letterSpacing: '0.3px',
+}}
         >
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
@@ -242,6 +257,7 @@ const [selectionSuggestions, setSelectionSuggestions] = useState([]);
 const [showSelectionDropdown, setShowSelectionDropdown] = useState(false);
 const [oddsSuggestions, setOddsSuggestions] = useState([]);
 const [now, setNow] = useState(Date.now());   // ← add this line
+const [showMoney, setShowMoney] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatText, setChatText] = useState('');
@@ -884,7 +900,7 @@ const submitLay = async (b) => {
           <img src="/logo4.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
-<div
+  <div
   style={{
     color: '#00ffcc',
     fontSize: 15,
@@ -939,26 +955,55 @@ const submitLay = async (b) => {
           })()}
         </div>
       </div>
-<div style={{ marginBottom: 8, display: 'flex', flexWrap: 'wrap', gap: '8px 16px' }}>
-  <span style={{
-  color: '#00ff88',
-  fontWeight: 700,
-  fontSize: 18,
-  letterSpacing: '0.2px',
-}}>
-    Balance: £{Number(user.balance || 0).toFixed(2)}
-  </span>
-          {user.canLay && openLaysExposure > 0 && (
-          <span style={{
-  color: '#ff6b6b',
-  fontWeight: 600,
-  fontSize: 14,
-  marginLeft: 14,
-}}>
-            Open lays: £{openLaysExposure.toFixed(2)}
-          </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+        {showMoney && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px', alignItems: 'center' }}>
+            <span
+              style={{
+                color: '#00ff88',
+                fontWeight: 600,
+                fontSize: 14,
+                letterSpacing: '0.2px',
+              }}
+            >
+              Balance: £{Number(user.balance || 0).toFixed(2)}
+            </span>
+            {user.canLay && openLaysExposure > 0 && (
+              <span
+                style={{
+                  color: '#ff6b6b',
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                Open lays: £{openLaysExposure.toFixed(2)}
+              </span>
+            )}
+          </div>
         )}
-</div>
+        <button
+          type="button"
+          onClick={() => setShowMoney((v) => !v)}
+          style={{
+            marginLeft: 'auto',
+            width: 28,
+            height: 28,
+            padding: 0,
+            borderRadius: 8,
+            border: '1px solid #2f3a5c',
+            background: 'rgba(15, 18, 40, 0.9)',
+            color: '#c8c8d8',
+            fontSize: 16,
+            fontWeight: 700,
+            cursor: 'pointer',
+            lineHeight: '26px',
+            textAlign: 'center',
+          }}
+          aria-label={showMoney ? 'Hide balance' : 'Show balance'}
+        >
+          {showMoney ? '−' : '+'}
+        </button>
+      </div>
       {/* Forced password change */}
 {user.mustChangePassword && user.role !== 'admin' && user.role !== 'house' && (
         <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginTop: 16, marginBottom: 16 }}>
@@ -1410,13 +1455,13 @@ const originalStake = b.eachWay
             {rejectedBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No rejected bets.</p>}
             {rejectedBets.map(b => (
               <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
-                <div style={{ fontWeight: 600 }}>{b.event}</div>
+                <div style={{ fontWeight: 600 }}>{b.event}</div>``
 <div style={{ color: '#b0b0b0' }}>
   {b.selection} @ {b.odds} — £
   {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
   {b.eachWay ? ' each way' : ''}
 </div>
-                <div style={{ marginTop: 6, color: '#ff6b6b' }}>Not Accepted / Rejected</div>
+                <div style={{ marginTop: 6, color: '#ff6b6b' }}>Not Accepted</div>
               </div>
             ))}
           </CollapsibleSection>
@@ -1437,7 +1482,14 @@ const liability = calcLiability(laid, b.odds, {
   fieldSize: meta.fieldSize,
   isHandicap: meta.isHandicap,
 });
-              const hasApportioned = myBid?.actualLaid != null;
+const bidAmt = parseFloat(myBid?.amount) || 0;
+const hasActual = myBid?.actualLaid != null;
+const wasCut = hasActual && laid < bidAmt - 0.01;
+const layStatus = !hasActual
+  ? ' (awaiting apportioning)'
+  : wasCut
+    ? ' (apportioned)'
+    : '';
               return (
                 <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                   <div style={{ fontWeight: 600 }}>{b.event}</div>
@@ -1446,10 +1498,13 @@ const liability = calcLiability(laid, b.odds, {
                     {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
                     {b.eachWay ? ' each way' : ''}
                   </div>
+                                  <div style={{ color: '#999', fontSize: 13, marginTop: 2 }}>
+                  by {b.punterName}
+                </div>
                   <div style={{ marginTop: 6, color: '#00ff88' }}>
                     Your lay: £{b.eachWay ? (laid / 2).toFixed(2) : laid.toFixed(2)}
                     {b.eachWay ? ' each way' : ''}
-                    {hasApportioned ? ' (apportioned)' : ' (awaiting apportioning)'}
+                    {layStatus}
                   </div>
                   <div style={{ marginTop: 4, color: '#ff6b6b', fontWeight: 600 }}>Liability: £{liability.toFixed(2)}</div>
                 </div>
@@ -1472,18 +1527,11 @@ const isWon = b.result === 'won';
 const isPlaced = b.result === 'placed';
 const isManual = b.result === 'manual';
 
-let resultLabel = 'LOST';
-let resultColor = '#ff6b6b';
-if (isWon) {
-  resultLabel = 'WON';
-  resultColor = '#00ff88';
-} else if (isPlaced) {
-  resultLabel = 'PLACED';
-  resultColor = '#ffb347';
-} else if (isManual) {
-  resultLabel = 'SETTLED (Manual)';
-  resultColor = '#ffb347';
-}
+const resultColor = isManual || isPlaced
+  ? '#ffb347'
+  : isWon
+    ? '#ff6b6b'
+    : '#00ff88';
               return (
                 <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                   <div style={{ fontWeight: 600 }}>{b.event}</div>
@@ -1492,12 +1540,19 @@ if (isWon) {
                     {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
                     {b.eachWay ? ' each way' : ''}
                   </div>
-                  <div style={{ marginTop: 6 }}>Your lay: £{laid.toFixed(2)}</div>
-                  <div style={{ marginTop: 4, fontWeight: 600, color: resultColor }}>
-                    {resultLabel}
-                    {!isManual && isWon && ` — Lost £${liability.toFixed(2)}`}
-                    {!isManual && !isWon && ` — Won £${laid.toFixed(2)}`}
+                                    <div style={{ color: '#999', fontSize: 13, marginTop: 2 }}>
+                    by {b.punterName}
                   </div>
+                  <div style={{ marginTop: 6 }}>Your lay: £{laid.toFixed(2)}</div>
+<div style={{ marginTop: 4, fontWeight: 600, color: resultColor }}>
+  {isManual
+    ? 'SETTLED (Manual)'
+    : isWon
+      ? `Selection won — You lose £${liability.toFixed(2)}`
+      : isPlaced
+        ? `Selection placed — see settlement`
+        : `Selection lost — You win £${laid.toFixed(2)}`}
+</div>
                   {b.settlementNotes && <div style={{ fontSize: 14, color: '#ffb347', marginTop: 4 }}>Note: {b.settlementNotes}</div>}
                   <div style={{ fontSize: 14, color: '#999', marginTop: 4 }}>
                     Settled: {b.settledAt ? new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '—'}
