@@ -1001,7 +1001,7 @@ const submitLay = async (b) => {
           }}
           aria-label={showMoney ? 'Hide balance' : 'Show balance'}
         >
-          {showMoney ? '−' : '+'}
+          {showMoney ? '−' : '£'}
         </button>
       </div>
       {/* Forced password change */}
