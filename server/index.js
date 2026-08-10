@@ -789,12 +789,13 @@ app.post("/api/users/:id/reset-password", async (req, res) => {
     await prisma.user.update({
       where: { id },
       data: {
-        password: hash,
+        passwordHash: hash,
         mustChangePassword: true,
       },
     });
     res.json({ success: true, id });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
