@@ -1454,15 +1454,15 @@ const originalStake = b.eachWay
           <CollapsibleSection title={`Not Accepted (${rejectedBets.length})`} defaultOpen={false}>
             {rejectedBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No rejected bets.</p>}
             {rejectedBets.map(b => (
-              <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
-                <div style={{ fontWeight: 600 }}>{b.event}</div>``
-<div style={{ color: '#b0b0b0' }}>
-  {b.selection} @ {b.odds} — £
-  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
-  {b.eachWay ? ' each way' : ''}
-</div>
-                <div style={{ marginTop: 6, color: '#ff6b6b' }}>Not Accepted</div>
-              </div>
+                <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+                  <div style={{ fontWeight: 600 }}>{b.event}</div>
+                  <div style={{ color: '#b0b0b0' }}>
+                    {b.selection} @ {b.odds} — £
+                    {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+                    {b.eachWay ? ' each way' : ''}
+                  </div>
+                  <div style={{ marginTop: 6, color: '#ff6b6b' }}>Not Accepted</div>
+                </div>
             ))}
           </CollapsibleSection>
         </>

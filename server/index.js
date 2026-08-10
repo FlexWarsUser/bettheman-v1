@@ -778,6 +778,36 @@ app.delete("/api/bets", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+app.post("/api/bets/:id/extend-house-timer", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const bet = await prisma.bet.findUnique({ where: { id } });
+    if (!bet) return res.status(404).json({ success: false, error: "Bet not found" });
+    if (bet.phase !== "house_review") {
+      return res.status(400).json({ success: false, error: "Not in house review" });
+    }
+
+    const base = bet.houseTimerEnd && new Date(bet.houseTimerEnd) > new Date()
+      ? new Date(bet.houseTimerEnd)
+      : new Date();
+    const houseTimerEnd = new Date(base.getTime() + 30 * 1000);
+
+    const updated = await prisma.bet.update({
+      where: { id },
+      data: { houseTimerEnd },
+    });
+
+    const serialized = typeof serializeBet === "function" ? serializeBet(updated) : updated;
+    if (typeof io !== "undefined") {
+      io.emit("betUpdated", { type: "update", bet: serialized });
+    }
+
+    res.json({ success: true, bet: serialized });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 app.post("/api/users/:id/reset-password", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);

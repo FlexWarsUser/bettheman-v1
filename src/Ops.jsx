@@ -863,6 +863,21 @@ const createNewUser = async () => {
       alert('Action failed');
     }
   };
+  const extendHouseTimer = async (betId) => {
+  try {
+    const res = await fetch(`${API}/api/bets/${betId}/extend-house-timer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) {
+      return alert(data.error || 'Could not extend timer');
+    }
+    fetchBets();
+  } catch (e) {
+    alert('Could not extend timer');
+  }
+};
 const handleSettle = async (betId, result) => {
   const label = result === 'won' ? 'WON' : 'LOST';
   if (!window.confirm(`Mark this bet as ${label}? Balances will be updated.`)) return;
@@ -1370,6 +1385,24 @@ const exposure = getExposure(b.stake, b.odds, {
                 {b.houseTimerEnd && (
                   <div style={{ marginTop: '6px' }}>Time left: <Countdown endTime={b.houseTimerEnd} /></div>
                 )}
+                                <button
+                  type="button"
+                  onClick={() => extendHouseTimer(b.id)}
+                  style={{
+                    marginTop: 8,
+                    width: '100%',
+                    padding: '8px 10px',
+                    background: '#3a3a5c',
+                    color: '#e8e8e8',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: 13,
+                  }}
+                >
+                  +30s
+                </button>
                 <div style={{ marginTop: '12px', display: 'flex', gap: '6px' }}>
                   <button onClick={() => handleHouseAction(b.id, 'Accepted')} style={{ background: '#2d6a4f', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Accept Full</button>
                   <button onClick={() => handleHouseAction(b.id, 'Rejected')} style={{ background: '#7f1d1d', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Reject</button>
