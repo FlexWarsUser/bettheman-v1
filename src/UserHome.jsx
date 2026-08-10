@@ -243,6 +243,7 @@ function UserDashboard({ user, onLogout, onUserUpdate }) {
   const [bets, setBets] = useState([]);
 const [bet, setBet] = useState({ event: '', selection: '', odds: '', stake: '', eachWay: false });
   const [message, setMessage] = useState('');
+  const [placing, setPlacing] = useState(false);
   const [bidAmount, setBidAmount] = useState({});
   const [layerMessage, setLayerMessage] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -753,6 +754,8 @@ const getBetRaceMeta = (bet) => {
 
   const placeBet = async (e) => {
     e.preventDefault();
+      if (placing) return;
+  setPlacing(true);
     setMessage('');
     try {
       const res = await fetch(`${API}/api/bets`, {
@@ -776,11 +779,12 @@ setBet({ event: '', selection: '', odds: '', stake: '', eachWay: false });
 setSlipOpen(false);
       fetchBets();
       await refreshUser();
-    } catch (err) {
-      setMessage(err.message);
-    }
-  };
-
+      } catch (err) {
+    setMessage(err.message || 'Failed to place bet');
+  } finally {
+    setPlacing(false);
+  }
+};
   const changePassword = async () => {
     setPwMessage('');
     try {
@@ -1276,22 +1280,22 @@ inputMode="decimal"
 </label>
 <button
   type="submit"
-style={{
-  width: '100%',
-  maxWidth: 220,
-  padding: '12px 16px',
-  marginTop: 8,
-  background: 'linear-gradient(135deg, #00ff88, #00c6ff)',
-  color: '#0a0a14',
-  border: 'none',
-  borderRadius: 10,
-  fontWeight: 700,
-  fontSize: 15,
-  cursor: 'pointer',
-  boxShadow: '0 6px 20px rgba(0, 255, 136, 0.25)',
-}}
+  disabled={placing}
+  style={{
+    width: '33%',
+    padding: '10px 12px',
+    marginTop: 4,
+    background: placing ? '#3a3a5c' : '#00ff88',
+    color: '#0f0c29',
+    border: 'none',
+    borderRadius: 7,
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: placing ? 'not-allowed' : 'pointer',
+    letterSpacing: '0.3px',
+  }}
 >
-  Submit bet
+  {placing ? 'Submitting…' : 'Submit bet'}
 </button>
             </form>
             {message && <p style={{ color: '#00ff88' }}>{message}</p>}

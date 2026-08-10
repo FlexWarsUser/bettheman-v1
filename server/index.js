@@ -149,17 +149,19 @@ async function settleBalancesForBet(bet) {
   const layers = Array.isArray(bet.layerBids) ? bet.layerBids : [];
   const layersLaid = layers.reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
   const totalLaid = houseLaid + layersLaid;
+  const stake = Number(bet.stake) || 0;
 
-  if (totalLaid <= 0.01) {
-    await prisma.bet.update({ where: { id: bet.id }, data: { allocationComplete: true } });
-    return;
+  // Stake was already taken on place. Refund anything not matched.
+  const unmatched = Math.round((stake - totalLaid) * 100) / 100;
+  if (unmatched > 0.009) {
+    await changeUserBalance(bet.punterId, unmatched);
+    console.log(`Punter ${bet.punterId} refunded £${unmatched.toFixed(2)} unmatched on bet ${bet.id}`);
   }
 
-  // Only the punter is debited (matched stake)
-  await changeUserBalance(bet.punterId, -totalLaid);
-
-  await prisma.bet.update({ where: { id: bet.id }, data: { allocationComplete: true } });
-  console.log(`✅ Punter ${bet.punterId} debited £${totalLaid} for bet ${bet.id}`);
+  await prisma.bet.update({
+    where: { id: bet.id },
+    data: { allocationComplete: true },
+  });
 }
 const DEFAULT_SETTINGS = {
   skipHouseFirstLook: "false",
@@ -1083,10 +1085,23 @@ app.post("/api/users", async (req, res) => {
 app.post("/api/bets", async (req, res) => {
   try {
         const punterId = parseInt(req.body.punterId);
-    const stake = parseFloat(req.body.stake);
-    const bal = await getUserBalance(punterId);
-    if (stake > bal) {
-      return res.status(400).json({ success: false, error: `Insufficient balance. You have £${bal.toFixed(2)}` });
+       const stake = parseFloat(req.body.stake);
+    if (!Number.isFinite(stake) || stake <= 0) {
+      return res.status(400).json({ success: false, error: "Invalid stake" });
+    }
+
+    const debit = await prisma.user.updateMany({
+      where: {
+        id: punterId,
+        balance: { gte: stake },
+      },
+      data: {
+        balance: { decrement: stake },
+      },
+    });
+
+    if (debit.count === 0) {
+      return res.status(400).json({ success: false, error: "Insufficient balance" });
     }
    const settings = await getSettings();
 const layerSecs = settings.layerTimerSeconds;
@@ -1113,7 +1128,6 @@ const bet = await prisma.bet.create({
     eachWay: !!req.body.eachWay,
 originalStake: req.body.originalStake != null ? parseFloat(req.body.originalStake) : parseFloat(req.body.stake),
 status: "pending",
-    status: "pending",
     phase,
     houseAmount: 0,
     houseTimerEnd,
