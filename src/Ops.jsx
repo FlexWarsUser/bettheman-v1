@@ -167,6 +167,7 @@ const [authName, setAuthName] = useState('');
   const [resetPw, setResetPw] = useState({});
 const [ledger, setLedger] = useState([]);
 const [events, setEvents] = useState([]);
+const [rejectNote, setRejectNote] = useState({});
 const [eventForm, setEventForm] = useState({ type: 'horse', name: '', date: '' });
 const [csvText, setCsvText] = useState('');
 const [eventMessage, setEventMessage] = useState('');
@@ -843,26 +844,28 @@ const createNewUser = async () => {
   }
 };
 
-  const handleHouseAction = async (betId, action, amount = null) => {
-    let confirmMessage = '';
-    if (action === 'Accepted') confirmMessage = 'Confirm ACCEPT full?';
-    if (action === 'Partial') confirmMessage = `Confirm accept £${amount}?`;
-    if (action === 'Rejected') confirmMessage = 'Confirm REJECT?';
-    if (confirmMessage && !window.confirm(confirmMessage)) return;
+const handleHouseAction = async (betId, action, amount = null, notes = null) => {
+  let confirmMessage = '';
+  if (action === 'Accepted') confirmMessage = 'Confirm ACCEPT full?';
+  if (action === 'Partial') confirmMessage = `Confirm accept £${amount}?`;
+  if (action === 'Rejected') confirmMessage = 'Reject and send to layers?';
+  if (action === 'RejectStop') confirmMessage = 'Reject and stop? Customer will see Not Accepted.';
+  if (confirmMessage && !window.confirm(confirmMessage)) return;
 
-    try {
-      const body = { action };
-      if (amount) body.amount = parseFloat(amount);
-      await fetch(`${API}/api/bets/${betId}/action`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      fetchBets();
-    } catch (err) {
-      alert('Action failed');
-    }
-  };
+  try {
+    const body = { action };
+    if (amount != null && amount !== '') body.amount = parseFloat(amount);
+    if (notes) body.notes = notes;
+    await fetch(`${API}/api/bets/${betId}/action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    fetchBets();
+  } catch (err) {
+    alert('Action failed');
+  }
+};
   const extendHouseTimer = async (betId) => {
   try {
     const res = await fetch(`${API}/api/bets/${betId}/extend-house-timer`, {
@@ -1403,10 +1406,41 @@ const exposure = getExposure(b.stake, b.odds, {
 >
   +30s
 </button>
-                <div style={{ marginTop: '12px', display: 'flex', gap: '6px' }}>
-                  <button onClick={() => handleHouseAction(b.id, 'Accepted')} style={{ background: '#2d6a4f', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Accept Full</button>
-                  <button onClick={() => handleHouseAction(b.id, 'Rejected')} style={{ background: '#7f1d1d', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Reject</button>
-                </div>
+              <div style={{ marginTop: '12px', display: 'flex', gap: '6px' }}>
+            <button onClick={() => handleHouseAction(b.id, 'Accepted')} style={{ background: '#2d6a4f', color: 'white', flex: 1, padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Accept Full</button>
+          </div>
+          <div style={{ marginTop: '8px', display: 'flex', gap: '6px' }}>
+            <button
+              type="button"
+              onClick={() => handleHouseAction(b.id, 'Rejected')}
+              style={{ background: '#7f1d1d', color: 'white', flex: 1, padding: '9px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: 13 }}
+            >
+              Reject → layers
+            </button>
+            <button
+              type="button"
+              onClick={() => handleHouseAction(b.id, 'RejectStop', null, rejectNote[b.id] || '')}
+              style={{ background: '#5c1a1a', color: 'white', flex: 1, padding: '9px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: 13 }}
+            >
+              Reject & stop
+            </button>
+          </div>
+          <input
+            type="text"
+            placeholder="Reject note (shown to punter if stop)"
+            value={rejectNote[b.id] || ''}
+            onChange={(e) => setRejectNote({ ...rejectNote, [b.id]: e.target.value })}
+            style={{
+              marginTop: 8,
+              width: '100%',
+              padding: '8px',
+              background: '#1a1a2e',
+              color: '#e8e8e8',
+              border: '1px solid #3a3a5c',
+              borderRadius: 6,
+              boxSizing: 'border-box',
+            }}
+          />
                 <div style={{ marginTop: '10px', display: 'flex', gap: '6px' }}>
                   <button onClick={() => handleHouseAction(b.id, 'Partial', (parseFloat(b.stake) * 0.1).toFixed(2))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>10%</button>
                   <button onClick={() => handleHouseAction(b.id, 'Partial', (parseFloat(b.stake) * 0.25).toFixed(2))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>25%</button>

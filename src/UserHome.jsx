@@ -1466,6 +1466,11 @@ const originalStake = b.eachWay
                     {b.eachWay ? ' each way' : ''}
                   </div>
                   <div style={{ marginTop: 6, color: '#ff6b6b' }}>Not Accepted</div>
+                                    {b.settlementNotes && (
+                    <div style={{ marginTop: 4, fontSize: 13, color: '#ffb347' }}>
+                      Note: {b.settlementNotes}
+                    </div>
+                  )}
                 </div>
             ))}
           </CollapsibleSection>

@@ -1196,7 +1196,8 @@ app.get("/api/bets", async (req, res) => {
 app.post("/api/bets/:id/action", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { action, amount } = req.body;
+const { action, amount, notes } = req.body;
+console.log("HOUSE ACTION", action, "notes", notes);
     const bet = await prisma.bet.findUnique({ where: { id } });
     if (!bet) return res.status(404).json({ success: false });
 
@@ -1254,8 +1255,17 @@ app.post("/api/bets/:id/action", async (req, res) => {
     const settings = await getSettings();
     data.layerTimerEnd = new Date(now.getTime() + settings.layerTimerSeconds * 1000);
   }
+} else if (action === "RejectStop") {
+  data = {
+    houseAction: "Rejected",
+    status: "rejected",
+    phase: "finalized",
+    houseTimerEnd: null,
+    layerTimerEnd: null,
+    settlementNotes: notes ? String(notes).trim() : null,
+  };
 }
-    
+console.log("UPDATE DATA", data);
       const updated = await prisma.bet.update({ where: { id }, data });
         if (data.phase === "finalized") {
           await settleBalancesForBet(updated);
