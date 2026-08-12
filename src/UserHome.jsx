@@ -874,49 +874,63 @@ const submitLay = async (b) => {
     b => !b.settledAt && b.status !== 'rejected' && b.phase !== 'finalized' && b.phase !== 'settled'
   );
   useEffect(() => {
-    const currentIds = new Set(inProcess.map(b => b.id));
-    const prev = prevInProcessIds.current;
+    const my = bets.filter(b => Number(b.punterId) === Number(user.id));
 
-    for (const id of prev) {
-      if (currentIds.has(id)) continue;
-      const b = myBets.find(x => x.id === id);
-      if (!b) continue;
+    for (const b of my) {
+      const key = String(b.id);
+      const isPending =
+        !b.settledAt &&
+        b.status !== 'rejected' &&
+        b.phase !== 'finalized' &&
+        b.phase !== 'settled';
 
-      let message = 'Updated';
-      if (b.status === 'rejected' || b.phase === 'finalized' && (Number(b.houseAmount) || 0) + (b.layerBids || []).reduce((s, l) => s + (Number(l.actualLaid) || 0), 0) === 0) {
-        message = b.settlementNotes ? `Not Accepted — ${b.settlementNotes}` : 'Not Accepted';
-      } else if (b.phase === 'finalized' || b.phase === 'settled' || b.status === 'accepted') {
-        const matched =
-          (Number(b.houseAmount) || 0) +
-          (b.layerBids || []).reduce((s, l) => s + (Number(l.actualLaid) || 0), 0);
+      const wasPending = prevInProcessIds.current.has(b.id) || prevInProcessIds.current.has(Number(b.id));
+
+      if (wasPending && !isPending) {
+        const matched = getMatched(b);
         const stake = Number(b.stake) || 0;
-        if (matched > 0 && matched + 0.01 < stake) {
+        let message = 'Updated';
+
+        if (b.status === 'rejected' || matched <= 0.01) {
+          message = b.settlementNotes
+            ? `Not Accepted — ${b.settlementNotes}`
+            : 'Not Accepted';
+        } else if (matched + 0.01 < stake) {
           message = b.eachWay
             ? `Partially matched £${(matched / 2).toFixed(2)} each way`
             : `Partially matched £${matched.toFixed(2)}`;
-        } else if (matched > 0) {
-          message = 'Fully matched';
         } else {
-          message = 'Accepted';
+          message = 'Fully matched';
         }
-      }
 
-      const until = Date.now() + 10000;
-      setHoldingBets(prevHold => ({
-        ...prevHold,
-        [id]: { bet: b, message, until },
-      }));
-      setTimeout(() => {
-        setHoldingBets(prevHold => {
-          const next = { ...prevHold };
-          delete next[id];
-          return next;
-        });
-      }, 10000);
+        console.log('HOLD bet', b.id, message);
+        setHoldingBets(h => ({
+          ...h,
+          [b.id]: { bet: b, message, until: Date.now() + 10000 },
+        }));
+        setTimeout(() => {
+          setHoldingBets(h => {
+            const next = { ...h };
+            delete next[b.id];
+            return next;
+          });
+        }, 10000);
+      }
     }
 
-    prevInProcessIds.current = currentIds;
-  }, [inProcess, myBets]);
+    const nextSet = new Set(
+      my
+        .filter(
+          b =>
+            !b.settledAt &&
+            b.status !== 'rejected' &&
+            b.phase !== 'finalized' &&
+            b.phase !== 'settled'
+        )
+        .map(b => b.id)
+    );
+    prevInProcessIds.current = nextSet;
+  }, [bets, user.id]);
   const activeBets = myBets.filter(b => {
     if (b.settledAt || b.phase === 'settled' || b.status === 'rejected') return false;
     return getMatched(b) > 0.01;
