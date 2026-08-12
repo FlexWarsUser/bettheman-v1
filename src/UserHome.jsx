@@ -259,6 +259,8 @@ const [showSelectionDropdown, setShowSelectionDropdown] = useState(false);
 const [oddsSuggestions, setOddsSuggestions] = useState([]);
 const [now, setNow] = useState(Date.now());   // ← add this line
 const [showMoney, setShowMoney] = useState(true);
+const [holdingBets, setHoldingBets] = useState({}); // id -> { bet, message, until }
+const prevInProcessIds = useRef(new Set());
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatText, setChatText] = useState('');
@@ -871,7 +873,50 @@ const submitLay = async (b) => {
   const inProcess = myBets.filter(
     b => !b.settledAt && b.status !== 'rejected' && b.phase !== 'finalized' && b.phase !== 'settled'
   );
+  useEffect(() => {
+    const currentIds = new Set(inProcess.map(b => b.id));
+    const prev = prevInProcessIds.current;
 
+    for (const id of prev) {
+      if (currentIds.has(id)) continue;
+      const b = myBets.find(x => x.id === id);
+      if (!b) continue;
+
+      let message = 'Updated';
+      if (b.status === 'rejected' || b.phase === 'finalized' && (Number(b.houseAmount) || 0) + (b.layerBids || []).reduce((s, l) => s + (Number(l.actualLaid) || 0), 0) === 0) {
+        message = b.settlementNotes ? `Not Accepted — ${b.settlementNotes}` : 'Not Accepted';
+      } else if (b.phase === 'finalized' || b.phase === 'settled' || b.status === 'accepted') {
+        const matched =
+          (Number(b.houseAmount) || 0) +
+          (b.layerBids || []).reduce((s, l) => s + (Number(l.actualLaid) || 0), 0);
+        const stake = Number(b.stake) || 0;
+        if (matched > 0 && matched + 0.01 < stake) {
+          message = b.eachWay
+            ? `Partially matched £${(matched / 2).toFixed(2)} each way`
+            : `Partially matched £${matched.toFixed(2)}`;
+        } else if (matched > 0) {
+          message = 'Fully matched';
+        } else {
+          message = 'Accepted';
+        }
+      }
+
+      const until = Date.now() + 10000;
+      setHoldingBets(prevHold => ({
+        ...prevHold,
+        [id]: { bet: b, message, until },
+      }));
+      setTimeout(() => {
+        setHoldingBets(prevHold => {
+          const next = { ...prevHold };
+          delete next[id];
+          return next;
+        });
+      }, 10000);
+    }
+
+    prevInProcessIds.current = currentIds;
+  }, [inProcess, myBets]);
   const activeBets = myBets.filter(b => {
     if (b.settledAt || b.phase === 'settled' || b.status === 'rejected') return false;
     return getMatched(b) > 0.01;
@@ -1304,7 +1349,7 @@ inputMode="decimal"
 {inProcess.length > 0 && (
   <div style={{ marginTop: 10 }}>
     <div style={{ color: '#ffb347', fontWeight: 600, marginBottom: 10 }}>
-      In Process ({inProcess.length})
+In Process ({inProcess.length + Object.values(holdingBets).filter(h => h.until > Date.now()).length})
     </div>
 {inProcess.map(b => (
   <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
@@ -1323,6 +1368,29 @@ inputMode="decimal"
     </div>
   </div>
 ))}
+            {Object.values(holdingBets)
+              .filter(h => h.until > Date.now())
+              .map(({ bet: b, message }) => (
+                <div
+                  key={`hold-${b.id}`}
+                  style={{
+                    background: '#1a1a2e',
+                    border: '1px solid #3a3a5c',
+                    borderRadius: 8,
+                    padding: 12,
+                    marginBottom: 10,
+                  }}
+                >
+                  <div style={{ fontWeight: 600 }}>
+                    {b.event} – {b.selection} @ {b.odds}
+                  </div>
+                  <div style={{ color: '#b0b0b0', marginTop: 4 }}>
+                    £{b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+                    {b.eachWay ? ' E/W' : ' Win'}
+                  </div>
+                  <div style={{ marginTop: 6, color: '#00ff88', fontWeight: 600 }}>{message}</div>
+                </div>
+              ))}
   </div>
 )}
         </>
