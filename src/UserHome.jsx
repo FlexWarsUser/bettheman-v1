@@ -1346,7 +1346,7 @@ inputMode="decimal"
             {message && <p style={{ color: '#00ff88' }}>{message}</p>}
           </CollapsibleSection>
           {/* Pending bets shown under the slip */}
-{inProcess.length > 0 && (
+{(inProcess.length > 0 || Object.values(holdingBets).some(h => h.until > Date.now())) && (
   <div style={{ marginTop: 10 }}>
     <div style={{ color: '#ffb347', fontWeight: 600, marginBottom: 10 }}>
 In Process ({inProcess.length + Object.values(holdingBets).filter(h => h.until > Date.now()).length})
