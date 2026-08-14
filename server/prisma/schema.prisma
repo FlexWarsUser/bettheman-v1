@@ -112,3 +112,12 @@ model ChatMessage {
   @@index([toUserId, fromUserId])
   @@index([createdAt])
 }
+model UserNote {
+  id          Int      @id @default(autoincrement())
+  authorId    Int
+  aboutUserId Int
+  note        String   @default("")
+  updatedAt   DateTime @updatedAt
+
+  @@unique([authorId, aboutUserId])
+}
