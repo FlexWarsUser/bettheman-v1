@@ -15,8 +15,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || "BetTheMan", {
       body: data.body || "",
-      icon: "/logo2.png",
-      badge: "/logo2.png",
+      icon: "/logo3.png",
+      badge: "/logo3.png",
       tag: data.tag || ("btm-" + Date.now()),
       data: data
     })
