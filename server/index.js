@@ -390,6 +390,33 @@ function serializeBet(bet) {
 }
 
 async function applyProRata(layerBids, remaining) {
+    const settings = await getSettings();
+  const list = Array.isArray(layerBids) ? layerBids : [];
+
+  if (settings.fcfsAllocation) {
+    let left = remaining;
+    const bids = list.map((b) => {
+      if (b.rejected || parseFloat(b.amount) <= 0) {
+        return { ...b, actualLaid: 0 };
+      }
+      const want = parseFloat(b.amount) || 0;
+      if (left <= 0.001) {
+        return { ...b, actualLaid: 0 };
+      }
+      const laid = Math.round(Math.min(want, left) * 100) / 100;
+      left = Math.round((left - laid) * 100) / 100;
+      console.log(
+        `[FCFS] Layer ${b.layerName}: Bid £${want} → Laid £${laid.toFixed(2)}`
+      );
+      return { ...b, actualLaid: laid };
+    });
+    const totalLaid = bids.reduce(
+      (s, b) => s + (parseFloat(b.actualLaid) || 0),
+      0
+    );
+    console.log(`[FCFS TOTAL] Layers laid: £${totalLaid.toFixed(2)}`);
+    return { bids, totalLaid };
+  }
   const weightRows = await prisma.$queryRaw`SELECT id, weight FROM "User" WHERE "canLay" = true`;
   const weights = {};
   for (const r of weightRows) weights[r.id] = Number(r.weight) || 1;
