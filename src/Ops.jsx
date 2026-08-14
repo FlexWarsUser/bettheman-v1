@@ -98,8 +98,8 @@ function showBetNotification(title, body) {
 
   const opts = {
     body,
-    icon: "/logo4.png",
-    badge: "/logo4.png",
+    icon: "/logo3.png",
+    badge: "/logo3.png",
     tag: "btm-bet-" + Date.now(),
   };
 
@@ -165,6 +165,8 @@ const [authName, setAuthName] = useState('');
   const [authEmail, setAuthEmail] = useState(''); 
   const [authPassword, setAuthPassword] = useState('');
   const [resetPw, setResetPw] = useState({});
+    const [noteModal, setNoteModal] = useState(null); // { aboutUserId, name, note }
+  const [noteText, setNoteText] = useState('');
 const [ledger, setLedger] = useState([]);
 const [events, setEvents] = useState([]);
 const [rejectNote, setRejectNote] = useState({});
@@ -719,6 +721,39 @@ const resetUserPassword = async (userId) => {
     alert('Reset failed');
   }
 };
+  const openPunterNote = async (aboutUserId, name) => {
+    const authorId = currentUser?.id || 7;
+    try {
+      const res = await fetch(`${API}/api/notes/${aboutUserId}?authorId=${authorId}`);
+      const data = await res.json();
+      setNoteText(data.note || '');
+      setNoteModal({ aboutUserId, name, note: data.note || '' });
+    } catch {
+      setNoteText('');
+      setNoteModal({ aboutUserId, name, note: '' });
+    }
+  };
+
+  const savePunterNote = async () => {
+    if (!noteModal) return;
+    const authorId = currentUser?.id || 7;
+    try {
+      const res = await fetch(`${API}/api/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          authorId,
+          aboutUserId: noteModal.aboutUserId,
+          note: noteText,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Save failed');
+      setNoteModal(null);
+    } catch {
+      alert('Save failed');
+    }
+  };
   const adjustBalance = async (mode) => {
     if (!balanceAmount || parseFloat(balanceAmount) < 0) return alert('Enter a valid amount');
     try {
@@ -1205,7 +1240,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
 <div style={{ maxWidth: 520, width: '100%', margin: '10px auto', padding: 12, boxSizing: 'border-box', color: '#e8e8e8', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <h1 style={{ textAlign: 'left', margin: 0 }}>
-          <img src="/logo4.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />
+          <img src="/logo3.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
           <div style={{ color: '#b0b0b0', marginBottom: 6, fontSize: 14 }}>
@@ -1323,7 +1358,13 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
 <div style={{ color: '#b0b0b0', marginTop: 4 }}>
   £{b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
   {b.eachWay ? ' E/W' : ' Win'}
-  {' requested by '}{b.punterName}
+{' requested by '}
+<span
+  onClick={() => openPunterNote(b.punterId, b.punterName)}
+  style={{ color: '#00ff88', cursor: 'pointer', textDecoration: 'underline' }}
+>
+  {b.punterName}
+</span>
 </div>
           <div style={{ marginTop: '8px', fontSize: '13px' }}>
             <strong>Already Laid:</strong> House £{houseLaid.toFixed(2)} + Layers £{layerTotal.toFixed(2)} = £{(houseLaid + layerTotal).toFixed(2)}
@@ -1381,7 +1422,13 @@ const exposure = getExposure(b.stake, b.odds, {
 <div style={{ color: '#b0b0b0', marginTop: 4 }}>
   £{b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
   {b.eachWay ? ' E/W' : ' Win'}
-  {' requested by '}{b.punterName}
+{' requested by '}
+<span
+  onClick={() => openPunterNote(b.punterId, b.punterName)}
+  style={{ color: '#00ff88', cursor: 'pointer', textDecoration: 'underline' }}
+>
+  {b.punterName}
+</span>
 </div>
 
                 <div style={{ marginTop: '6px', color: '#ff6b6b', fontWeight: '600' }}>Exposure: £{Number(exposure).toFixed(2)}</div>
@@ -2274,6 +2321,24 @@ const exposure = getExposure(b.stake, b.odds, {
             </div>
           </>
         )}
+      </div>
+    </div>
+  </div>
+)}
+{noteModal && (
+  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+    <div style={{ background: '#1a1a2e', padding: 20, borderRadius: 10, maxWidth: 400, width: '90%', border: '1px solid #3a3a5c', color: '#e8e8e8' }}>
+      <h3 style={{ color: '#00ff88', marginTop: 0 }}>Notes — {noteModal.name}</h3>
+      <textarea
+        value={noteText}
+        onChange={e => setNoteText(e.target.value)}
+        rows={5}
+        placeholder="e.g. sharp irish horses"
+        style={{ width: '100%', padding: 10, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6, resize: 'vertical' }}
+      />
+      <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+        <button type="button" onClick={() => setNoteModal(null)} style={{ flex: 1, padding: 10, background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Cancel</button>
+        <button type="button" onClick={savePunterNote} style={{ flex: 1, padding: 10, background: '#00ff88', color: '#0f0c29', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>Save</button>
       </div>
     </div>
   </div>

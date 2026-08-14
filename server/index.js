@@ -1763,6 +1763,46 @@ app.post("/api/users/:id/rights", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+// GET note about a punter (for the logged-in author)
+app.get("/api/notes/:aboutUserId", async (req, res) => {
+  try {
+    const aboutUserId = parseInt(req.params.aboutUserId, 10);
+    const authorId = parseInt(req.query.authorId, 10);
+    if (!aboutUserId || !authorId) {
+      return res.status(400).json({ success: false, error: "authorId and aboutUserId required" });
+    }
+    const row = await prisma.userNote.findUnique({
+      where: {
+        authorId_aboutUserId: { authorId, aboutUserId },
+      },
+    });
+    res.json({ success: true, note: row?.note || "" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Save / update note
+app.post("/api/notes", async (req, res) => {
+  try {
+    const authorId = parseInt(req.body.authorId, 10);
+    const aboutUserId = parseInt(req.body.aboutUserId, 10);
+    const note = String(req.body.note ?? "");
+    if (!authorId || !aboutUserId) {
+      return res.status(400).json({ success: false, error: "authorId and aboutUserId required" });
+    }
+    const row = await prisma.userNote.upsert({
+      where: {
+        authorId_aboutUserId: { authorId, aboutUserId },
+      },
+      create: { authorId, aboutUserId, note },
+      update: { note },
+    });
+    res.json({ success: true, note: row.note });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
   socket.on("chat:join", (userId) => {
