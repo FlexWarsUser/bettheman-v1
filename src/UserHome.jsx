@@ -1573,14 +1573,17 @@ const liability = calcLiability(laid, b.odds, {
   fieldSize: meta.fieldSize,
   isHandicap: meta.isHandicap,
 });
-const bidAmt = parseFloat(myBid?.amount) || 0;
-const hasActual = myBid?.actualLaid != null;
-const wasCut = hasActual && laid < bidAmt - 0.01;
-const layStatus = !hasActual
-  ? ' (awaiting apportioning)'
-  : wasCut
-    ? ' (apportioned)'
-    : '';
+              const bidAmt = parseFloat(myBid?.amount) || 0;
+              const hasActual = myBid?.actualLaid != null;
+              const actual = Number(myBid?.actualLaid);
+              const wasCut = hasActual && actual > 0 && actual < bidAmt - 0.01;
+              const layStatus = !hasActual
+                ? ' (awaiting apportioning)'
+                : actual === 0
+                  ? ' — Bid rejected, bet filled by other layers'
+                  : wasCut
+                    ? ' (apportioned)'
+                    : '';
               return (
                 <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                   <div style={{ fontWeight: 600 }}>{b.event}</div>
