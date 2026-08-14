@@ -854,6 +854,7 @@ const submitLay = async (b) => {
         return;
       }
       setBidAmount(prev => ({ ...prev, [b.id]: '' }));
+      alert('Lay bid submitted. Check My Lays for progress.');
       fetchBets();
       await refreshUser();
     } catch (e) {
