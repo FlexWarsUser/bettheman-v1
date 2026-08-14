@@ -261,6 +261,8 @@ const [now, setNow] = useState(Date.now());   // ← add this line
 const [showMoney, setShowMoney] = useState(true);
 const [holdingBets, setHoldingBets] = useState({}); // id -> { bet, message, until }
 const prevInProcessIds = useRef(new Set());
+  const [noteModal, setNoteModal] = useState(null);
+  const [noteText, setNoteText] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatText, setChatText] = useState('');
@@ -861,7 +863,38 @@ const submitLay = async (b) => {
       setLayerMessage(e.message);
     }
   };
+  const openPunterNote = async (aboutUserId, name) => {
+    const authorId = user.id;
+    try {
+      const res = await fetch(`${API}/api/notes/${aboutUserId}?authorId=${authorId}`);
+      const data = await res.json();
+      setNoteText(data.note || '');
+      setNoteModal({ aboutUserId, name, note: data.note || '' });
+    } catch {
+      setNoteText('');
+      setNoteModal({ aboutUserId, name, note: '' });
+    }
+  };
 
+  const savePunterNote = async () => {
+    if (!noteModal) return;
+    try {
+      const res = await fetch(`${API}/api/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          authorId: user.id,
+          aboutUserId: noteModal.aboutUserId,
+          note: noteText,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Save failed');
+      setNoteModal(null);
+    } catch {
+      alert('Save failed');
+    }
+  };
   // ----- bet lists -----
   const myBets = bets
     .filter(b => Number(b.punterId) === Number(user.id))
@@ -1594,7 +1627,13 @@ const liability = calcLiability(laid, b.odds, {
                     {b.eachWay ? ' each way' : ''}
                   </div>
                                   <div style={{ color: '#999', fontSize: 13, marginTop: 2 }}>
-                  by {b.punterName}
+by{' '}
+<span
+  onClick={() => openPunterNote(b.punterId, b.punterName)}
+  style={{ color: '#00ff88', cursor: 'pointer', textDecoration: 'underline' }}
+>
+  {b.punterName}
+</span> 
                 </div>
                   <div style={{ marginTop: 6, color: '#00ff88' }}>
                     Your lay: £{b.eachWay ? (laid / 2).toFixed(2) : laid.toFixed(2)}
@@ -1636,7 +1675,13 @@ const resultColor = isManual || isPlaced
                     {b.eachWay ? ' each way' : ''}
                   </div>
                                     <div style={{ color: '#999', fontSize: 13, marginTop: 2 }}>
-                    by {b.punterName}
+by{' '}
+<span
+  onClick={() => openPunterNote(b.punterId, b.punterName)}
+  style={{ color: '#00ff88', cursor: 'pointer', textDecoration: 'underline' }}
+>
+  {b.punterName}
+</span>
                   </div>
                   <div style={{ marginTop: 6 }}>Your lay: £{laid.toFixed(2)}</div>
 <div style={{ marginTop: 4, fontWeight: 600, color: resultColor }}>
@@ -1684,7 +1729,14 @@ const liability = currentBid > 0
                   {b.eachWay ? ' each way' : ' Win'}
                 </div>
                 <div style={{ color: '#999', fontSize: 13, marginTop: 2 }}>
-                  by {b.punterName} at {new Date(b.createdAt).toLocaleTimeString()}
+by{' '}
+<span
+  onClick={() => openPunterNote(b.punterId, b.punterName)}
+  style={{ color: '#00ff88', cursor: 'pointer', textDecoration: 'underline' }}
+>
+  {b.punterName}
+</span>
+{' '}at {new Date(b.createdAt).toLocaleTimeString()}
                 </div>
                 {b.layerTimerEnd && (
                   <div style={{ color: '#ffb347', marginTop: 4, fontSize: 13 }}>
@@ -1949,6 +2001,24 @@ style={{
           </div>
         </div>
       )}
+      {noteModal && (
+  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+    <div style={{ background: '#1a1a2e', padding: 20, borderRadius: 10, maxWidth: 400, width: '90%', border: '1px solid #3a3a5c', color: '#e8e8e8' }}>
+      <h3 style={{ color: '#00ff88', marginTop: 0 }}>Notes — {noteModal.name}</h3>
+      <textarea
+        value={noteText}
+        onChange={e => setNoteText(e.target.value)}
+        rows={5}
+        placeholder="e.g. sharp irish horses"
+        style={{ width: '100%', padding: 10, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6, resize: 'vertical' }}
+      />
+      <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+        <button type="button" onClick={() => setNoteModal(null)} style={{ flex: 1, padding: 10, background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Cancel</button>
+        <button type="button" onClick={savePunterNote} style={{ flex: 1, padding: 10, background: '#00ff88', color: '#0f0c29', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>Save</button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
