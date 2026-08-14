@@ -167,6 +167,7 @@ const DEFAULT_SETTINGS = {
   skipHouseFirstLook: "false",
   skipHouseResidual: "false",
   layerTimerSeconds: "30",
+  fcfsAllocation: "false",
 };
 
 async function getSettings() {
@@ -177,6 +178,7 @@ async function getSettings() {
     skipHouseFirstLook: map.skipHouseFirstLook === "true",
     skipHouseResidual: map.skipHouseResidual === "true",
     layerTimerSeconds: Math.max(5, parseInt(map.layerTimerSeconds) || 30),
+    fcfsAllocation: map.fcfsAllocation === true || map.fcfsAllocation === "true",
   };
 }
 
@@ -1550,7 +1552,7 @@ app.post("/api/push/subscribe", async (req, res) => {
 });
 app.post("/api/settings", async (req, res) => {
   try {
-    const { skipHouseFirstLook, skipHouseResidual, layerTimerSeconds } = req.body;
+    const { skipHouseFirstLook, skipHouseResidual, layerTimerSeconds, fcfsAllocation } = req.body;
     if (typeof skipHouseFirstLook === "boolean") {
       await setSetting("skipHouseFirstLook", skipHouseFirstLook);
     }
@@ -1560,6 +1562,9 @@ app.post("/api/settings", async (req, res) => {
     if (layerTimerSeconds != null) {
       await setSetting("layerTimerSeconds", Math.max(5, parseInt(layerTimerSeconds) || 30));
     }
+if (typeof fcfsAllocation === "boolean") {
+  await setSetting("fcfsAllocation", fcfsAllocation ? "true" : "false");
+}
     const settings = await getSettings();
     res.json({ success: true, settings });
   } catch (err) {

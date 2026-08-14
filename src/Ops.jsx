@@ -1731,6 +1731,16 @@ const exposure = getExposure(b.stake, b.odds, {
           />
           <span style={{ color: '#e8e8e8', textAlign: 'left' }}>Skip House residual</span>
         </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={!!settings.fcfsAllocation}
+            onChange={e => setSettings(s => ({ ...s, fcfsAllocation: e.target.checked }))}
+          />
+          <span style={{ color: '#e8e8e8', textAlign: 'left' }}>
+            First-come allocation (ignore overfill bids)
+          </span>
+        </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', cursor: 'pointer' }}>
           Lay stage timer (seconds)
           <input
