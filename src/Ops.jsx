@@ -236,11 +236,18 @@ const fetchEvents = async () => {
         if (typeof fetchBets === "function") fetchBets();
       }
     });
+const refresh = () => {
+  if (typeof fetchBets === "function") fetchBets();
+};
 
-    return () => {
-      socket.off("bet:notify");
-      socket.disconnect();
-    };
+socket.on("betUpdated", refresh);
+socket.on("bets:updated", refresh);
+return () => {
+  socket.off("bet:notify");
+  socket.off("betUpdated", refresh);
+  socket.off("bets:updated", refresh);
+  socket.disconnect();
+};
   }, []);
   const addEvent = async () => {
     if (!eventForm.name || !eventForm.date) return alert('Name and date required');
@@ -684,7 +691,7 @@ useEffect(() => {
   fetchUsers();
   fetchLedger();
   fetchSettings();
-  const interval = setInterval(fetchBets, 1500);
+  const interval = setInterval(fetchBets, 60000);
   return () => clearInterval(interval);
 }, []);
 

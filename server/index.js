@@ -24,6 +24,11 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "*";
 const io = new Server(server, {
   cors: { origin: FRONTEND_URL === "*" ? "*" : FRONTEND_URL, methods: ["GET", "POST", "DELETE"] }
 });
+function emitBetsUpdated() {
+  try {
+    io.emit("bets:updated");
+  } catch (e) {}
+}
 
 app.use(cors({ origin: FRONTEND_URL === "*" ? true : FRONTEND_URL }));
 app.use(express.json({ limit: "3mb" }));
@@ -605,13 +610,13 @@ const { bids, totalLaid } = await applyProRata(currentBids, remainingForLayers);
     changed = true;
   }
 
-  if (changed) {
-    const all = await prisma.bet.findMany({ orderBy: { createdAt: "desc" } });
-    io.emit("betUpdated", { type: "bulk", bets: all.map(serializeBet) });
-  }
+if (changed) {
+  emitBetsUpdated();
+  io.emit("betUpdated", { type: "bulk" });
+}
 }
 
-setInterval(processExpiredTimers, 2000);
+setInterval(processExpiredTimers, 10000);
 
 app.get("/api/health", (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 const HOUSE_ID = 7;
@@ -1190,6 +1195,7 @@ status: "pending",
       punterName: bet.punterName,
       punterId: bet.punterId,
     });
+    emitBetsUpdated();
         if (bet.phase === "house_review" || bet.phase === "house_residual") {
       await sendPushToHouse(
         bet.phase === "house_residual" ? "Residual — House" : "New bet — House review",

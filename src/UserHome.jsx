@@ -280,11 +280,21 @@ const prevInProcessIds = useRef(new Set());
   chatOpenRef.current = chatOpen;
   if (chatOpen) setChatUnread(0);
 }, [chatOpen]);
-    useEffect(() => {
-    if (!user?.canLay) return;
 
-    const socket = io(API, { transports: ["websocket", "polling"] });
+useEffect(() => {
+  if (!user?.id) return;
 
+  const socket = io(API, { transports: ["websocket", "polling"] });
+
+  const refresh = () => {
+    fetchBets();
+    if (typeof refreshUser === "function") refreshUser();
+  };
+
+  socket.on("betUpdated", refresh);
+  socket.on("bets:updated", refresh);
+
+  if (user.canLay) {
     socket.on("bet:notify", (payload) => {
       if (payload.phase !== "layer_bidding") return;
       if (Number(payload.punterId) === Number(user.id)) return;
@@ -299,12 +309,15 @@ const prevInProcessIds = useRef(new Set());
       );
       fetchBets();
     });
+  }
 
-    return () => {
-      socket.off("bet:notify");
-      socket.disconnect();
-    };
-  }, [user?.canLay, user?.id]);
+  return () => {
+    socket.off("betUpdated", refresh);
+    socket.off("bets:updated", refresh);
+    socket.off("bet:notify");
+    socket.disconnect();
+  };
+}, [user?.canLay, user?.id]);
     const loadChat = async () => {
     try {
       const res = await fetch(`${API}/api/chat/${HOUSE_ID}?userId=${user.id}`);
@@ -691,7 +704,7 @@ function footballSelectionsForEvent(eventName) {
     const interval = setInterval(() => {
       fetchBets();
       refreshUser();
-    }, 3000);
+    }, 60000);
     return () => clearInterval(interval);
   }, [user.id]);
 useEffect(() => {
