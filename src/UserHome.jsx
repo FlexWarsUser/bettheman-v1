@@ -2009,7 +2009,7 @@ style={{
         value={noteText}
         onChange={e => setNoteText(e.target.value)}
         rows={5}
-        placeholder="e.g. sharp irish horses"
+        placeholder="enter notes"
         style={{ width: '100%', padding: 10, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6, resize: 'vertical' }}
       />
       <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
