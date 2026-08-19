@@ -270,12 +270,46 @@ const prevInProcessIds = useRef(new Set());
   const [chatSending, setChatSending] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
   const chatOpenRef = useRef(false);
+  const [partyMode, setPartyMode] = useState(false);
+const [leaderboard, setLeaderboard] = useState([]);
+const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const HOUSE_ID = 7;
   useEffect(() => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
   }, []);
+  useEffect(() => {
+  const load = async () => {
+    try {
+      const sRes = await fetch(`${API}/api/settings`);
+      const sData = await sRes.json();
+const enabled = sData.partyMode === true || sData.partyMode === 'true';
+      setPartyMode(enabled);
+
+      if (enabled) {
+        const lRes = await fetch(`${API}/api/leaderboard`);
+        const lData = await lRes.json();
+        if (lData.success) setLeaderboard(lData.leaderboard || []);
+      } else {
+        setLeaderboard([]);
+      }
+    } catch (_) {}
+  };
+
+  load();
+
+  const socket = io(API, { transports: ['websocket', 'polling'] });
+  const refresh = () => load();
+  socket.on('betUpdated', refresh);
+  socket.on('bets:updated', refresh);
+
+  return () => {
+    socket.off('betUpdated', refresh);
+    socket.off('bets:updated', refresh);
+    socket.disconnect();
+  };
+}, []);
   useEffect(() => {
   chatOpenRef.current = chatOpen;
   if (chatOpen) setChatUnread(0);
@@ -1406,6 +1440,96 @@ inputMode="decimal"
             </form>
             {message && <p style={{ color: '#00ff88' }}>{message}</p>}
           </CollapsibleSection>
+          {partyMode && (
+  <CollapsibleSection
+    title="🏆 Leaderboard"
+    open={leaderboardOpen}
+    onToggle={setLeaderboardOpen}
+  >
+    <div style={{
+      background: 'linear-gradient(145deg, #1a1a2e, #16213e)',
+      border: '1px solid #3a3a5c',
+      borderRadius: 12,
+      padding: '16px',
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        textAlign: 'center',
+        marginBottom: 14,
+        fontSize: 13,
+        color: '#00ff88',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        fontWeight: 700,
+      }}>
+        Party Mode • Live Standings
+      </div>
+
+      {leaderboard.length === 0 && (
+        <p style={{ color: '#999', textAlign: 'center' }}>No punters yet</p>
+      )}
+
+      {leaderboard.map((row) => {
+        const isTop3 = row.rank <= 3;
+        const medal = row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : null;
+        const arrow =
+          row.movement === 'up'   ? <span style={{ color: '#00ff88' }}>▲</span> :
+          row.movement === 'down' ? <span style={{ color: '#ff6b6b' }}>▼</span> :
+                                    <span style={{ color: '#888' }}>–</span>;
+
+        return (
+          <div
+            key={row.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 12px',
+              marginBottom: 6,
+              borderRadius: 10,
+              background: isTop3
+                ? 'linear-gradient(90deg, rgba(0,255,136,0.12), rgba(0,198,255,0.08))'
+                : 'rgba(255,255,255,0.03)',
+              border: isTop3 ? '1px solid rgba(0,255,136,0.25)' : '1px solid transparent',
+            }}
+          >
+            <div style={{
+              width: 36,
+              textAlign: 'center',
+              fontWeight: 800,
+              fontSize: isTop3 ? 18 : 15,
+              color: isTop3 ? '#00ff88' : '#c8c8d8',
+            }}>
+              {medal || row.rank}
+            </div>
+
+            <div style={{ width: 18, textAlign: 'center', fontSize: 14 }}>
+              {arrow}
+            </div>
+
+            <div style={{
+              flex: 1,
+              fontWeight: isTop3 ? 700 : 500,
+              color: isTop3 ? '#fff' : '#e0e0e0',
+              fontSize: 15,
+            }}>
+              {row.name}
+            </div>
+
+            <div style={{
+              fontWeight: 700,
+              fontSize: 15,
+              color: '#00ff88',
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              £{row.net.toFixed(0)}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </CollapsibleSection>
+)}
           {/* Pending bets shown under slip */}
 {(inProcess.length > 0 || Object.values(holdingBets).some(h => h.until > Date.now())) && (
   <div style={{ marginTop: 10 }}>

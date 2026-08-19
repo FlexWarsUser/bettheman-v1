@@ -178,6 +178,7 @@ const [settings, setSettings] = useState({
   skipHouseFirstLook: false,
   skipHouseResidual: false,
   layerTimerSeconds: 30,
+  partyMode: false,
 });
   const [chatConversations, setChatConversations] = useState([]);
   const [chatOtherId, setChatOtherId] = useState(null);
@@ -1795,6 +1796,16 @@ const exposure = getExposure(b.stake, b.odds, {
             First-come allocation (ignore overfill bids)
           </span>
         </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', cursor: 'pointer' }}>
+  <input
+    type="checkbox"
+    checked={!!settings.partyMode}
+    onChange={e => setSettings(s => ({ ...s, partyMode: e.target.checked }))}
+  />
+  <span style={{ color: '#e8e8e8', textAlign: 'left' }}>
+    Party Mode (show leaderboard to all punters)
+  </span>
+</label>
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', cursor: 'pointer' }}>
           Lay stage timer (seconds)
           <input

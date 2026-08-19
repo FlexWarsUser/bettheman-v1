@@ -173,18 +173,20 @@ const DEFAULT_SETTINGS = {
   skipHouseResidual: "false",
   layerTimerSeconds: "30",
   fcfsAllocation: "false",
+  partyMode: "false",
 };
 
 async function getSettings() {
   const rows = await prisma.setting.findMany();
   const map = { ...DEFAULT_SETTINGS };
   for (const r of rows) map[r.key] = r.value;
-  return {
-    skipHouseFirstLook: map.skipHouseFirstLook === "true",
-    skipHouseResidual: map.skipHouseResidual === "true",
-    layerTimerSeconds: Math.max(5, parseInt(map.layerTimerSeconds) || 30),
-    fcfsAllocation: map.fcfsAllocation === true || map.fcfsAllocation === "true",
-  };
+return {
+  skipHouseFirstLook: map.skipHouseFirstLook === "true",
+  skipHouseResidual: map.skipHouseResidual === "true",
+  layerTimerSeconds: Math.max(5, parseInt(map.layerTimerSeconds) || 30),
+  fcfsAllocation: map.fcfsAllocation === true || map.fcfsAllocation === "true",
+  partyMode: map.partyMode === true || map.partyMode === "true",
+};
 }
 
 async function setSetting(key, value) {
@@ -1557,6 +1559,92 @@ app.get("/api/settings", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// GET /api/leaderboard
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    // Check partyMode (stored as string)
+    const partyRow = await prisma.setting.findUnique({ where: { key: 'partyMode' } });
+    const partyMode = partyRow?.value === 'true';
+    if (!partyMode) {
+      return res.json({ success: true, partyMode: false, leaderboard: [] });
+    }
+
+    // All punters (exclude admin / house)
+    const users = await prisma.user.findMany({
+      where: {
+        role: { notIn: ['admin', 'house'] },
+        name: { not: 'House' },
+      },
+      select: { id: true, name: true, balance: true },
+    });
+
+    // Open lay exposure
+    const openBets = await prisma.bet.findMany({
+      where: {
+        status: { in: ['matched', 'active', 'accepted'] },
+        allocationComplete: true,
+      },
+      select: { layerBids: true },
+    });
+
+    const exposureByUser = {};
+    for (const bet of openBets) {
+      const bids = Array.isArray(bet.layerBids) ? bet.layerBids : [];
+      for (const bid of bids) {
+        if (!bid.userId || !bid.amount) continue;
+        const uid = Number(bid.userId);
+        exposureByUser[uid] = (exposureByUser[uid] || 0) + Number(bid.amount);
+      }
+    }
+
+    // Rank by net funds
+    const ranked = users
+      .map(u => {
+        const exposure = exposureByUser[u.id] || 0;
+        const net = Math.max(0, Number(u.balance) - exposure);
+        return {
+          id: u.id,
+          name: u.name,
+          balance: Number(u.balance),
+          exposure,
+          net,
+        };
+      })
+      .sort((a, b) => b.net - a.net)
+      .map((u, idx) => ({ ...u, rank: idx + 1 }));
+
+    // Movement tracking (previous ranks)
+    let previous = {};
+    try {
+      const prevRow = await prisma.setting.findUnique({ where: { key: 'leaderboardPrev' } });
+      if (prevRow?.value) previous = JSON.parse(prevRow.value);
+    } catch (_) {}
+
+    const withMovement = ranked.map(u => {
+      const prevRank = previous[u.id];
+      let movement = 'same';
+      if (prevRank != null) {
+        if (u.rank < prevRank) movement = 'up';
+        else if (u.rank > prevRank) movement = 'down';
+      }
+      return { ...u, movement, prevRank: prevRank ?? null };
+    });
+
+    // Save current ranks for next time
+    const newPrev = {};
+    withMovement.forEach(u => { newPrev[u.id] = u.rank; });
+    await prisma.setting.upsert({
+      where: { key: 'leaderboardPrev' },
+      update: { value: JSON.stringify(newPrev) },
+      create: { key: 'leaderboardPrev', value: JSON.stringify(newPrev) },
+    });
+
+    res.json({ success: true, partyMode: true, leaderboard: withMovement });
+  } catch (err) {
+    console.error('leaderboard error', err);
+    res.status(500).json({ success: false, error: 'Failed to load leaderboard' });
+  }
+});
 app.post("/api/push/subscribe", async (req, res) => {
   try {
     const { userId, subscription } = req.body;
@@ -1585,7 +1673,7 @@ app.post("/api/push/subscribe", async (req, res) => {
 });
 app.post("/api/settings", async (req, res) => {
   try {
-    const { skipHouseFirstLook, skipHouseResidual, layerTimerSeconds, fcfsAllocation } = req.body;
+const { skipHouseFirstLook, skipHouseResidual, layerTimerSeconds, fcfsAllocation, partyMode } = req.body;
     if (typeof skipHouseFirstLook === "boolean") {
       await setSetting("skipHouseFirstLook", skipHouseFirstLook);
     }
@@ -1597,6 +1685,9 @@ app.post("/api/settings", async (req, res) => {
     }
 if (typeof fcfsAllocation === "boolean") {
   await setSetting("fcfsAllocation", fcfsAllocation ? "true" : "false");
+}
+if (typeof partyMode === "boolean") {
+  await setSetting("partyMode", partyMode);
 }
     const settings = await getSettings();
     res.json({ success: true, settings });
