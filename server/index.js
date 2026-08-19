@@ -1365,6 +1365,17 @@ app.post("/api/bets/:id/layer-bid", async (req, res) => {
     const { layerId, layerName, amount, action = "bid" } = req.body;
     const bet = await prisma.bet.findUnique({ where: { id } });
     if (!bet) return res.status(404).json({ success: false });
+    // Cap bid to remaining stake after house
+const houseLaid = Number(bet.houseAmount || 0);
+const remaining = Math.max(0, Number(bet.stake) - houseLaid);
+const bidAmount = parseFloat(amount) || 0;
+
+if (action !== "reject" && bidAmount > remaining + 0.001) {
+  return res.status(400).json({
+    success: false,
+    error: `Bid cannot exceed remaining stake of £${remaining.toFixed(2)}`,
+  });
+}
         if (action !== "reject") {
       const liability = calcExposure(amount, bet.odds);
       const layerBal = await getUserBalance(layerId);

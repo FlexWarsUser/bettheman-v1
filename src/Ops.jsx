@@ -1083,10 +1083,14 @@ const handleManualSettle = async (betId, notes, manualPayouts) => {
     }
   };
 
-  const openBidConfirm = (betId, amount) => {
-    if (!amount || parseFloat(amount) <= 0) return alert('Enter valid amount');
-    setShowBidConfirm({ betId, amount: parseFloat(amount) });
-  };
+const openBidConfirm = (betId, amount, maxStake) => {
+  const val = parseFloat(amount);
+  if (!val || val <= 0) return alert('Enter valid amount');
+  if (maxStake != null && val > maxStake + 0.001) {
+    return alert(`Maximum you can lay is £${Number(maxStake).toFixed(2)}`);
+  }
+  setShowBidConfirm({ betId, amount: val });
+};
 
   const confirmLayerBid = async () => {
     if (!showBidConfirm) return;
@@ -2351,7 +2355,7 @@ const exposure = getExposure(b.stake, b.odds, {
         value={noteText}
         onChange={e => setNoteText(e.target.value)}
         rows={5}
-        placeholder="e.g. sharp irish horses"
+        placeholder="e.g. is a cunt"
         style={{ width: '100%', padding: 10, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6, resize: 'vertical' }}
       />
       <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
