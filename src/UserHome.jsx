@@ -981,7 +981,7 @@ const submitLay = async (b) => {
             ? `Partially matched £${(matched / 2).toFixed(2)} each way`
             : `Partially matched £${matched.toFixed(2)}`;
         } else {
-          message = 'Fully matched';
+          message = 'Fully laid';
         }
 
         console.log('HOLD bet', b.id, message);
@@ -1161,51 +1161,51 @@ const submitLay = async (b) => {
         </div>
       )}
 
-     {/* Tabs */}
+{/* Tabs */}
 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
   <button
     type="button"
     onClick={() => setCustomerTab('slip')}
-  style={{
-  flex: 1,
-  minWidth: 100,
-  padding: '10px 12px',
-  borderRadius: 10,
-  border: customerTab === 'slip' ? 'none' : '1px solid #2f3a5c',
-  cursor: 'pointer',
-  fontWeight: 700,
-  fontSize: 13,
-  background:
-    customerTab === 'slip'
-      ? 'linear-gradient(135deg, #00ff88, #00c6ff)'
-      : 'rgba(15, 18, 40, 0.9)',
-  color: customerTab === 'slip' ? '#0a0a14' : '#c8c8d8',
-  boxShadow:
-    customerTab === 'slip' ? '0 4px 14px rgba(0, 255, 136, 0.25)' : 'none',
-}}
+    style={{
+      flex: 1,
+      minWidth: 100,
+      padding: '10px 12px',
+      borderRadius: 10,
+      border: customerTab === 'slip' ? 'none' : '1px solid #2f3a5c',
+      cursor: 'pointer',
+      fontWeight: 700,
+      fontSize: 13,
+      background:
+        customerTab === 'slip'
+          ? 'linear-gradient(135deg, #00ff88, #00c6ff)'
+          : 'rgba(15, 18, 40, 0.9)',
+      color: customerTab === 'slip' ? '#0a0a14' : '#c8c8d8',
+      boxShadow:
+        customerTab === 'slip' ? '0 4px 14px rgba(0, 255, 136, 0.25)' : 'none',
+    }}
   >
     Betting Slip
   </button>
   <button
     type="button"
     onClick={() => setCustomerTab('bets')}
-style={{
-  flex: 1,
-  minWidth: 100,
-  padding: '10px 12px',
-  borderRadius: 10,
-  border: customerTab === 'bets' ? 'none' : '1px solid #2f3a5c',
-  cursor: 'pointer',
-  fontWeight: 700,
-  fontSize: 13,
-  background:
-    customerTab === 'bets'
-      ? 'linear-gradient(135deg, #00ff88, #00c6ff)'
-      : 'rgba(15, 18, 40, 0.9)',
-  color: customerTab === 'bets' ? '#0a0a14' : '#c8c8d8',
-  boxShadow:
-    customerTab === 'bets' ? '0 4px 14px rgba(0, 255, 136, 0.25)' : 'none',
-}}
+    style={{
+      flex: 1,
+      minWidth: 100,
+      padding: '10px 12px',
+      borderRadius: 10,
+      border: customerTab === 'bets' ? 'none' : '1px solid #2f3a5c',
+      cursor: 'pointer',
+      fontWeight: 700,
+      fontSize: 13,
+      background:
+        customerTab === 'bets'
+          ? 'linear-gradient(135deg, #00ff88, #00c6ff)'
+          : 'rgba(15, 18, 40, 0.9)',
+      color: customerTab === 'bets' ? '#0a0a14' : '#c8c8d8',
+      boxShadow:
+        customerTab === 'bets' ? '0 4px 14px rgba(0, 255, 136, 0.25)' : 'none',
+    }}
   >
     My Bets
   </button>
@@ -1213,23 +1213,23 @@ style={{
     <button
       type="button"
       onClick={() => setCustomerTab('lays')}
-style={{
-  flex: 1,
-  minWidth: 100,
-  padding: '10px 12px',
-  borderRadius: 10,
-  border: customerTab === 'lays' ? 'none' : '1px solid #2f3a5c',
-  cursor: 'pointer',
-  fontWeight: 700,
-  fontSize: 13,
-  background:
-    customerTab === 'lays'
-      ? 'linear-gradient(135deg, #00ff88, #00c6ff)'
-      : 'rgba(15, 18, 40, 0.9)',
-  color: customerTab === 'lays' ? '#0a0a14' : '#c8c8d8',
-  boxShadow:
-    customerTab === 'lays' ? '0 4px 14px rgba(0, 255, 136, 0.25)' : 'none',
-}}
+      style={{
+        flex: 1,
+        minWidth: 100,
+        padding: '10px 12px',
+        borderRadius: 10,
+        border: customerTab === 'lays' ? 'none' : '1px solid #2f3a5c',
+        cursor: 'pointer',
+        fontWeight: 700,
+        fontSize: 13,
+        background:
+          customerTab === 'lays'
+            ? 'linear-gradient(135deg, #00ff88, #00c6ff)'
+            : 'rgba(15, 18, 40, 0.9)',
+        color: customerTab === 'lays' ? '#0a0a14' : '#c8c8d8',
+        boxShadow:
+          customerTab === 'lays' ? '0 4px 14px rgba(0, 255, 136, 0.25)' : 'none',
+      }}
     >
       My Lays
     </button>
