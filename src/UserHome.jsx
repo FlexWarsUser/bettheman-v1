@@ -790,18 +790,48 @@ const getBetRaceMeta = (bet) => {
   };
 };
 
-  const openLaysExposure = (() => {
-    if (!user.canLay) return 0;
-    return bets.reduce((total, b) => {
-      if (b.settledAt || b.phase === 'settled') return total;
-      const myBid = (b.layerBids || []).find(
-        l => Number(l.layerId) === Number(user.id) && !l.rejected
-      );
-      if (!myBid) return total;
-      const laid = parseFloat(myBid.actualLaid ?? myBid.amount) || 0;
-      return total + calcLiability(laid, b.odds);
-    }, 0);
-  })();
+const openLaysExposure = (() => {
+  if (!user.canLay) return 0;
+
+  // event → { selection → liabilitySum, ewTotal }
+  const byEvent = {};
+
+  for (const b of bets) {
+    if (b.settledAt || b.phase === 'settled') continue;
+
+    const myBid = (b.layerBids || []).find(
+      l => Number(l.layerId) === Number(user.id) && !l.rejected
+    );
+    if (!myBid) continue;
+
+    const laid = parseFloat(myBid.actualLaid ?? myBid.amount) || 0;
+    if (laid <= 0) continue;
+
+    const liability = calcLiability(laid, b.odds);
+    const eventKey = (b.event || '').trim() || `bet-${b.id}`;
+    const selectionKey = (b.selection || '').trim().toLowerCase() || `sel-${b.id}`;
+
+    if (!byEvent[eventKey]) {
+      byEvent[eventKey] = { bySelection: {}, ewTotal: 0 };
+    }
+
+    if (b.eachWay) {
+      byEvent[eventKey].ewTotal += liability;
+    } else {
+      byEvent[eventKey].bySelection[selectionKey] =
+        (byEvent[eventKey].bySelection[selectionKey] || 0) + liability;
+    }
+  }
+
+  let exposure = 0;
+  for (const data of Object.values(byEvent)) {
+    const selectionTotals = Object.values(data.bySelection);
+    const maxWin = selectionTotals.length ? Math.max(...selectionTotals) : 0;
+    exposure += maxWin + data.ewTotal;
+  }
+
+  return Math.round(exposure * 100) / 100;
+})();
 
   const placeBet = async (e) => {
     e.preventDefault();
