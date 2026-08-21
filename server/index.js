@@ -107,19 +107,48 @@ async function getLayerExposure(layerId) {
   const bets = await prisma.bet.findMany({
     where: {
       phase: { in: ["layer_bidding", "house_residual", "finalized"] },
-      status: { not: "rejected" }
-    }
+      status: { not: "rejected" },
+    },
   });
-  let exposure = 0;
+
+  // event → { winLiabilities: number[], ewTotal: number }
+  const byEvent = {};
+
   for (const b of bets) {
     const bids = Array.isArray(b.layerBids) ? b.layerBids : [];
     for (const l of bids) {
       if (l.rejected) continue;
       if (parseInt(l.layerId) !== parseInt(layerId)) continue;
+
       const amt = parseFloat(l.actualLaid != null ? l.actualLaid : l.amount) || 0;
-      if (amt > 0) exposure += calcExposure(amt, b.odds);
+      if (amt <= 0) continue;
+
+      const liability = calcExposure(amt, b.odds);
+      const eventKey = (b.event || "").trim() || `bet-${b.id}`;
+
+      if (!byEvent[eventKey]) {
+        byEvent[eventKey] = { winLiabilities: [], ewTotal: 0 };
+      }
+
+      if (b.eachWay) {
+        // Each-way: always add full liability (no netting)
+        byEvent[eventKey].ewTotal += liability;
+      } else {
+        // Win only: collect for later max-per-event
+        byEvent[eventKey].winLiabilities.push(liability);
+      }
     }
   }
+
+  let exposure = 0;
+  for (const data of Object.values(byEvent)) {
+    // For win lays on the same race → only the highest liability counts
+    const maxWin = data.winLiabilities.length
+      ? Math.max(...data.winLiabilities)
+      : 0;
+    exposure += maxWin + data.ewTotal;
+  }
+
   return Math.round(exposure * 100) / 100;
 }
 async function changeUserBalance(id, delta) {
@@ -1376,18 +1405,54 @@ if (action !== "reject" && bidAmount > remaining + 0.001) {
     error: `Bid cannot exceed remaining stake of £${remaining.toFixed(2)}`,
   });
 }
-        if (action !== "reject") {
-      const liability = calcExposure(amount, bet.odds);
-      const layerBal = await getUserBalance(layerId);
-      const currentExposure = await getLayerExposure(layerId);
-      const available = layerBal - currentExposure;
-      if (liability > available + 0.01) {
-        return res.status(400).json({
-          success: false,
-          error: `Insufficient free balance. Liability £${liability.toFixed(2)}, available £${available.toFixed(2)} (balance £${layerBal.toFixed(2)} − exposure £${currentExposure.toFixed(2)})`
-        });
+if (action !== "reject") {
+  const liability = calcExposure(amount, bet.odds);
+  const layerBal = await getUserBalance(layerId);
+  const currentExposure = await getLayerExposure(layerId);
+
+  // How much extra exposure this new bid actually adds
+  let extraExposure = liability;
+
+  if (!bet.eachWay) {
+    // Win bet → may be netted against existing win lays on the same event
+    const eventKey = (bet.event || "").trim();
+    if (eventKey) {
+      // Find the current highest win liability this layer already has on this event
+      const existingBets = await prisma.bet.findMany({
+        where: {
+          event: eventKey,
+          eachWay: false,
+          phase: { in: ["layer_bidding", "house_residual", "finalized"] },
+          status: { not: "rejected" },
+        },
+      });
+
+      let maxExistingWin = 0;
+      for (const b of existingBets) {
+        const bids = Array.isArray(b.layerBids) ? b.layerBids : [];
+        for (const l of bids) {
+          if (l.rejected) continue;
+          if (parseInt(l.layerId) !== parseInt(layerId)) continue;
+          const amt = parseFloat(l.actualLaid != null ? l.actualLaid : l.amount) || 0;
+          if (amt > 0) {
+            maxExistingWin = Math.max(maxExistingWin, calcExposure(amt, b.odds));
+          }
+        }
       }
+
+      // Only the amount by which this new liability exceeds the current max counts as extra
+      extraExposure = Math.max(0, liability - maxExistingWin);
     }
+  }
+
+  const available = layerBal - currentExposure;
+  if (extraExposure > available + 0.01) {
+    return res.status(400).json({
+      success: false,
+      error: `Insufficient free balance. Extra liability £${extraExposure.toFixed(2)}, available £${available.toFixed(2)} (balance £${layerBal.toFixed(2)}, current exposure £${currentExposure.toFixed(2)})`,
+    });
+  }
+}
 
     let layerBids = Array.isArray(bet.layerBids) ? [...bet.layerBids] : [];
 
