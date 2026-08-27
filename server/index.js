@@ -1948,6 +1948,38 @@ app.post("/api/users/:id/rights", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+app.post("/api/users/:id/can-lay", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { userId, canLay } = req.body;
+
+    if (parseInt(userId) !== id) {
+      return res.status(403).json({ success: false, error: "Not allowed" });
+    }
+    if (typeof canLay !== "boolean") {
+      return res.status(400).json({ success: false, error: "canLay must be boolean" });
+    }
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { canLay },
+    });
+
+    res.json({
+      success: true,
+      user: {
+        id: updated.id,
+        name: updated.name,
+        canLay: updated.canLay,
+        role: updated.role,
+        balance: updated.balance,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 // GET note about a punter (for the logged-in author)
 app.get("/api/notes/:aboutUserId", async (req, res) => {
   try {

@@ -274,6 +274,27 @@ const prevInProcessIds = useRef(new Set());
 const [leaderboard, setLeaderboard] = useState([]);
 const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const HOUSE_ID = 7;
+  const toggleLayerProfile = async (e) => {
+  const next = e.target.checked;
+  try {
+    const res = await fetch(`${API}/api/users/${user.id}/can-lay`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.id, canLay: next }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return alert(data.error || 'Failed to update layer profile');
+    }
+
+    const updated = { ...user, canLay: next };
+    localStorage.setItem('btm_user', JSON.stringify(updated));
+    if (typeof onUserUpdate === 'function') onUserUpdate(updated);
+    if (!next && customerTab === 'lays') setCustomerTab('slip');
+  } catch (err) {
+    alert('Failed to update layer profile');
+  }
+};
   useEffect(() => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
@@ -1093,6 +1114,23 @@ const submitLay = async (b) => {
           >
             Log out
           </button>
+          <label style={{
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  gap: 8,
+  marginTop: 8,
+  cursor: 'pointer',
+  color: '#c8c8d8',
+  fontSize: 13,
+}}>
+  <input
+    type="checkbox"
+    checked={!!user.canLay}
+    onChange={toggleLayerProfile}
+  />
+  Activate Lays
+</label>
                   {(() => {
             const supported = typeof Notification !== "undefined";
             const needsEnable = !supported || Notification.permission !== "granted";
