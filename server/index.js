@@ -125,8 +125,8 @@ function emitBetsUpdated() {
 }
 
 app.use(cors({ origin: FRONTEND_URL === "*" ? true : FRONTEND_URL }));
-app.use(express.json({ limit: "5mb" }));
-app.use(express.urlencoded({ extended: true, limit: "5mb" }));
+app.use(express.json({ limit: "8mb" }));
+app.use(express.urlencoded({ extended: true, limit: "8mb" }));
 
 const LAYER_IDS = [1, 3, 5];
 async function sendPushToUser(userId, title, body, tag) {
@@ -866,8 +866,8 @@ app.post("/api/houses/branding", async (req, res) => {
     const data = {};
     if (req.body.logoUrl !== undefined) {
       const logo = req.body.logoUrl ? String(req.body.logoUrl) : null;
-      if (logo && logo.length > 2200000) {
-        return res.status(400).json({ success: false, error: "Logo too large (keep under 1.5MB)" });
+      if (logo && logo.length > 6000000) {
+        return res.status(400).json({ success: false, error: "Logo too large (keep under 4MB)" });
       }
       data.logoUrl = logo;
     }

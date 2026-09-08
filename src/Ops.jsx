@@ -2129,7 +2129,7 @@ const exposure = getExposure(b.stake, b.odds, {
           onChange={(e) => {
             const file = e.target.files && e.target.files[0];
             if (!file) return;
-            if (file.size > 1500000) return alert('Logo too large. Use a file under 1.5MB.');
+            if (file.size > 4000000) return alert('Logo too large. Use a file under 4MB.');
             const reader = new FileReader();
             reader.onload = () => setBrandLogo(String(reader.result || ''));
             reader.readAsDataURL(file);
