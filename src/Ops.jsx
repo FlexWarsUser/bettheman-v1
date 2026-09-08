@@ -224,6 +224,7 @@ const fetchEvents = async () => {
     const socket = io(API, { transports: ["websocket", "polling"] });
 
     socket.on("bet:notify", (payload) => {
+      if (payload.houseId != null && currentUser?.houseId != null && Number(payload.houseId) !== Number(currentUser.houseId)) return;
       const stakeLabel = payload.eachWay
         ? `£${Number(payload.originalStake ?? payload.stake / 2).toFixed(0)} each way`
         : `£${payload.stake} Win`;

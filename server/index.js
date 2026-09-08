@@ -147,6 +147,24 @@ async function sendPushToHouse(title, body, tag, houseId = null) {
   }
 }
 
+async function emitBetNotify(payload) {
+  const houseId = payload.houseId != null ? Number(payload.houseId) : null;
+  if (!houseId) return;
+  const users = await prisma.user.findMany({
+    where: { houseId },
+    select: { id: true, role: true, canLay: true },
+  });
+  for (const u of users) {
+    const ops = u.role === "admin" || u.role === "house";
+    if (payload.phase === "layer_bidding") {
+      if (!u.canLay && !ops) continue;
+    } else if (!ops) {
+      continue;
+    }
+    io.to("user:" + String(u.id)).emit("bet:notify", payload);
+  }
+}
+
 async function sendPushToLayers(title, body, tag, excludeUserId = null, houseId = null) {
   const where = { canLay: true };
   if (houseId) where.houseId = Number(houseId);
@@ -610,9 +628,10 @@ async function processExpiredTimers() {
     console.log(`[HOUSE TIMER] Bet ${bet.id} moved to layer_bidding`);
     const serialized = serializeBet(updated);
     io.emit("betUpdated", serialized);
-    io.emit("bet:notify", {
+    await emitBetNotify({
       phase: "layer_bidding",
       betId: updated.id,
+      houseId: updated.houseId,
       event: updated.event,
       selection: updated.selection,
       odds: updated.odds,
@@ -1414,9 +1433,10 @@ status: "pending",
 });
     console.log("🆕 New Bet:", serialized.id, serialized.event);
     io.emit("betUpdated", serialized);
-    io.emit("bet:notify", {
+    await emitBetNotify({
       phase: bet.phase,
       betId: bet.id,
+      houseId: bet.houseId,
       event: bet.event,
       selection: bet.selection,
       odds: bet.odds,
@@ -1561,9 +1581,10 @@ console.log("UPDATE DATA", data);
     console.log(`🏠 House ${action} bet ${id} - HouseAmount: £${serialized.houseAmount}`);
     io.emit("betUpdated", serialized);
     if (updated.phase === "layer_bidding" || updated.phase === "house_residual") {
-      io.emit("bet:notify", {
+      await emitBetNotify({
         phase: updated.phase,
         betId: updated.id,
+        houseId: updated.houseId,
         event: updated.event,
         selection: updated.selection,
         odds: updated.odds,

@@ -354,6 +354,7 @@ useEffect(() => {
     socket.on("bet:notify", (payload) => {
       if (payload.phase !== "layer_bidding") return;
       if (Number(payload.punterId) === Number(user.id)) return;
+      if (payload.houseId != null && user.houseId != null && Number(payload.houseId) !== Number(user.houseId)) return;
 
       const stakeLabel = payload.eachWay
         ? `£${Number(payload.originalStake ?? payload.stake / 2).toFixed(0)} each way`
