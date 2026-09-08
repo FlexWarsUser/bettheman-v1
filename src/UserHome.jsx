@@ -43,7 +43,7 @@ function applyHouseTheme(user) {
   try {
     if (user) {
       localStorage.setItem('btm_theme', JSON.stringify({
-        logoUrl: user.houseLogoUrl || '',
+        logoUrl: '',
         accentColor: accent,
         bgColor: bg,
         panelColor: panel,
@@ -207,6 +207,31 @@ const inputStyle = {
   fontSize: 15,
 };
 
+function persistUser(user) {
+  try {
+    const slim = { ...user, houseLogoUrl: user?.houseLogoUrl ? 'in-memory' : '' };
+    localStorage.setItem('btm_user', JSON.stringify(slim));
+  } catch (e) {
+    try {
+      localStorage.removeItem('btm_theme');
+      localStorage.removeItem('btm_user');
+      const slim = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        houseId: user.houseId,
+        houseMasterId: user.houseMasterId,
+        canLay: user.canLay,
+        canLayAllowed: user.canLayAllowed,
+        balance: user.balance,
+        houseLogoUrl: user?.houseLogoUrl ? 'in-memory' : '',
+      };
+      localStorage.setItem('btm_user', JSON.stringify(slim));
+    } catch (e2) {}
+  }
+}
+
 export default function UserHome() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -245,7 +270,7 @@ export default function UserHome() {
         setLoading(false);
         return;
       }
-      localStorage.setItem('btm_user', JSON.stringify(data.user));
+      persistUser(data.user);
       setUser(data.user);
 if (data.user.role === 'admin' || data.user.role === 'house') {
   window.location.href = '/ops';
@@ -363,7 +388,7 @@ const [leaderboardOpen, setLeaderboardOpen] = useState(false);
     }
 
     const updated = { ...user, canLay: next };
-    localStorage.setItem('btm_user', JSON.stringify(updated));
+    persistUser(updated);
     if (typeof onUserUpdate === 'function') onUserUpdate(updated);
     if (!next && customerTab === 'lays') setCustomerTab('slip');
   } catch (err) {
@@ -829,7 +854,7 @@ function footballSelectionsForEvent(eventName) {
         buttonTextColor: data.buttonTextColor,
       };
       if (JSON.stringify(newUser) !== JSON.stringify(user)) {
-        localStorage.setItem('btm_user', JSON.stringify(newUser));
+        persistUser(newUser);
         onUserUpdate(newUser);
       }
     } catch (e) {}
@@ -990,7 +1015,7 @@ setSlipOpen(false);
       setCurrentPassword('');
       setNewPassword('');
       const updatedUser = { ...user, mustChangePassword: false };
-      localStorage.setItem('btm_user', JSON.stringify(updatedUser));
+      persistUser(updatedUser);
       onUserUpdate(updatedUser);
     } catch (e) {
       setPwMessage(e.message);

@@ -41,7 +41,7 @@ function applyHouseTheme(user) {
   document.body.style.color = text;
   try {
     localStorage.setItem('btm_theme', JSON.stringify({
-      logoUrl: user?.houseLogoUrl || '',
+      logoUrl: '',
       accentColor: accent,
       bgColor: bg,
       panelColor: panel,
@@ -2197,7 +2197,12 @@ const exposure = getExposure(b.stake, b.odds, {
                 buttonBgColor: data.house.buttonBgColor,
                 buttonTextColor: data.house.buttonTextColor,
               };
-              localStorage.setItem('btm_user', JSON.stringify(updated));
+              try {
+                const slim = { ...updated, houseLogoUrl: updated.houseLogoUrl ? 'in-memory' : '' };
+                localStorage.setItem('btm_user', JSON.stringify(slim));
+              } catch (e) {
+                localStorage.removeItem('btm_theme');
+              }
               setCurrentUser(updated);
               applyHouseTheme(updated);
               alert('Branding saved');
@@ -2244,7 +2249,12 @@ const exposure = getExposure(b.stake, b.odds, {
                 buttonBgColor: null,
                 buttonTextColor: null,
               };
-              localStorage.setItem('btm_user', JSON.stringify(updated));
+              try {
+                const slim = { ...updated, houseLogoUrl: updated.houseLogoUrl ? 'in-memory' : '' };
+                localStorage.setItem('btm_user', JSON.stringify(slim));
+              } catch (e) {
+                localStorage.removeItem('btm_theme');
+              }
               setCurrentUser(updated);
               applyHouseTheme(updated);
               alert('Colours reset to default');
