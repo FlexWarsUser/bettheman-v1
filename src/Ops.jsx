@@ -2131,7 +2131,7 @@ const exposure = getExposure(b.stake, b.odds, {
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#e8e8e8', fontSize: 13 }}>
                   <input
                     type="checkbox"
-                    checked={!!u.canLay}
+                    checked={!!(u.canLayAllowed ?? u.canLay)}
                     onChange={async (e) => {
                       const canLay = e.target.checked;
                       await fetch(`${API}/api/users/${u.id}/rights`, {

@@ -37,6 +37,7 @@ model User {
   id           Int       @id @default(autoincrement())
   name         String
   canLay       Boolean   @default(false)
+    canLayAllowed Boolean  @default(false)
   balance      Float     @default(0)
   weight       Float     @default(1)
   email        String?   @unique

@@ -741,6 +741,7 @@ function footballSelectionsForEvent(eventName) {
         ...user,
         balance: data.balance,
         canLay: data.canLay,
+        canLayAllowed: data.canLayAllowed,
         weight: data.weight,
         mustChangePassword: data.mustChangePassword,
       };
@@ -761,7 +762,7 @@ function footballSelectionsForEvent(eventName) {
     const interval = setInterval(() => {
       fetchBets();
       refreshUser();
-    }, 60000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [user.id]);
 useEffect(() => {
@@ -1116,6 +1117,7 @@ const submitLay = async (b) => {
           >
             Log out
           </button>
+          {!!user.canLayAllowed && (
           <label style={{
   display: 'flex',
   alignItems: 'center',
@@ -1133,6 +1135,7 @@ const submitLay = async (b) => {
   />
   Activate Lays
 </label>
+          )}
                   {(() => {
             const supported = typeof Notification !== "undefined";
             const needsEnable = !supported || Notification.permission !== "granted";

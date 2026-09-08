@@ -58,6 +58,7 @@ async function shapeUser(user) {
     name: user.name,
     email: user.email,
     canLay: !!user.canLay,
+    canLayAllowed: !!user.canLayAllowed,
     balance: Number(user.balance) || 0,
     weight: Number(user.weight) || 1,
     role: user.role || "punter",
@@ -1100,6 +1101,7 @@ app.get("/api/users", async (req, res) => {
         name: true,
         email: true,
         canLay: true,
+        canLayAllowed: true,
         balance: true,
         weight: true,
         role: true,
@@ -1171,7 +1173,7 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ success: false, error: "Email and password required" });
     }
     const rows = await prisma.$queryRaw`
-      SELECT id, name, email, "canLay", balance, weight, role, "passwordHash", "mustChangePassword", "houseId"
+      SELECT id, name, email, "canLay", "canLayAllowed", balance, weight, role, "passwordHash", "mustChangePassword", "houseId"
       FROM "User" WHERE lower(email) = ${email}
     `;
     const user = rows[0];
@@ -1229,6 +1231,7 @@ app.get('/api/users/:id', async (req, res) => {
         role: true,
         balance: true,
         canLay: true,
+        canLayAllowed: true,
         weight: true,
         mustChangePassword: true,
         houseId: true,
@@ -1627,6 +1630,9 @@ app.post("/api/bets/:id/layer-bid", async (req, res) => {
     const layerUser = layerId ? await getUserRow(layerId) : null;
     if (layerUser && bet.houseId && layerUser.houseId && Number(layerUser.houseId) !== Number(bet.houseId)) {
       return res.status(403).json({ success: false, error: "Cannot lay bets from another house" });
+    }
+    if (action !== "reject" && layerUser && (!layerUser.canLayAllowed || !layerUser.canLay)) {
+      return res.status(403).json({ success: false, error: "Laying not allowed" });
     }
     // Cap bid to remaining stake after house
 const houseLaid = Number(bet.houseAmount || 0);
@@ -2194,10 +2200,10 @@ app.post("/api/users/:id/rights", async (req, res) => {
     const role = String(req.body.role || "punter");
     await prisma.$executeRaw`
       UPDATE "User"
-      SET "canLay" = ${canLay}, role = ${role}, "updatedAt" = NOW()
+      SET "canLayAllowed" = ${canLay}, "canLay" = ${canLay}, role = ${role}, "updatedAt" = NOW()
       WHERE id = ${id}
     `;
-    res.json({ success: true, id, canLay, role });
+    res.json({ success: true, id, canLay, canLayAllowed: canLay, role });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
@@ -2215,6 +2221,11 @@ app.post("/api/users/:id/can-lay", async (req, res) => {
       return res.status(400).json({ success: false, error: "canLay must be boolean" });
     }
 
+    const me = await getUserRow(id);
+    if (!me || !me.canLayAllowed) {
+      return res.status(403).json({ success: false, error: "House has not allowed laying" });
+    }
+
     const updated = await prisma.user.update({
       where: { id },
       data: { canLay },
@@ -2226,6 +2237,7 @@ app.post("/api/users/:id/can-lay", async (req, res) => {
         id: updated.id,
         name: updated.name,
         canLay: updated.canLay,
+        canLayAllowed: updated.canLayAllowed,
         role: updated.role,
         balance: updated.balance,
       },
