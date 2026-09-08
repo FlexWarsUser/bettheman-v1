@@ -49,12 +49,18 @@ function applyHouseTheme(user) {
   return { accent, bg, panel, text, panelText, btnBg, btnText, logoSrc: user?.houseLogoUrl || '/logo3.png' };
 }
 
-function readSavedTheme() {
-  try {
-    return JSON.parse(localStorage.getItem('btm_theme') || 'null');
-  } catch {
-    return null;
+function applyDefaultPublicTheme() {
+  const bg = DEFAULT_BRAND.bgColor;
+  const text = DEFAULT_BRAND.textColor;
+  let tag = document.getElementById('btm-house-theme');
+  if (!tag) {
+    tag = document.createElement('style');
+    tag.id = 'btm-house-theme';
+    document.head.appendChild(tag);
   }
+  tag.textContent = 'html, body, #root { background: ' + bg + ' !important; color: ' + text + ' !important; min-height: 100%; }';
+  document.body.style.background = bg;
+  document.body.style.color = text;
 }
 const ODDS_LIST = [
 "2/1","4/1","1/1","8/1","4/5","8/11","4/6","8/13","4/7","5/1","20/1","11/10",
@@ -206,7 +212,10 @@ export default function UserHome() {
         setUser(JSON.parse(raw));
       } catch {
         localStorage.removeItem('btm_user');
+        applyDefaultPublicTheme();
       }
+    } else {
+      applyDefaultPublicTheme();
     }
   }, []);
 
@@ -240,6 +249,8 @@ if (data.user.role === 'admin' || data.user.role === 'house') {
 
   const logout = () => {
     localStorage.removeItem('btm_user');
+    localStorage.removeItem('btm_theme');
+    applyDefaultPublicTheme();
     setUser(null);
       useEffect(() => {
     if (!user) return;
@@ -256,7 +267,7 @@ if (data.user.role === 'admin' || data.user.role === 'house') {
   return (
     <div style={{ maxWidth: 400, margin: '60px auto', padding: 20, color: '#e8e8e8' }}>
       <h1 style={{ textAlign: 'center', margin: 0 }}>
-        <img src={readSavedTheme()?.logoUrl || '/logo3.png'} alt="BetTheMan" style={{ maxWidth: '280px', height: 'auto' }} />
+        <img src="/logo3.png" alt="BetTheMan" style={{ maxWidth: '280px', height: 'auto' }} />
       </h1>
       <div style={{ marginTop: 12 }}>
         <div style={{  marginBottom: 8, color: '#b0b0b0' }}>Email</div>

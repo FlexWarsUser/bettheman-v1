@@ -1340,6 +1340,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
             type="button"
             onClick={() => {
               localStorage.removeItem('btm_user');
+              localStorage.removeItem('btm_theme');
               window.location.href = '/';
             }}
             style={{
