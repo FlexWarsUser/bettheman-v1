@@ -14,7 +14,11 @@ model House {
   logoUrl      String?
   accentColor  String?
   bgColor      String?
-  panelColor   String?
+  panelColor     String?
+  textColor        String?
+  panelTextColor   String?
+  buttonBgColor    String?
+  buttonTextColor  String?
   active    Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

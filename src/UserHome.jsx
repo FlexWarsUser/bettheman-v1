@@ -4,18 +4,33 @@ import { io } from 'socket.io-client';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+const DEFAULT_BRAND = {
+  accentColor: '#00ff88',
+  bgColor: '#12122a',
+  panelColor: '#1a1a2e',
+  textColor: '#e8e8e8',
+  panelTextColor: '#e8e8e8',
+  buttonBgColor: '#00ff88',
+  buttonTextColor: '#0b1220',
+};
+
 function applyHouseTheme(user) {
-  const accent = user?.accentColor || '#00ff88';
-  const bg = user?.bgColor || '#12122a';
-  const panel = user?.panelColor || '#1a1a2e';
+  const accent = user?.accentColor || DEFAULT_BRAND.accentColor;
+  const bg = user?.bgColor || DEFAULT_BRAND.bgColor;
+  const panel = user?.panelColor || DEFAULT_BRAND.panelColor;
+  const text = user?.textColor || DEFAULT_BRAND.textColor;
+  const panelText = user?.panelTextColor || DEFAULT_BRAND.panelTextColor;
+  const btnBg = user?.buttonBgColor || DEFAULT_BRAND.buttonBgColor;
+  const btnText = user?.buttonTextColor || DEFAULT_BRAND.buttonTextColor;
   let tag = document.getElementById('btm-house-theme');
   if (!tag) {
     tag = document.createElement('style');
     tag.id = 'btm-house-theme';
     document.head.appendChild(tag);
   }
-  tag.textContent = 'html, body, #root { background: ' + bg + ' !important; min-height: 100%; }';
+  tag.textContent = 'html, body, #root { background: ' + bg + ' !important; color: ' + text + ' !important; min-height: 100%; }';
   document.body.style.background = bg;
+  document.body.style.color = text;
   try {
     if (user) {
       localStorage.setItem('btm_theme', JSON.stringify({
@@ -23,11 +38,15 @@ function applyHouseTheme(user) {
         accentColor: accent,
         bgColor: bg,
         panelColor: panel,
+        textColor: text,
+        panelTextColor: panelText,
+        buttonBgColor: btnBg,
+        buttonTextColor: btnText,
         houseName: user.houseName || '',
       }));
     }
   } catch (e) {}
-  return { accent, bg, panel, logoSrc: user?.houseLogoUrl || '/logo3.png' };
+  return { accent, bg, panel, text, panelText, btnBg, btnText, logoSrc: user?.houseLogoUrl || '/logo3.png' };
 }
 
 function readSavedTheme() {
@@ -1126,11 +1145,11 @@ const submitLay = async (b) => {
     .sort((a, b) => new Date(b.settledAt || b.createdAt) - new Date(a.settledAt || a.createdAt));
 
   return (
-<div style={{ maxWidth: 520, width: '100%', margin: '10px auto', padding: 12, boxSizing: 'border-box', color: '#e8e8e8' }}>
+<div style={{ maxWidth: 520, width: '100%', margin: '6px auto', padding: '6px 12px 12px', boxSizing: 'border-box', color: theme.text }}>
   {/* Header */}
-       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-        <h1 style={{ textAlign: 'left', margin: 0 }}>
-          <img src={theme.logoSrc} alt={user.houseName || 'BetTheMan'} style={{ maxWidth: '240px', height: 'auto' }} />
+       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <h1 style={{ textAlign: 'left', margin: 0, lineHeight: 0, fontSize: 0 }}>
+          <img src={theme.logoSrc} alt={user.houseName || 'BetTheMan'} style={{ maxWidth: 240, maxHeight: 64, width: 'auto', height: 'auto', display: 'block' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
   <div
@@ -1148,7 +1167,7 @@ const submitLay = async (b) => {
           <button
             type="button"
             onClick={onLogout}
-            style={{ padding: '8px 12px', fontSize: 14, background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 16 }}
+            style={{ padding: '8px 12px', fontSize: 14, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer' }}
           >
             Log out
           </button>
@@ -1270,7 +1289,7 @@ const submitLay = async (b) => {
       )}
 
 {/* Tabs */}
-<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 10 }}>
   <button
     type="button"
     onClick={() => setCustomerTab('slip')}
@@ -1285,9 +1304,9 @@ const submitLay = async (b) => {
       fontSize: 13,
       background:
         customerTab === 'slip'
-          ? `linear-gradient(135deg, ${theme.accent}, #00c6ff)`
+          ? theme.btnBg
           : 'rgba(15, 18, 40, 0.9)',
-      color: customerTab === 'slip' ? '#0a0a14' : '#c8c8d8',
+      color: customerTab === 'slip' ? theme.btnText : theme.text,
       boxShadow:
         customerTab === 'slip' ? '0 4px 14px rgba(0, 255, 136, 0.25)' : 'none',
     }}
@@ -1308,9 +1327,9 @@ const submitLay = async (b) => {
       fontSize: 13,
       background:
         customerTab === 'bets'
-          ? `linear-gradient(135deg, ${theme.accent}, #00c6ff)`
+          ? theme.btnBg
           : 'rgba(15, 18, 40, 0.9)',
-      color: customerTab === 'bets' ? '#0a0a14' : '#c8c8d8',
+      color: customerTab === 'bets' ? theme.btnText : theme.text,
       boxShadow:
         customerTab === 'bets' ? '0 4px 14px rgba(0, 255, 136, 0.25)' : 'none',
     }}
@@ -1332,9 +1351,9 @@ const submitLay = async (b) => {
         fontSize: 13,
         background:
           customerTab === 'lays'
-            ? `linear-gradient(135deg, ${theme.accent}, #00c6ff)`
+            ? theme.btnBg
             : 'rgba(15, 18, 40, 0.9)',
-        color: customerTab === 'lays' ? '#0a0a14' : '#c8c8d8',
+        color: customerTab === 'lays' ? theme.btnText : theme.text,
         boxShadow:
           customerTab === 'lays' ? '0 4px 14px rgba(0, 255, 136, 0.25)' : 'none',
       }}
@@ -1533,8 +1552,8 @@ inputMode="decimal"
     width: '33%',
     padding: '10px 12px',
     marginTop: 4,
-    background: placing ? '#3a3a5c' : '#00ff88',
-    color: '#0f0c29',
+    background: placing ? '#3a3a5c' : theme.btnBg,
+    color: theme.btnText,
     border: 'none',
     borderRadius: 7,
     fontWeight: 700,

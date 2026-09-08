@@ -3,28 +3,47 @@ import { io } from 'socket.io-client';
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
+const DEFAULT_BRAND = {
+  accentColor: '#00ff88',
+  bgColor: '#12122a',
+  panelColor: '#1a1a2e',
+  textColor: '#e8e8e8',
+  panelTextColor: '#e8e8e8',
+  buttonBgColor: '#00ff88',
+  buttonTextColor: '#0b1220',
+};
+
 function applyHouseTheme(user) {
-  const accent = user?.accentColor || '#00ff88';
-  const bg = user?.bgColor || '#12122a';
-  const panel = user?.panelColor || '#1a1a2e';
+  const accent = user?.accentColor || DEFAULT_BRAND.accentColor;
+  const bg = user?.bgColor || DEFAULT_BRAND.bgColor;
+  const panel = user?.panelColor || DEFAULT_BRAND.panelColor;
+  const text = user?.textColor || DEFAULT_BRAND.textColor;
+  const panelText = user?.panelTextColor || DEFAULT_BRAND.panelTextColor;
+  const btnBg = user?.buttonBgColor || DEFAULT_BRAND.buttonBgColor;
+  const btnText = user?.buttonTextColor || DEFAULT_BRAND.buttonTextColor;
   let tag = document.getElementById('btm-house-theme');
   if (!tag) {
     tag = document.createElement('style');
     tag.id = 'btm-house-theme';
     document.head.appendChild(tag);
   }
-  tag.textContent = 'html, body, #root { background: ' + bg + ' !important; min-height: 100%; }';
+  tag.textContent = 'html, body, #root { background: ' + bg + ' !important; color: ' + text + ' !important; min-height: 100%; }';
   document.body.style.background = bg;
+  document.body.style.color = text;
   try {
     localStorage.setItem('btm_theme', JSON.stringify({
       logoUrl: user?.houseLogoUrl || '',
       accentColor: accent,
       bgColor: bg,
       panelColor: panel,
+      textColor: text,
+      panelTextColor: panelText,
+      buttonBgColor: btnBg,
+      buttonTextColor: btnText,
       houseName: user?.houseName || '',
     }));
   } catch (e) {}
-  return { accent, bg, panel, logoSrc: user?.houseLogoUrl || '/logo3.png' };
+  return { accent, bg, panel, text, panelText, btnBg, btnText, logoSrc: user?.houseLogoUrl || '/logo3.png' };
 }
 
 const MOCK_USERS = [
@@ -206,6 +225,10 @@ const [brandName, setBrandName] = useState('');
 const [brandAccent, setBrandAccent] = useState('#00ff88');
 const [brandBg, setBrandBg] = useState('#12122a');
 const [brandPanel, setBrandPanel] = useState('#1a1a2e');
+const [brandText, setBrandText] = useState('#e8e8e8');
+const [brandPanelText, setBrandPanelText] = useState('#e8e8e8');
+const [brandBtnBg, setBrandBtnBg] = useState('#00ff88');
+const [brandBtnText, setBrandBtnText] = useState('#0b1220');
 const [brandLogo, setBrandLogo] = useState('');
 const [chatTabUnread, setChatTabUnread] = useState(0);
 const [settings, setSettings] = useState({
@@ -227,9 +250,13 @@ const [settings, setSettings] = useState({
     applyHouseTheme(currentUser);
     if (currentUser) {
       setBrandName(currentUser.houseName || '');
-      setBrandAccent(currentUser.accentColor || '#00ff88');
-      setBrandBg(currentUser.bgColor || '#12122a');
-      setBrandPanel(currentUser.panelColor || '#1a1a2e');
+      setBrandAccent(currentUser.accentColor || DEFAULT_BRAND.accentColor);
+      setBrandBg(currentUser.bgColor || DEFAULT_BRAND.bgColor);
+      setBrandPanel(currentUser.panelColor || DEFAULT_BRAND.panelColor);
+      setBrandText(currentUser.textColor || DEFAULT_BRAND.textColor);
+      setBrandPanelText(currentUser.panelTextColor || DEFAULT_BRAND.panelTextColor);
+      setBrandBtnBg(currentUser.buttonBgColor || DEFAULT_BRAND.buttonBgColor);
+      setBrandBtnText(currentUser.buttonTextColor || DEFAULT_BRAND.buttonTextColor);
       setBrandLogo(currentUser.houseLogoUrl || '');
     }
   }, [currentUser?.id, currentUser?.houseId]);
@@ -238,7 +265,7 @@ const inputStyle = {
   padding: '10px',
   marginBottom: 8,
   background: theme.panel,
-  color: '#e8e8e8',
+  color: theme.panelText,
   border: '1px solid #3a3a5c',
   borderRadius: 6,
   boxSizing: 'border-box',
@@ -1300,10 +1327,10 @@ const cardRed = { ...card, borderLeft: '3px solid #ef4444' };
 const muted = { color: '#94a3b8', fontSize: '12px' };
 
   return (
-<div style={{ maxWidth: 520, width: '100%', margin: '10px auto', padding: 12, boxSizing: 'border-box', color: '#e8e8e8', fontFamily: 'system-ui, sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-        <h1 style={{ textAlign: 'left', margin: 0 }}>
-          <img src={theme.logoSrc} alt={currentUser?.houseName || 'BetTheMan'} style={{ maxWidth: '240px', height: 'auto' }} />
+<div style={{ maxWidth: 520, width: '100%', margin: '6px auto', padding: '6px 12px 12px', boxSizing: 'border-box', color: theme.text, fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <h1 style={{ textAlign: 'left', margin: 0, lineHeight: 0, fontSize: 0 }}>
+          <img src={theme.logoSrc} alt={currentUser?.houseName || 'BetTheMan'} style={{ maxWidth: 240, maxHeight: 64, width: 'auto', height: 'auto', display: 'block' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
           <div style={{ color: '#b0b0b0', marginBottom: 6, fontSize: 14 }}>
@@ -1317,8 +1344,8 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
             }}
             style={{
               padding: '8px 12px',
-              background: '#3a3a5c',
-              color: '#e8e8e8',
+              background: theme.btnBg,
+              color: theme.btnText,
               border: 'none',
               borderRadius: 6,
               cursor: 'pointer',
@@ -1388,8 +1415,8 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
       if (tab === 'chat') setChatTabUnread(0);
     }}
     style={{
-      background: activeTab === tab ? theme.accent : '#252540',
-      color: activeTab === tab ? '#0f0c29' : '#e8e8e8',
+      background: activeTab === tab ? theme.btnBg : '#252540',
+      color: activeTab === tab ? theme.btnText : theme.text,
       border: '1px solid #3a3a5c',
       padding: '12px 22px',
       borderRadius: '8px',
@@ -2110,36 +2137,41 @@ const exposure = getExposure(b.stake, b.odds, {
           style={{ marginBottom: 8, color: '#e8e8e8' }}
         />
         <button type="button" onClick={() => setBrandLogo('')} style={{ marginBottom: 12, background: 'transparent', color: '#b0b0b0', border: '1px solid #3a3a5c', borderRadius: 6, padding: '4px 8px', cursor: 'pointer' }}>Clear logo</button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <span style={{ flex: 1, color: '#b0b0b0', fontSize: 13 }}>Accent</span>
-          <input type="color" value={brandAccent} onChange={e => setBrandAccent(e.target.value)} />
-          <input value={brandAccent} onChange={e => setBrandAccent(e.target.value)} style={{ width: 90, padding: 6, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <span style={{ flex: 1, color: '#b0b0b0', fontSize: 13 }}>Background</span>
-          <input type="color" value={brandBg} onChange={e => setBrandBg(e.target.value)} />
-          <input value={brandBg} onChange={e => setBrandBg(e.target.value)} style={{ width: 90, padding: 6, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <span style={{ flex: 1, color: '#b0b0b0', fontSize: 13 }}>Panels</span>
-          <input type="color" value={brandPanel} onChange={e => setBrandPanel(e.target.value)} />
-          <input value={brandPanel} onChange={e => setBrandPanel(e.target.value)} style={{ width: 90, padding: 6, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
-        </div>
+        {[
+          ['Accent', brandAccent, setBrandAccent],
+          ['Background', brandBg, setBrandBg],
+          ['Page text', brandText, setBrandText],
+          ['Panels', brandPanel, setBrandPanel],
+          ['Panel text', brandPanelText, setBrandPanelText],
+          ['Button background', brandBtnBg, setBrandBtnBg],
+          ['Button text', brandBtnText, setBrandBtnText],
+        ].map(([label, value, setter]) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ flex: 1, color: '#b0b0b0', fontSize: 13 }}>{label}</span>
+            <input type="color" value={value} onChange={e => setter(e.target.value)} />
+            <input value={value} onChange={e => setter(e.target.value)} style={{ width: 90, padding: 6, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
+          </div>
+        ))}
         <button
           type="button"
           onClick={async () => {
+            const payload = {
+              actorId: currentUser?.id,
+              name: brandName,
+              logoUrl: brandLogo || null,
+              accentColor: brandAccent,
+              bgColor: brandBg,
+              panelColor: brandPanel,
+              textColor: brandText,
+              panelTextColor: brandPanelText,
+              buttonBgColor: brandBtnBg,
+              buttonTextColor: brandBtnText,
+            };
             try {
               const res = await fetch(`${API}/api/houses/branding`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  actorId: currentUser?.id,
-                  name: brandName,
-                  logoUrl: brandLogo || null,
-                  accentColor: brandAccent,
-                  bgColor: brandBg,
-                  panelColor: brandPanel,
-                }),
+                body: JSON.stringify(payload),
               });
               const data = await res.json();
               if (!res.ok || !data.success) return alert(data.error || 'Failed to save branding');
@@ -2150,6 +2182,10 @@ const exposure = getExposure(b.stake, b.odds, {
                 accentColor: data.house.accentColor,
                 bgColor: data.house.bgColor,
                 panelColor: data.house.panelColor,
+                textColor: data.house.textColor,
+                panelTextColor: data.house.panelTextColor,
+                buttonBgColor: data.house.buttonBgColor,
+                buttonTextColor: data.house.buttonTextColor,
               };
               localStorage.setItem('btm_user', JSON.stringify(updated));
               setCurrentUser(updated);
@@ -2159,9 +2195,56 @@ const exposure = getExposure(b.stake, b.odds, {
               alert(e.message);
             }
           }}
-          style={{ width: '100%', padding: 10, background: '#00ff88', color: '#0b1220', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
+          style={{ width: '100%', padding: 10, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
         >
           Save branding
+        </button>
+        <button
+          type="button"
+          onClick={async () => {
+            setBrandAccent(DEFAULT_BRAND.accentColor);
+            setBrandBg(DEFAULT_BRAND.bgColor);
+            setBrandPanel(DEFAULT_BRAND.panelColor);
+            setBrandText(DEFAULT_BRAND.textColor);
+            setBrandPanelText(DEFAULT_BRAND.panelTextColor);
+            setBrandBtnBg(DEFAULT_BRAND.buttonBgColor);
+            setBrandBtnText(DEFAULT_BRAND.buttonTextColor);
+            try {
+              const res = await fetch(`${API}/api/houses/branding`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  actorId: currentUser?.id,
+                  name: brandName,
+                  logoUrl: brandLogo || null,
+                  resetColors: true,
+                }),
+              });
+              const data = await res.json();
+              if (!res.ok || !data.success) return alert(data.error || 'Failed to reset colours');
+              const updated = {
+                ...currentUser,
+                houseName: data.house.name,
+                houseLogoUrl: data.house.logoUrl,
+                accentColor: null,
+                bgColor: null,
+                panelColor: null,
+                textColor: null,
+                panelTextColor: null,
+                buttonBgColor: null,
+                buttonTextColor: null,
+              };
+              localStorage.setItem('btm_user', JSON.stringify(updated));
+              setCurrentUser(updated);
+              applyHouseTheme(updated);
+              alert('Colours reset to default');
+            } catch (e) {
+              alert(e.message);
+            }
+          }}
+          style={{ width: '100%', padding: 10, marginTop: 8, background: 'transparent', color: theme.text, border: '1px solid #3a3a5c', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
+        >
+          Reset colours to default
         </button>
       </div>
     </CollapsibleSection>

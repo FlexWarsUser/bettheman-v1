@@ -46,6 +46,10 @@ async function shapeUser(user) {
   let accentColor = null;
   let bgColor = null;
   let panelColor = null;
+  let textColor = null;
+  let panelTextColor = null;
+  let buttonBgColor = null;
+  let buttonTextColor = null;
   if (houseId) {
     const house = await prisma.house.findUnique({ where: { id: houseId } });
     if (house) {
@@ -54,6 +58,10 @@ async function shapeUser(user) {
       accentColor = house.accentColor || null;
       bgColor = house.bgColor || null;
       panelColor = house.panelColor || null;
+      textColor = house.textColor || null;
+      panelTextColor = house.panelTextColor || null;
+      buttonBgColor = house.buttonBgColor || null;
+      buttonTextColor = house.buttonTextColor || null;
     }
   }
   const houseMasterId = houseId
@@ -75,6 +83,10 @@ async function shapeUser(user) {
     accentColor,
     bgColor,
     panelColor,
+    textColor,
+    panelTextColor,
+    buttonBgColor,
+    buttonTextColor,
     houseMasterId,
     isPlatformAdmin: (user.role || "") === "admin",
   };
@@ -876,6 +888,39 @@ app.post("/api/houses/branding", async (req, res) => {
         return res.status(400).json({ success: false, error: "Invalid panel colour" });
       }
       data.panelColor = req.body.panelColor || null;
+    }
+    if (req.body.textColor !== undefined) {
+      if (!validHexColor(req.body.textColor)) {
+        return res.status(400).json({ success: false, error: "Invalid text colour" });
+      }
+      data.textColor = req.body.textColor || null;
+    }
+    if (req.body.panelTextColor !== undefined) {
+      if (!validHexColor(req.body.panelTextColor)) {
+        return res.status(400).json({ success: false, error: "Invalid panel text colour" });
+      }
+      data.panelTextColor = req.body.panelTextColor || null;
+    }
+    if (req.body.buttonBgColor !== undefined) {
+      if (!validHexColor(req.body.buttonBgColor)) {
+        return res.status(400).json({ success: false, error: "Invalid button colour" });
+      }
+      data.buttonBgColor = req.body.buttonBgColor || null;
+    }
+    if (req.body.buttonTextColor !== undefined) {
+      if (!validHexColor(req.body.buttonTextColor)) {
+        return res.status(400).json({ success: false, error: "Invalid button text colour" });
+      }
+      data.buttonTextColor = req.body.buttonTextColor || null;
+    }
+    if (req.body.resetColors) {
+      data.accentColor = null;
+      data.bgColor = null;
+      data.panelColor = null;
+      data.textColor = null;
+      data.panelTextColor = null;
+      data.buttonBgColor = null;
+      data.buttonTextColor = null;
     }
     if (req.body.name !== undefined) {
       const name = String(req.body.name || "").trim();
