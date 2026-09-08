@@ -1330,7 +1330,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
 <div style={{ maxWidth: 520, width: '100%', margin: '6px auto', padding: '6px 12px 12px', boxSizing: 'border-box', color: theme.text, fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <h1 style={{ textAlign: 'left', margin: 0, lineHeight: 0, fontSize: 0 }}>
-          <img src={theme.logoSrc} alt={currentUser?.houseName || 'BetTheMan'} style={{ maxWidth: 240, maxHeight: 64, width: 'auto', height: 'auto', display: 'block' }} />
+          <img src={theme.logoSrc} alt={currentUser?.houseName || 'BetTheMan'} style={{ maxWidth: 280, maxHeight: 140, width: 'auto', height: 'auto', display: 'block' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
           <div style={{ color: '#b0b0b0', marginBottom: 6, fontSize: 14 }}>
@@ -2129,7 +2129,7 @@ const exposure = getExposure(b.stake, b.odds, {
           onChange={(e) => {
             const file = e.target.files && e.target.files[0];
             if (!file) return;
-            if (file.size > 400000) return alert('Logo too large. Use a file under 400KB.');
+            if (file.size > 1500000) return alert('Logo too large. Use a file under 1.5MB.');
             const reader = new FileReader();
             reader.onload = () => setBrandLogo(String(reader.result || ''));
             reader.readAsDataURL(file);
