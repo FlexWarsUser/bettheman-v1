@@ -3,6 +3,32 @@ import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+function applyHouseTheme(user) {
+  const accent = user?.accentColor || '#00ff88';
+  const bg = user?.bgColor || '#12122a';
+  document.body.style.background = bg;
+  try {
+    if (user) {
+      localStorage.setItem('btm_theme', JSON.stringify({
+        logoUrl: user.houseLogoUrl || '',
+        accentColor: accent,
+        bgColor: bg,
+        panelColor: user.panelColor || '#1a1a2e',
+        houseName: user.houseName || '',
+      }));
+    }
+  } catch (e) {}
+  return { accent, bg, logoSrc: user?.houseLogoUrl || '/logo3.png' };
+}
+
+function readSavedTheme() {
+  try {
+    return JSON.parse(localStorage.getItem('btm_theme') || 'null');
+  } catch {
+    return null;
+  }
+}
 const ODDS_LIST = [
 "2/1","4/1","1/1","8/1","4/5","8/11","4/6","8/13","4/7","5/1","20/1","11/10",
 "1/2","6/5","5/4","11/8","6/4","7/4","15/8","2/5","9/4","12/5","5/2","11/4",
@@ -203,7 +229,7 @@ if (data.user.role === 'admin' || data.user.role === 'house') {
   return (
     <div style={{ maxWidth: 400, margin: '60px auto', padding: 20, color: '#e8e8e8' }}>
       <h1 style={{ textAlign: 'center', margin: 0 }}>
-        <img src="/logo3.png" alt="BetTheMan" style={{ maxWidth: '280px', height: 'auto' }} />
+        <img src={readSavedTheme()?.logoUrl || '/logo3.png'} alt="BetTheMan" style={{ maxWidth: '280px', height: 'auto' }} />
       </h1>
       <div style={{ marginTop: 12 }}>
         <div style={{  marginBottom: 8, color: '#b0b0b0' }}>Email</div>
@@ -240,6 +266,7 @@ if (data.user.role === 'admin' || data.user.role === 'house') {
 }
 
 function UserDashboard({ user, onLogout, onUserUpdate }) {
+  const theme = applyHouseTheme(user);
   const [bets, setBets] = useState([]);
 const [bet, setBet] = useState({ event: '', selection: '', odds: '', stake: '', eachWay: false });
   const [message, setMessage] = useState('');
@@ -1095,7 +1122,7 @@ const submitLay = async (b) => {
   {/* Header */}
        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <h1 style={{ textAlign: 'left', margin: 0 }}>
-          <img src="/logo3.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />
+          <img src={theme.logoSrc} alt={user.houseName || 'BetTheMan'} style={{ maxWidth: '240px', height: 'auto' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
   <div
@@ -1250,7 +1277,7 @@ const submitLay = async (b) => {
       fontSize: 13,
       background:
         customerTab === 'slip'
-          ? 'linear-gradient(135deg, #00ff88, #00c6ff)'
+          ? `linear-gradient(135deg, ${theme.accent}, #00c6ff)`
           : 'rgba(15, 18, 40, 0.9)',
       color: customerTab === 'slip' ? '#0a0a14' : '#c8c8d8',
       boxShadow:
@@ -1273,7 +1300,7 @@ const submitLay = async (b) => {
       fontSize: 13,
       background:
         customerTab === 'bets'
-          ? 'linear-gradient(135deg, #00ff88, #00c6ff)'
+          ? `linear-gradient(135deg, ${theme.accent}, #00c6ff)`
           : 'rgba(15, 18, 40, 0.9)',
       color: customerTab === 'bets' ? '#0a0a14' : '#c8c8d8',
       boxShadow:
@@ -1297,7 +1324,7 @@ const submitLay = async (b) => {
         fontSize: 13,
         background:
           customerTab === 'lays'
-            ? 'linear-gradient(135deg, #00ff88, #00c6ff)'
+            ? `linear-gradient(135deg, ${theme.accent}, #00c6ff)`
             : 'rgba(15, 18, 40, 0.9)',
         color: customerTab === 'lays' ? '#0a0a14' : '#c8c8d8',
         boxShadow:

@@ -3,6 +3,26 @@ import { io } from 'socket.io-client';
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
+function applyHouseTheme(user) {
+  const accent = user?.accentColor || '#00ff88';
+  const bg = user?.bgColor || '#12122a';
+  const panel = user?.panelColor || '#1a1a2e';
+  document.body.style.background = bg;
+  document.documentElement.style.setProperty('--btm-accent', accent);
+  document.documentElement.style.setProperty('--btm-bg', bg);
+  document.documentElement.style.setProperty('--btm-panel', panel);
+  try {
+    localStorage.setItem('btm_theme', JSON.stringify({
+      logoUrl: user?.houseLogoUrl || '',
+      accentColor: accent,
+      bgColor: bg,
+      panelColor: panel,
+      houseName: user?.houseName || '',
+    }));
+  } catch (e) {}
+  return { accent, bg, panel, logoSrc: user?.houseLogoUrl || '/logo3.png' };
+}
+
 const MOCK_USERS = [
   { id: 0, name: "House", canLay: true },
   { id: 1, name: "Alex Rivera", canLay: true },
@@ -178,6 +198,11 @@ const [houseMasterName, setHouseMasterName] = useState('');
 const [houseMasterEmail, setHouseMasterEmail] = useState('');
 const [houseMasterPassword, setHouseMasterPassword] = useState('');
 const [houses, setHouses] = useState([]);
+const [brandName, setBrandName] = useState('');
+const [brandAccent, setBrandAccent] = useState('#00ff88');
+const [brandBg, setBrandBg] = useState('#12122a');
+const [brandPanel, setBrandPanel] = useState('#1a1a2e');
+const [brandLogo, setBrandLogo] = useState('');
 const [chatTabUnread, setChatTabUnread] = useState(0);
 const [settings, setSettings] = useState({
   skipHouseFirstLook: false,
@@ -193,6 +218,17 @@ const [settings, setSettings] = useState({
   const [chatImage, setChatImage] = useState(null);
   const [chatSending, setChatSending] = useState(false);
   const HOUSE_ID = Number(currentUser?.houseMasterId || currentUser?.id || 7);
+  const theme = applyHouseTheme(currentUser);
+  useEffect(() => {
+    applyHouseTheme(currentUser);
+    if (currentUser) {
+      setBrandName(currentUser.houseName || '');
+      setBrandAccent(currentUser.accentColor || '#00ff88');
+      setBrandBg(currentUser.bgColor || '#12122a');
+      setBrandPanel(currentUser.panelColor || '#1a1a2e');
+      setBrandLogo(currentUser.houseLogoUrl || '');
+    }
+  }, [currentUser?.id, currentUser?.houseId]);
 const inputStyle = {
   width: '100%',
   padding: '10px',
@@ -1263,7 +1299,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
 <div style={{ maxWidth: 520, width: '100%', margin: '10px auto', padding: 12, boxSizing: 'border-box', color: '#e8e8e8', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <h1 style={{ textAlign: 'left', margin: 0 }}>
-          <img src="/logo3.png" alt="BetTheMan" style={{ maxWidth: '240px', height: 'auto' }} />
+          <img src={theme.logoSrc} alt={currentUser?.houseName || 'BetTheMan'} style={{ maxWidth: '240px', height: 'auto' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
           <div style={{ color: '#b0b0b0', marginBottom: 6, fontSize: 14 }}>
@@ -1348,7 +1384,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
       if (tab === 'chat') setChatTabUnread(0);
     }}
     style={{
-      background: activeTab === tab ? '#00ff88' : '#252540',
+      background: activeTab === tab ? theme.accent : '#252540',
       color: activeTab === tab ? '#0f0c29' : '#e8e8e8',
       border: '1px solid #3a3a5c',
       padding: '12px 22px',
@@ -2045,6 +2081,83 @@ const exposure = getExposure(b.stake, b.odds, {
           style={{ width: '100%', padding: 10, background: '#0066cc', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}
         >
           Create user
+        </button>
+      </div>
+    </CollapsibleSection>
+
+    <CollapsibleSection title="Branding" defaultOpen={false}>
+      <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
+        <p style={{ color: '#b0b0b0', fontSize: 13, marginTop: 0 }}>Logo and colours for this house. Punters see this after login.</p>
+        <div style={{ marginBottom: 8, color: '#b0b0b0', fontSize: 13 }}>House name</div>
+        <input value={brandName} onChange={e => setBrandName(e.target.value)} style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
+        <div style={{ marginBottom: 8, color: '#b0b0b0', fontSize: 13 }}>Logo</div>
+        {brandLogo ? <img src={brandLogo} alt="logo preview" style={{ maxWidth: 180, height: 'auto', display: 'block', marginBottom: 8 }} /> : null}
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            if (file.size > 400000) return alert('Logo too large. Use a file under 400KB.');
+            const reader = new FileReader();
+            reader.onload = () => setBrandLogo(String(reader.result || ''));
+            reader.readAsDataURL(file);
+          }}
+          style={{ marginBottom: 8, color: '#e8e8e8' }}
+        />
+        <button type="button" onClick={() => setBrandLogo('')} style={{ marginBottom: 12, background: 'transparent', color: '#b0b0b0', border: '1px solid #3a3a5c', borderRadius: 6, padding: '4px 8px', cursor: 'pointer' }}>Clear logo</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <span style={{ flex: 1, color: '#b0b0b0', fontSize: 13 }}>Accent</span>
+          <input type="color" value={brandAccent} onChange={e => setBrandAccent(e.target.value)} />
+          <input value={brandAccent} onChange={e => setBrandAccent(e.target.value)} style={{ width: 90, padding: 6, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <span style={{ flex: 1, color: '#b0b0b0', fontSize: 13 }}>Background</span>
+          <input type="color" value={brandBg} onChange={e => setBrandBg(e.target.value)} />
+          <input value={brandBg} onChange={e => setBrandBg(e.target.value)} style={{ width: 90, padding: 6, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <span style={{ flex: 1, color: '#b0b0b0', fontSize: 13 }}>Panels</span>
+          <input type="color" value={brandPanel} onChange={e => setBrandPanel(e.target.value)} />
+          <input value={brandPanel} onChange={e => setBrandPanel(e.target.value)} style={{ width: 90, padding: 6, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
+        </div>
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              const res = await fetch(`${API}/api/houses/branding`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  actorId: currentUser?.id,
+                  name: brandName,
+                  logoUrl: brandLogo || null,
+                  accentColor: brandAccent,
+                  bgColor: brandBg,
+                  panelColor: brandPanel,
+                }),
+              });
+              const data = await res.json();
+              if (!res.ok || !data.success) return alert(data.error || 'Failed to save branding');
+              const updated = {
+                ...currentUser,
+                houseName: data.house.name,
+                houseLogoUrl: data.house.logoUrl,
+                accentColor: data.house.accentColor,
+                bgColor: data.house.bgColor,
+                panelColor: data.house.panelColor,
+              };
+              localStorage.setItem('btm_user', JSON.stringify(updated));
+              setCurrentUser(updated);
+              applyHouseTheme(updated);
+              alert('Branding saved');
+            } catch (e) {
+              alert(e.message);
+            }
+          }}
+          style={{ width: '100%', padding: 10, background: '#00ff88', color: '#0b1220', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
+        >
+          Save branding
         </button>
       </div>
     </CollapsibleSection>

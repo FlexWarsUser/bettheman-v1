@@ -43,11 +43,17 @@ async function shapeUser(user) {
   const houseId = user.houseId != null ? Number(user.houseId) : null;
   let houseName = null;
   let houseLogoUrl = null;
+  let accentColor = null;
+  let bgColor = null;
+  let panelColor = null;
   if (houseId) {
     const house = await prisma.house.findUnique({ where: { id: houseId } });
     if (house) {
       houseName = house.name;
       houseLogoUrl = house.logoUrl || null;
+      accentColor = house.accentColor || null;
+      bgColor = house.bgColor || null;
+      panelColor = house.panelColor || null;
     }
   }
   const houseMasterId = houseId
@@ -66,6 +72,9 @@ async function shapeUser(user) {
     houseId,
     houseName,
     houseLogoUrl,
+    accentColor,
+    bgColor,
+    panelColor,
     houseMasterId,
     isPlatformAdmin: (user.role || "") === "admin",
   };
@@ -824,6 +833,56 @@ app.post("/api/houses", async (req, res) => {
       house,
       master: { id: master.id, name: master.name, email: master.email, role: master.role, houseId: house.id },
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+function validHexColor(v) {
+  if (v == null || v === "") return true;
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(String(v).trim());
+}
+
+app.post("/api/houses/branding", async (req, res) => {
+  try {
+    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    if (!isHouseOps(actor) || !actor.houseId) {
+      return res.status(403).json({ success: false, error: "House only" });
+    }
+    const houseId = Number(actor.houseId);
+    const data = {};
+    if (req.body.logoUrl !== undefined) {
+      const logo = req.body.logoUrl ? String(req.body.logoUrl) : null;
+      if (logo && logo.length > 700000) {
+        return res.status(400).json({ success: false, error: "Logo too large (keep under ~500KB)" });
+      }
+      data.logoUrl = logo;
+    }
+    if (req.body.accentColor !== undefined) {
+      if (!validHexColor(req.body.accentColor)) {
+        return res.status(400).json({ success: false, error: "Invalid accent colour" });
+      }
+      data.accentColor = req.body.accentColor || null;
+    }
+    if (req.body.bgColor !== undefined) {
+      if (!validHexColor(req.body.bgColor)) {
+        return res.status(400).json({ success: false, error: "Invalid background colour" });
+      }
+      data.bgColor = req.body.bgColor || null;
+    }
+    if (req.body.panelColor !== undefined) {
+      if (!validHexColor(req.body.panelColor)) {
+        return res.status(400).json({ success: false, error: "Invalid panel colour" });
+      }
+      data.panelColor = req.body.panelColor || null;
+    }
+    if (req.body.name !== undefined) {
+      const name = String(req.body.name || "").trim();
+      if (name) data.name = name;
+    }
+    const house = await prisma.house.update({ where: { id: houseId }, data });
+    res.json({ success: true, house });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
