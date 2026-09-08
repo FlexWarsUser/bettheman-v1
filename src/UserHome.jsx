@@ -273,7 +273,7 @@ const prevInProcessIds = useRef(new Set());
   const [partyMode, setPartyMode] = useState(false);
 const [leaderboard, setLeaderboard] = useState([]);
 const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-  const HOUSE_ID = 7;
+  const HOUSE_ID = Number(user?.houseMasterId || 7);
   const toggleLayerProfile = async (e) => {
   const next = e.target.checked;
   try {
@@ -303,13 +303,14 @@ const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   useEffect(() => {
   const load = async () => {
     try {
-      const sRes = await fetch(`${API}/api/settings`);
+      const q = user?.id ? `?actorId=${user.id}` : '';
+      const sRes = await fetch(`${API}/api/settings${q}`);
       const sData = await sRes.json();
 const enabled = sData.partyMode === true || sData.partyMode === 'true';
       setPartyMode(enabled);
 
       if (enabled) {
-        const lRes = await fetch(`${API}/api/leaderboard`);
+        const lRes = await fetch(`${API}/api/leaderboard${q}`);
         const lData = await lRes.json();
         if (lData.success) setLeaderboard(lData.leaderboard || []);
       } else {
@@ -449,7 +450,7 @@ useEffect(() => {
   }, [user?.id]);
   const fetchBets = async () => {
     try {
-      const res = await fetch(`${API}/api/bets`);
+      const res = await fetch(`${API}/api/bets${user?.id ? `?actorId=${user.id}` : ''}`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) setBets(data);
@@ -528,7 +529,7 @@ const searchEvents = async (q) => {
     return;
   }
   try {
-    const res = await fetch(`${API}/api/events?q=${encodeURIComponent(q)}`);
+    const res = await fetch(`${API}/api/events?q=${encodeURIComponent(q)}${user?.id ? `&actorId=${user.id}` : ''}`);
     const data = await res.json();
     let list = data.success ? (data.events || []) : [];
 
@@ -752,7 +753,7 @@ function footballSelectionsForEvent(eventName) {
   useEffect(() => {
     fetchBets();
     refreshUser();
-      fetch(`${API}/api/events`)
+      fetch(`${API}/api/events${user?.id ? `?actorId=${user.id}` : ''}`)
     .then(r => r.json())
     .then(d => setEvents(d.events || []))
     .catch(() => {});

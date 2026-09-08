@@ -173,6 +173,11 @@ const [rejectNote, setRejectNote] = useState({});
 const [eventForm, setEventForm] = useState({ type: 'horse', name: '', date: '' });
 const [csvText, setCsvText] = useState('');
 const [eventMessage, setEventMessage] = useState('');
+const [houseName, setHouseName] = useState('');
+const [houseMasterName, setHouseMasterName] = useState('');
+const [houseMasterEmail, setHouseMasterEmail] = useState('');
+const [houseMasterPassword, setHouseMasterPassword] = useState('');
+const [houses, setHouses] = useState([]);
 const [chatTabUnread, setChatTabUnread] = useState(0);
 const [settings, setSettings] = useState({
   skipHouseFirstLook: false,
@@ -187,7 +192,7 @@ const [settings, setSettings] = useState({
   const [chatText, setChatText] = useState('');
   const [chatImage, setChatImage] = useState(null);
   const [chatSending, setChatSending] = useState(false);
-  const HOUSE_ID = 7;
+  const HOUSE_ID = Number(currentUser?.houseMasterId || currentUser?.id || 7);
 const inputStyle = {
   width: '100%',
   padding: '10px',
@@ -200,7 +205,8 @@ const inputStyle = {
 };
 const fetchEvents = async () => {
   try {
-    const res = await fetch(`${API}/api/events`);
+    const actorId = currentUser?.id ? `?actorId=${currentUser.id}` : '';
+    const res = await fetch(`${API}/api/events${actorId}`);
     const data = await res.json();
     if (data.success) setEvents(data.events || []);
   } catch (e) {}
@@ -256,7 +262,7 @@ return () => {
       const res = await fetch(`${API}/api/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(eventForm),
+        body: JSON.stringify({ ...eventForm, actorId: currentUser?.id }),
       });
       const data = await res.json();
       if (!res.ok) return alert(data.error || 'Failed');
@@ -524,12 +530,12 @@ const uploadCsvFromText = async (text) => {
     const res = await fetch(`${API}/api/events/bulk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ events: raceList }),
+      body: JSON.stringify({ events: raceList, actorId: currentUser?.id }),
     });
     const data = await res.json();
     if (!res.ok) return alert(data.error || 'Event upload failed');
 
-    const evRes = await fetch(`${API}/api/events`);
+    const evRes = await fetch(`${API}/api/events${currentUser?.id ? `?actorId=${currentUser.id}` : ''}`);
     const evData = await evRes.json();
     const allEvents = evData.events || [];
     const idByKey = new Map();
@@ -649,7 +655,7 @@ const uploadFootballCsvFromText = async (text) => {
     const res = await fetch(`${API}/api/events/bulk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ events }),
+      body: JSON.stringify({ events, actorId: currentUser?.id }),
     });
     const data = await res.json();
     if (!res.ok || !data.success) {
@@ -664,7 +670,8 @@ const uploadFootballCsvFromText = async (text) => {
 };
 const fetchBets = async () => {
   try {
-    const res = await fetch(`${API}/api/bets`);
+    const actorQ = currentUser?.id ? `?actorId=${currentUser.id}` : '';
+    const res = await fetch(`${API}/api/bets${actorQ}`);
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) setAllBets(data);
@@ -683,7 +690,8 @@ const fetchLedger = async () => {
 };
 const fetchSettings = async () => {
   try {
-    const res = await fetch(`${API}/api/settings`);
+    const actorQ = currentUser?.id ? `?actorId=${currentUser.id}` : '';
+    const res = await fetch(`${API}/api/settings${actorQ}`);
     if (res.ok) setSettings(await res.json());
   } catch (e) {}
 };
@@ -698,7 +706,8 @@ useEffect(() => {
 
     const fetchUsers = async () => {
     try {
-      const res = await fetch(`${API}/api/users`);
+      const actorQ = currentUser?.id ? `?actorId=${currentUser.id}` : '';
+      const res = await fetch(`${API}/api/users${actorQ}`);
       console.log('USERS status', res.status);
       if (res.ok) {
         const data = await res.json();
@@ -814,7 +823,7 @@ const saveSettings = async () => {
     const res = await fetch(`${API}/api/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings),
+      body: JSON.stringify({ ...settings, actorId: currentUser?.id }),
     });
     if (!res.ok) return alert('Failed to save settings');
     const data = await res.json();
@@ -837,6 +846,7 @@ const createNewUser = async () => {
         name: authName,
         email: authEmail,
         password: authPassword,
+        actorId: currentUser?.id,
       }),
     });
     const data = await res.json();
@@ -1903,7 +1913,7 @@ const exposure = getExposure(b.stake, b.odds, {
             onClick={async () => {
               if (!window.confirm('Delete ALL stored events?')) return;
               try {
-                const res = await fetch(`${API}/api/events`, { method: 'DELETE' });
+                const res = await fetch(`${API}/api/events${currentUser?.id ? `?actorId=${currentUser.id}` : ''}`, { method: 'DELETE' });
                 const data = await res.json();
                 if (!res.ok) return alert(data.error || 'Delete failed');
                 setEventMessage(`Deleted ${data.count} events`);
@@ -2037,6 +2047,78 @@ const exposure = getExposure(b.stake, b.odds, {
         </button>
       </div>
     </CollapsibleSection>
+
+    {currentUser?.role === 'admin' && (
+    <CollapsibleSection title="Create licensed house" defaultOpen={false}>
+      <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
+        <p style={{ color: '#b0b0b0', fontSize: 13, marginTop: 0 }}>
+          Platform admin only. Creates a new book and a house master who can invite their own customers.
+        </p>
+        <input
+          type="text"
+          placeholder="House name (e.g. Oaks Racing)"
+          value={houseName}
+          onChange={e => setHouseName(e.target.value)}
+          style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}
+        />
+        <input
+          type="text"
+          placeholder="House master full name"
+          value={houseMasterName}
+          onChange={e => setHouseMasterName(e.target.value)}
+          style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}
+        />
+        <input
+          type="email"
+          placeholder="House master email"
+          value={houseMasterEmail}
+          onChange={e => setHouseMasterEmail(e.target.value)}
+          style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}
+        />
+        <input
+          type="text"
+          placeholder="Temporary password"
+          value={houseMasterPassword}
+          onChange={e => setHouseMasterPassword(e.target.value)}
+          style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}
+        />
+        <button
+          type="button"
+          onClick={async () => {
+            if (!houseName || !houseMasterName || !houseMasterEmail || !houseMasterPassword) {
+              return alert('House name, master name, email and password required');
+            }
+            try {
+              const res = await fetch(`${API}/api/houses`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  actorId: currentUser.id,
+                  name: houseName,
+                  masterName: houseMasterName,
+                  masterEmail: houseMasterEmail,
+                  masterPassword: houseMasterPassword,
+                }),
+              });
+              const data = await res.json();
+              if (!res.ok || !data.success) return alert(data.error || 'Failed to create house');
+              alert(`House created: ${data.house.name}\nMaster login: ${data.master.email}`);
+              setHouseName('');
+              setHouseMasterName('');
+              setHouseMasterEmail('');
+              setHouseMasterPassword('');
+              setHouses(h => [...h, data.house]);
+            } catch (e) {
+              alert(e.message);
+            }
+          }}
+          style={{ width: '100%', padding: 10, background: '#00ff88', color: '#0b1220', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
+        >
+          Create house + master
+        </button>
+      </div>
+    </CollapsibleSection>
+    )}
 
     <CollapsibleSection title="User rights" defaultOpen={false}>
       <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>

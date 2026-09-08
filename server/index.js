@@ -10,6 +10,78 @@ const bcrypt = require("bcryptjs");
 const webpush = require("web-push");
 
 const prisma = new PrismaClient();
+
+const FALLBACK_HOUSE_MASTER_ID = 7;
+
+function slugify(name) {
+  const s = String(name || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  return s || "house";
+}
+
+async function getUserRow(id) {
+  const n = parseInt(id, 10);
+  if (!n) return null;
+  return prisma.user.findUnique({ where: { id: n } });
+}
+
+async function getHouseMasterId(houseId) {
+  if (!houseId) return FALLBACK_HOUSE_MASTER_ID;
+  const master = await prisma.user.findFirst({
+    where: { houseId: Number(houseId), role: { in: ["house", "admin"] } },
+    orderBy: [{ role: "asc" }, { id: "asc" }],
+  });
+  if (master) return master.id;
+  return FALLBACK_HOUSE_MASTER_ID;
+}
+
+async function shapeUser(user) {
+  if (!user) return null;
+  const houseId = user.houseId != null ? Number(user.houseId) : null;
+  let houseName = null;
+  let houseLogoUrl = null;
+  if (houseId) {
+    const house = await prisma.house.findUnique({ where: { id: houseId } });
+    if (house) {
+      houseName = house.name;
+      houseLogoUrl = house.logoUrl || null;
+    }
+  }
+  const houseMasterId = houseId
+    ? await getHouseMasterId(houseId)
+    : (user.role === "admin" || user.role === "house" ? user.id : FALLBACK_HOUSE_MASTER_ID);
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    canLay: !!user.canLay,
+    balance: Number(user.balance) || 0,
+    weight: Number(user.weight) || 1,
+    role: user.role || "punter",
+    mustChangePassword: !!user.mustChangePassword,
+    houseId,
+    houseName,
+    houseLogoUrl,
+    houseMasterId,
+    isPlatformAdmin: (user.role || "") === "admin",
+  };
+}
+
+function actorHouseId(actor) {
+  if (!actor) return null;
+  return actor.houseId != null ? Number(actor.houseId) : null;
+}
+
+function isPlatformAdmin(actor) {
+  return !!actor && actor.role === "admin";
+}
+
+function isHouseOps(actor) {
+  return !!actor && (actor.role === "admin" || actor.role === "house");
+}
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
     process.env.VAPID_SUBJECT || "mailto:admin@bettheman.com",
@@ -65,21 +137,20 @@ async function sendPushToUser(userId, title, body, tag) {
   }
 }
 
-async function sendPushToHouse(title, body, tag) {
-  const users = await prisma.user.findMany({
-    where: {
-      OR: [{ role: "admin" }, { role: "house" }, { id: 7 }],
-    },
-  });
+async function sendPushToHouse(title, body, tag, houseId = null) {
+  const where = houseId
+    ? { houseId: Number(houseId), role: { in: ["admin", "house"] } }
+    : { OR: [{ role: "admin" }, { role: "house" }, { id: FALLBACK_HOUSE_MASTER_ID }] };
+  const users = await prisma.user.findMany({ where });
   for (const u of users) {
     await sendPushToUser(u.id, title, body, tag);
   }
 }
 
-async function sendPushToLayers(title, body, tag, excludeUserId = null) {
-  const users = await prisma.user.findMany({
-    where: { canLay: true },
-  });
+async function sendPushToLayers(title, body, tag, excludeUserId = null, houseId = null) {
+  const where = { canLay: true };
+  if (houseId) where.houseId = Number(houseId);
+  const users = await prisma.user.findMany({ where });
   for (const u of users) {
     if (excludeUserId != null && Number(u.id) === Number(excludeUserId)) continue;
     await sendPushToUser(u.id, title, body, tag);
@@ -203,24 +274,39 @@ const DEFAULT_SETTINGS = {
   partyMode: "false",
 };
 
-async function getSettings() {
-  const rows = await prisma.setting.findMany();
+async function getSettings(houseId = null) {
   const map = { ...DEFAULT_SETTINGS };
-  for (const r of rows) map[r.key] = r.value;
-return {
-  skipHouseFirstLook: map.skipHouseFirstLook === "true",
-  skipHouseResidual: map.skipHouseResidual === "true",
-  layerTimerSeconds: Math.max(5, parseInt(map.layerTimerSeconds) || 30),
-  fcfsAllocation: map.fcfsAllocation === true || map.fcfsAllocation === "true",
-  partyMode: map.partyMode === true || map.partyMode === "true",
-};
+  const globalRows = await prisma.setting.findMany();
+  for (const r of globalRows) map[r.key] = r.value;
+  if (houseId) {
+    const houseRows = await prisma.houseSetting.findMany({
+      where: { houseId: Number(houseId) },
+    });
+    for (const r of houseRows) map[r.key] = r.value;
+  }
+  return {
+    skipHouseFirstLook: map.skipHouseFirstLook === "true",
+    skipHouseResidual: map.skipHouseResidual === "true",
+    layerTimerSeconds: Math.max(5, parseInt(map.layerTimerSeconds) || 30),
+    fcfsAllocation: map.fcfsAllocation === true || map.fcfsAllocation === "true",
+    partyMode: map.partyMode === true || map.partyMode === "true",
+  };
 }
 
-async function setSetting(key, value) {
+async function setSetting(key, value, houseId = null) {
+  const v = String(value);
+  if (houseId) {
+    await prisma.houseSetting.upsert({
+      where: { houseId_key: { houseId: Number(houseId), key } },
+      create: { houseId: Number(houseId), key, value: v },
+      update: { value: v },
+    });
+    return;
+  }
   await prisma.setting.upsert({
     where: { key },
-    create: { key, value: String(value) },
-    update: { value: String(value) },
+    create: { key, value: v },
+    update: { value: v },
   });
 }
 function calcExposure(stake, oddsStr, eachWay, placeFraction) {
@@ -423,8 +509,8 @@ function serializeBet(bet) {
   };
 }
 
-async function applyProRata(layerBids, remaining) {
-    const settings = await getSettings();
+async function applyProRata(layerBids, remaining, houseId = null) {
+    const settings = await getSettings(houseId);
   const list = Array.isArray(layerBids) ? layerBids : [];
 
   if (settings.fcfsAllocation) {
@@ -512,7 +598,7 @@ async function processExpiredTimers() {
   });
 
    for (const bet of houseReviewBets) {
-    const settings = await getSettings();
+    const settings = await getSettings(bet.houseId);
     const updated = await prisma.bet.update({
       where: { id: bet.id },
       data: {
@@ -539,7 +625,8 @@ async function processExpiredTimers() {
       "Available to lay",
       `${updated.event} – ${updated.selection} @ ${updated.odds}`,
       "btm-layer-" + updated.id,
-      updated.punterId
+      updated.punterId,
+      updated.houseId
     );
     changed = true;
   }
@@ -557,7 +644,7 @@ async function processExpiredTimers() {
 
     console.log(`[TIMER] Bet ${bet.id} expired. RemainingForLayers: £${remainingForLayers}`);
 
-const { bids, totalLaid } = await applyProRata(currentBids, remainingForLayers);
+const { bids, totalLaid } = await applyProRata(currentBids, remainingForLayers, bet.houseId);
 
     if (totalLaid >= remainingForLayers - 0.01) {
       const updated = await prisma.bet.update({
@@ -572,7 +659,7 @@ const { bids, totalLaid } = await applyProRata(currentBids, remainingForLayers);
       });
       await settleBalancesForBet(updated);   // balance fix
     } else {
-  const settings = await getSettings();
+  const settings = await getSettings(bet.houseId);
   if (settings.skipHouseResidual) {
     const totalWithHouse = houseLaid + totalLaid;
     const data = {
@@ -648,7 +735,96 @@ if (changed) {
 setInterval(processExpiredTimers, 10000);
 
 app.get("/api/health", (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
-const HOUSE_ID = 7;
+
+app.get("/api/houses", async (req, res) => {
+  try {
+    const actorId = parseInt(req.query.actorId, 10);
+    const actor = actorId ? await getUserRow(actorId) : null;
+    if (!isPlatformAdmin(actor)) {
+      if (actor && actor.houseId) {
+        const house = await prisma.house.findUnique({ where: { id: Number(actor.houseId) } });
+        return res.json({ success: true, houses: house ? [house] : [] });
+      }
+      return res.status(403).json({ success: false, error: "Admin only" });
+    }
+    const houses = await prisma.house.findMany({ orderBy: { id: "asc" } });
+    res.json({ success: true, houses });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/houses", async (req, res) => {
+  try {
+    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    if (!isPlatformAdmin(actor)) {
+      return res.status(403).json({ success: false, error: "Platform admin only" });
+    }
+    const name = String(req.body.name || "").trim();
+    const masterName = String(req.body.masterName || "").trim();
+    const masterEmail = String(req.body.masterEmail || "").trim().toLowerCase();
+    const masterPassword = String(req.body.masterPassword || "");
+    if (!name || !masterName || !masterEmail || !masterPassword) {
+      return res.status(400).json({ success: false, error: "name, masterName, masterEmail, masterPassword required" });
+    }
+    if (masterPassword.length < 4) {
+      return res.status(400).json({ success: false, error: "Password too short" });
+    }
+    const existing = await prisma.user.findUnique({ where: { email: masterEmail } });
+    if (existing) {
+      return res.status(400).json({ success: false, error: "Email already in use" });
+    }
+    let slug = slugify(req.body.slug || name);
+    const clash = await prisma.house.findUnique({ where: { slug } });
+    if (clash) slug = `${slug}-${Date.now().toString(36)}`;
+
+    const house = await prisma.house.create({
+      data: { name, slug, logoUrl: req.body.logoUrl || null, active: true },
+    });
+    const hash = await bcrypt.hash(masterPassword, 10);
+    const master = await prisma.user.create({
+      data: {
+        name: masterName,
+        email: masterEmail,
+        passwordHash: hash,
+        role: "house",
+        canLay: false,
+        balance: 0,
+        weight: 1,
+        houseId: house.id,
+        mustChangePassword: true,
+      },
+    });
+    const keys = ["skipHouseFirstLook", "skipHouseResidual", "layerTimerSeconds", "fcfsAllocation", "partyMode"];
+    for (const key of keys) {
+      await setSetting(key, DEFAULT_SETTINGS[key], house.id);
+    }
+    res.json({
+      success: true,
+      house,
+      master: { id: master.id, name: master.name, email: master.email, role: master.role, houseId: house.id },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+async function chatAllowed(userAId, userBId) {
+  if (!userAId || !userBId || userAId === userBId) return false;
+  const ua = await getUserRow(userAId);
+  const ub = await getUserRow(userBId);
+  if (!ua || !ub) return false;
+  const aOps = isHouseOps(ua);
+  const bOps = isHouseOps(ub);
+  if (aOps === bOps) return false;
+  const punter = aOps ? ub : ua;
+  const house = aOps ? ua : ub;
+  if (punter.houseId && house.houseId && Number(punter.houseId) !== Number(house.houseId) && !isPlatformAdmin(house)) {
+    return false;
+  }
+  return true;
+}
 
 // GET history with the other user
 app.get("/api/chat/:otherUserId", async (req, res) => {
@@ -658,12 +834,8 @@ app.get("/api/chat/:otherUserId", async (req, res) => {
     if (!me || !other) {
       return res.status(400).json({ success: false, error: "userId required" });
     }
-    // Only House <-> punter
-    if (me !== HOUSE_ID && other !== HOUSE_ID) {
+    if (!(await chatAllowed(me, other))) {
       return res.status(403).json({ success: false, error: "Chat only with House" });
-    }
-    if (me === HOUSE_ID && other === HOUSE_ID) {
-      return res.status(400).json({ success: false, error: "Invalid" });
     }
 
     const messages = await prisma.chatMessage.findMany({
@@ -686,13 +858,14 @@ app.get("/api/chat/:otherUserId", async (req, res) => {
 app.get("/api/chat", async (req, res) => {
   try {
     const me = parseInt(req.query.userId, 10);
-    if (me !== HOUSE_ID) {
+    const actor = await getUserRow(me);
+    if (!isHouseOps(actor)) {
       return res.status(403).json({ success: false, error: "House only" });
     }
 
     const all = await prisma.chatMessage.findMany({
       where: {
-        OR: [{ fromUserId: HOUSE_ID }, { toUserId: HOUSE_ID }],
+        OR: [{ fromUserId: me }, { toUserId: me }],
       },
       orderBy: { createdAt: "desc" },
       take: 500,
@@ -700,7 +873,7 @@ app.get("/api/chat", async (req, res) => {
 
      const map = new Map();
     for (const m of all) {
-      const otherId = m.fromUserId === HOUSE_ID ? m.toUserId : m.fromUserId;
+      const otherId = m.fromUserId === me ? m.toUserId : m.fromUserId;
       if (!map.has(otherId)) {
         map.set(otherId, {
           userId: otherId,
@@ -711,10 +884,10 @@ app.get("/api/chat", async (req, res) => {
         });
       }
       const row = map.get(otherId);
-      if (m.fromUserId !== HOUSE_ID && m.fromName) {
+      if (m.fromUserId !== me && m.fromName) {
         row.name = m.fromName;
       }
-      if (m.toUserId === HOUSE_ID && !m.read) row.unread += 1;
+      if (m.toUserId === me && !m.read) row.unread += 1;
     }
 
      const conversations = [...map.values()].sort(
@@ -758,8 +931,7 @@ app.post("/api/chat", async (req, res) => {
     if (img && img.length > 1_500_000) {
       return res.status(400).json({ success: false, error: "Image too large (max ~1MB)" });
     }
-    // Only House <-> punter
-    if (from !== HOUSE_ID && to !== HOUSE_ID) {
+    if (!(await chatAllowed(from, to))) {
       return res.status(403).json({ success: false, error: "Chat only with House" });
     }
     if (from === to) {
@@ -805,7 +977,7 @@ app.delete("/api/chat/:otherUserId", async (req, res) => {
     if (!me || !other) {
       return res.status(400).json({ success: false, error: "userId required" });
     }
-    if (me !== HOUSE_ID && other !== HOUSE_ID) {
+    if (!(await chatAllowed(me, other))) {
       return res.status(403).json({ success: false, error: "Chat only with House" });
     }
 
@@ -896,11 +1068,28 @@ app.post("/api/users/:id/reset-password", async (req, res) => {
 });
 app.get("/api/users", async (req, res) => {
   try {
-          const users = await prisma.$queryRaw`
-SELECT id, name, "canLay", balance, weight, role, "createdAt", "updatedAt"
-      FROM "User"
-      ORDER BY id ASC
-    `;
+    const actorId = parseInt(req.query.actorId, 10);
+    const actor = actorId ? await getUserRow(actorId) : null;
+    const where = {};
+    if (actor && !isPlatformAdmin(actor) && actor.houseId) {
+      where.houseId = Number(actor.houseId);
+    }
+    const users = await prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        canLay: true,
+        balance: true,
+        weight: true,
+        role: true,
+        houseId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { id: "asc" },
+    });
     res.json(users);
   } catch (err) {
     console.error(err);
@@ -963,7 +1152,7 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ success: false, error: "Email and password required" });
     }
     const rows = await prisma.$queryRaw`
-      SELECT id, name, email, "canLay", balance, weight, role, "passwordHash", "mustChangePassword"
+      SELECT id, name, email, "canLay", balance, weight, role, "passwordHash", "mustChangePassword", "houseId"
       FROM "User" WHERE lower(email) = ${email}
     `;
     const user = rows[0];
@@ -976,16 +1165,7 @@ app.post("/api/auth/login", async (req, res) => {
     }
     res.json({
       success: true,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        canLay: user.canLay,
-        balance: Number(user.balance) || 0,
-        weight: Number(user.weight) || 1,
-        role: user.role || "punter",
-        mustChangePassword: !!user.mustChangePassword,   // ← add this
-  },
+      user: await shapeUser(user),
     });
   } catch (err) {
     console.error(err);
@@ -1032,10 +1212,11 @@ app.get('/api/users/:id', async (req, res) => {
         canLay: true,
         weight: true,
         mustChangePassword: true,
+        houseId: true,
       },
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
+    res.json(await shapeUser(user));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -1043,12 +1224,18 @@ app.get('/api/users/:id', async (req, res) => {
 });
 app.post('/api/auth/create-user', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, actorId, canLay } = req.body;
     if (!name ||  !email || !password) {
       return res.status(400).json({ success: false, error: 'Name, email and password required' });
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const actor = actorId ? await getUserRow(actorId) : null;
+    if (actor && !isHouseOps(actor)) {
+      return res.status(403).json({ success: false, error: "House only" });
+    }
+    const houseId = actor && actor.houseId ? Number(actor.houseId) : 1;
+
+    const existing = await prisma.user.findUnique({ where: { email: String(email).trim().toLowerCase() } });
     if (existing) {
       return res.status(400).json({ success: false, error: 'Email already in use' });
     }
@@ -1056,18 +1243,19 @@ app.post('/api/auth/create-user', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: {
-        name,
-        email,
+        name: String(name).trim(),
+        email: String(email).trim().toLowerCase(),
         passwordHash,
         role: 'punter',
-        canLay: false,
+        canLay: !!canLay,
         balance: 0,
         weight: 1.0,
-        mustChangePassword: true,    // force change on first login if you wired it
+        mustChangePassword: true,
+        houseId,
       },
     });
 
-    res.json({ success: true, userId: user.id, email: user.email });
+    res.json({ success: true, userId: user.id, email: user.email, houseId });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -1111,11 +1299,19 @@ app.post("/api/users", async (req, res) => {
     const name = String(req.body.name || "").trim();
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
-    const role = String(req.body.role || "punter");
+    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    let role = String(req.body.role || "punter");
     const canLay = Boolean(req.body.canLay);
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, error: "name, email and password required" });
     }
+    if (actor && !isHouseOps(actor)) {
+      return res.status(403).json({ success: false, error: "House only" });
+    }
+    if (actor && !isPlatformAdmin(actor)) {
+      role = "punter";
+    }
+    const houseId = actor && actor.houseId ? Number(actor.houseId) : (req.body.houseId ? Number(req.body.houseId) : 1);
     const hash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: {
@@ -1126,6 +1322,8 @@ app.post("/api/users", async (req, res) => {
         canLay,
         balance: 0,
         weight: 1,
+        houseId,
+        mustChangePassword: true,
       },
     });
     console.log("Created user", user.id, user.email);
@@ -1166,7 +1364,9 @@ app.post("/api/bets", async (req, res) => {
     if (debit.count === 0) {
       return res.status(400).json({ success: false, error: "Insufficient balance" });
     }
-   const settings = await getSettings();
+   const punter = await getUserRow(punterId);
+   const betHouseId = punter && punter.houseId ? Number(punter.houseId) : 1;
+   const settings = await getSettings(betHouseId);
 const layerSecs = settings.layerTimerSeconds;
 const now = new Date();
 
@@ -1182,6 +1382,7 @@ if (settings.skipHouseFirstLook) {
 
 const bet = await prisma.bet.create({
   data: {
+    houseId: betHouseId,
     punterId: parseInt(req.body.punterId),
     punterName: req.body.punterName || "Unknown",
     event: req.body.event,
@@ -1229,7 +1430,8 @@ status: "pending",
       await sendPushToHouse(
         bet.phase === "house_residual" ? "Residual — House" : "New bet — House review",
         `${bet.event} – ${bet.selection} @ ${bet.odds}`,
-        "btm-house-" + bet.id
+        "btm-house-" + bet.id,
+        bet.houseId
       );
     }
     if (bet.phase === "layer_bidding") {
@@ -1237,7 +1439,8 @@ status: "pending",
         "Available to lay",
         `${bet.event} – ${bet.selection} @ ${bet.odds}`,
         "btm-layer-" + bet.id,
-        bet.punterId
+        bet.punterId,
+        bet.houseId
       );
     }
     res.json({ success: true, bet: serialized });
@@ -1249,7 +1452,13 @@ status: "pending",
 
 app.get("/api/bets", async (req, res) => {
   try {
-    const bets = await prisma.bet.findMany({ orderBy: { createdAt: "desc" } });
+    const actorId = parseInt(req.query.actorId || req.query.userId, 10);
+    const actor = actorId ? await getUserRow(actorId) : null;
+    const where = {};
+    if (actor && actor.houseId && !(isPlatformAdmin(actor) && req.query.all === "1")) {
+      where.houseId = Number(actor.houseId);
+    }
+    const bets = await prisma.bet.findMany({ where, orderBy: { createdAt: "desc" } });
     res.json(bets.map(serializeBet));
   } catch (err) {
     console.error(err);
@@ -1297,7 +1506,7 @@ console.log("HOUSE ACTION", action, "notes", notes);
     data.layerTimerEnd = null;
   } else {
     data.phase = "layer_bidding";
-    const settings = await getSettings();
+    const settings = await getSettings(bet.houseId);
     data.layerTimerEnd = new Date(now.getTime() + settings.layerTimerSeconds * 1000);
     
   }
@@ -1316,7 +1525,7 @@ console.log("HOUSE ACTION", action, "notes", notes);
     }
   } else {
     data.phase = "layer_bidding";
-    const settings = await getSettings();
+    const settings = await getSettings(bet.houseId);
     data.layerTimerEnd = new Date(now.getTime() + settings.layerTimerSeconds * 1000);
   }
 } else if (action === "RejectStop") {
@@ -1368,14 +1577,16 @@ console.log("UPDATE DATA", data);
           "Available to lay",
           `${updated.event} – ${updated.selection} @ ${updated.odds}`,
           "btm-layer-" + updated.id,
-          updated.punterId
+          updated.punterId,
+          updated.houseId
         );
       }
       if (updated.phase === "house_residual") {
         await sendPushToHouse(
           "Residual — House",
           `${updated.event} – ${updated.selection} @ ${updated.odds}`,
-          "btm-house-" + updated.id
+          "btm-house-" + updated.id,
+          updated.houseId
         );
       }
     }
@@ -1392,6 +1603,10 @@ app.post("/api/bets/:id/layer-bid", async (req, res) => {
     const { layerId, layerName, amount, action = "bid" } = req.body;
     const bet = await prisma.bet.findUnique({ where: { id } });
     if (!bet) return res.status(404).json({ success: false });
+    const layerUser = layerId ? await getUserRow(layerId) : null;
+    if (layerUser && bet.houseId && layerUser.houseId && Number(layerUser.houseId) !== Number(bet.houseId)) {
+      return res.status(403).json({ success: false, error: "Cannot lay bets from another house" });
+    }
     // Cap bid to remaining stake after house
 const houseLaid = Number(bet.houseAmount || 0);
 const remaining = Math.max(0, Number(bet.stake) - houseLaid);
@@ -1516,7 +1731,7 @@ if (action !== "reject") {
         .reduce((s, b) => s + parseFloat(b.amount || 0), 0);
 
       if (allLayersActed && activeBidsTotal < remaining - 0.01) {
-              const { bids, totalLaid } = await applyProRata(layerBids, remaining);
+              const { bids, totalLaid } = await applyProRata(layerBids, remaining, bet.houseId);
         const residual = Math.round((remaining - totalLaid) * 100) / 100;
 
         if (residual <= 0.01) {
@@ -1533,7 +1748,7 @@ if (action !== "reject") {
         await settleBalancesForBet(updated);
         console.log(`[EARLY FULL] Bet ${id} fully covered. Laid: £${totalLaid.toFixed(2)}`);
        } else {
-  const settings = await getSettings();
+  const settings = await getSettings(bet.houseId);
   if (settings.skipHouseResidual) {
     const totalWithHouse = Number(bet.houseAmount || 0) + totalLaid;
     const data = {
@@ -1567,7 +1782,7 @@ if (action !== "reject") {
   }
 }
      } else if (allLayersActed && activeBidsTotal >= remaining - 0.01) {
-      const { bids, totalLaid } = await applyProRata(layerBids, remaining);
+      const { bids, totalLaid } = await applyProRata(layerBids, remaining, bet.houseId);
       updated = await prisma.bet.update({
         where: { id },
         data: {
@@ -1641,7 +1856,9 @@ app.get("/api/ledger", async (req, res) => {
 });
 app.get("/api/settings", async (req, res) => {
   try {
-    const settings = await getSettings();
+    const actorId = parseInt(req.query.actorId || req.query.userId, 10);
+    const actor = actorId ? await getUserRow(actorId) : null;
+    const settings = await getSettings(actor && actor.houseId ? actor.houseId : null);
     res.json(settings);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1650,10 +1867,11 @@ app.get("/api/settings", async (req, res) => {
 // GET /api/leaderboard
 app.get('/api/leaderboard', async (req, res) => {
   try {
-    // Check partyMode (stored as string)
-    const partyRow = await prisma.setting.findUnique({ where: { key: 'partyMode' } });
-    const partyMode = partyRow?.value === 'true';
-    if (!partyMode) {
+    const actorId = parseInt(req.query.actorId || req.query.userId, 10);
+    const actor = actorId ? await getUserRow(actorId) : null;
+    const houseId = actor && actor.houseId ? Number(actor.houseId) : null;
+    const settings = await getSettings(houseId);
+    if (!settings.partyMode) {
       return res.json({ success: true, partyMode: false, leaderboard: [] });
     }
 
@@ -1662,6 +1880,7 @@ app.get('/api/leaderboard', async (req, res) => {
       where: {
         role: { notIn: ['admin', 'house'] },
         name: { not: 'House' },
+        ...(houseId ? { houseId } : {}),
       },
       select: { id: true, name: true, balance: true },
     });
@@ -1671,6 +1890,7 @@ app.get('/api/leaderboard', async (req, res) => {
       where: {
         status: { in: ['matched', 'active', 'accepted'] },
         allocationComplete: true,
+        ...(houseId ? { houseId } : {}),
       },
       select: { layerBids: true },
     });
@@ -1761,23 +1981,25 @@ app.post("/api/push/subscribe", async (req, res) => {
 });
 app.post("/api/settings", async (req, res) => {
   try {
-const { skipHouseFirstLook, skipHouseResidual, layerTimerSeconds, fcfsAllocation, partyMode } = req.body;
+const { skipHouseFirstLook, skipHouseResidual, layerTimerSeconds, fcfsAllocation, partyMode, actorId } = req.body;
+    const actor = actorId ? await getUserRow(actorId) : null;
+    const houseId = actor && actor.houseId ? Number(actor.houseId) : null;
     if (typeof skipHouseFirstLook === "boolean") {
-      await setSetting("skipHouseFirstLook", skipHouseFirstLook);
+      await setSetting("skipHouseFirstLook", skipHouseFirstLook, houseId);
     }
     if (typeof skipHouseResidual === "boolean") {
-      await setSetting("skipHouseResidual", skipHouseResidual);
+      await setSetting("skipHouseResidual", skipHouseResidual, houseId);
     }
     if (layerTimerSeconds != null) {
-      await setSetting("layerTimerSeconds", Math.max(5, parseInt(layerTimerSeconds) || 30));
+      await setSetting("layerTimerSeconds", Math.max(5, parseInt(layerTimerSeconds) || 30), houseId);
     }
 if (typeof fcfsAllocation === "boolean") {
-  await setSetting("fcfsAllocation", fcfsAllocation ? "true" : "false");
+  await setSetting("fcfsAllocation", fcfsAllocation ? "true" : "false", houseId);
 }
 if (typeof partyMode === "boolean") {
-  await setSetting("partyMode", partyMode);
+  await setSetting("partyMode", partyMode, houseId);
 }
-    const settings = await getSettings();
+    const settings = await getSettings(houseId);
     res.json({ success: true, settings });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1795,10 +2017,13 @@ app.get("/api/events", async (req, res) => {
     to.setDate(to.getDate() + 25);
     to.setHours(23, 59, 59, 999);
 
+    const actorId = parseInt(req.query.actorId || req.query.userId, 10);
+    const actor = actorId ? await getUserRow(actorId) : null;
     const where = {
       active: true,
       date: { gte: from, lte: to },
     };
+    if (actor && actor.houseId) where.houseId = Number(actor.houseId);
     if (q) {
       where.name = { contains: q, mode: "insensitive" };
     }
@@ -1817,15 +2042,17 @@ app.get("/api/events", async (req, res) => {
 // POST /api/events  (single)
 app.post("/api/events", async (req, res) => {
   try {
-    const { type, name, date } = req.body;
+    const { type, name, date, actorId } = req.body;
     if (!type || !name || !date) {
       return res.status(400).json({ success: false, error: "type, name, date required" });
     }
+    const actor = actorId ? await getUserRow(actorId) : null;
     const event = await prisma.event.create({
       data: {
         type: String(type).toLowerCase(),
         name: String(name).trim(),
         date: new Date(date),
+        houseId: actor && actor.houseId ? Number(actor.houseId) : 1,
       },
     });
     res.json({ success: true, event });
@@ -1841,6 +2068,8 @@ app.post("/api/events/bulk", async (req, res) => {
     if (!rows.length) {
       return res.status(400).json({ success: false, error: "No events provided" });
     }
+    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    const houseId = actor && actor.houseId ? Number(actor.houseId) : 1;
 
     const data = rows
       .filter(r => r.type && r.name && r.date)
@@ -1850,6 +2079,7 @@ app.post("/api/events/bulk", async (req, res) => {
   date: new Date(r.date),
   isHandicap: !!r.isHandicap,
   fieldSize: r.fieldSize != null ? parseInt(r.fieldSize, 10) : null,
+  houseId,
 }));
 
 const result = await prisma.event.createMany({ data });
@@ -1861,7 +2091,11 @@ const result = await prisma.event.createMany({ data });
 // DELETE /api/events  (all)
 app.delete("/api/events", async (req, res) => {
   try {
-    const result = await prisma.event.deleteMany({});
+    const actor = req.body?.actorId || req.query.actorId
+      ? await getUserRow(req.body?.actorId || req.query.actorId)
+      : null;
+    const where = actor && actor.houseId ? { houseId: Number(actor.houseId) } : {};
+    const result = await prisma.event.deleteMany({ where });
     res.json({ success: true, count: result.count });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

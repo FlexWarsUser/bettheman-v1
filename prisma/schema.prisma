@@ -7,6 +7,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model House {
+  id        Int       @id @default(autoincrement())
+  name      String
+  slug      String    @unique
+  logoUrl   String?
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  users     User[]
+  bets      Bet[]
+  events    Event[]
+  settings  HouseSetting[]
+}
+
+model HouseSetting {
+  id        Int      @id @default(autoincrement())
+  houseId   Int
+  house     House    @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  key       String
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@unique([houseId, key])
+  @@index([houseId])
+}
+
 model User {
   id           Int       @id @default(autoincrement())
   name         String
@@ -16,13 +42,19 @@ model User {
   email        String?   @unique
   passwordHash String?
   role         String    @default("punter")
+  houseId      Int?
+  house        House?    @relation(fields: [houseId], references: [id])
   createdAt    DateTime  @default(now())
-  updatedAt    DateTime? @updatedAt 
-    mustChangePassword Boolean @default(true)
+  updatedAt    DateTime? @updatedAt
+  mustChangePassword Boolean @default(true)
+
+  @@index([houseId])
 }
 
 model Bet {
   id                  Int       @id @default(autoincrement())
+  houseId             Int?
+  house               House?    @relation(fields: [houseId], references: [id])
   punterId            Int
   punterName          String
   event               String
@@ -47,6 +79,8 @@ model Bet {
   settlementNotes     String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
+
+  @@index([houseId])
 }
 model LedgerEntry {
   id        Int      @id @default(autoincrement())
@@ -69,6 +103,8 @@ model Setting {
 }
 model Event {
   id         Int      @id @default(autoincrement())
+  houseId    Int?
+  house      House?   @relation(fields: [houseId], references: [id])
   type       String
   name       String
   date       DateTime
@@ -78,6 +114,8 @@ model Event {
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@index([houseId])
 }
 model Runner {
   id        Int      @id @default(autoincrement())
