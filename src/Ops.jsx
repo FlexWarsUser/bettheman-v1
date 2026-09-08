@@ -27,13 +27,17 @@ function applyHouseTheme(user) {
     tag.id = 'btm-house-theme';
     document.head.appendChild(tag);
   }
+  const bgCss = user?.bgColor
+    ? ('radial-gradient(1200px 600px at 50% -10%, ' + panel + ' 0%, ' + bg + ' 55%, #07060f 100%)')
+    : 'radial-gradient(1200px 600px at 50% -10%, #1a1440 0%, #0b0a1a 55%, #07060f 100%)';
+  const btnCss = 'linear-gradient(135deg, ' + btnBg + ', ' + (btnBg === accent ? '#00c6ff' : accent) + ')';
   tag.textContent = [
-    'html, body, #root { background: ' + bg + ' !important; color: ' + text + ' !important; min-height: 100%; }',
+    'html, body, #root { background: ' + bgCss + ' !important; color: ' + text + ' !important; min-height: 100%; }',
     '#root div, #root span, #root p, #root h2, #root h3, #root label, #root li { color: ' + text + ' !important; }',
-    '#root button { background: ' + btnBg + ' !important; color: ' + btnText + ' !important; }',
+    '#root button { background: ' + btnCss + ' !important; color: ' + btnText + ' !important; }',
     '#root input, #root textarea, #root select { color: ' + panelText + ' !important; }',
   ].join(' ');
-  document.body.style.background = bg;
+  document.body.style.background = bgCss;
   document.body.style.color = text;
   try {
     localStorage.setItem('btm_theme', JSON.stringify({
