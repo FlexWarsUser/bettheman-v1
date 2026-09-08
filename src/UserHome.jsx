@@ -28,7 +28,12 @@ function applyHouseTheme(user) {
     tag.id = 'btm-house-theme';
     document.head.appendChild(tag);
   }
-  tag.textContent = 'html, body, #root { background: ' + bg + ' !important; color: ' + text + ' !important; min-height: 100%; }';
+  tag.textContent = [
+    'html, body, #root { background: ' + bg + ' !important; color: ' + text + ' !important; min-height: 100%; }',
+    '#root div, #root span, #root p, #root h2, #root h3, #root label, #root li { color: ' + text + ' !important; }',
+    '#root button { background: ' + btnBg + ' !important; color: ' + btnText + ' !important; }',
+    '#root input, #root textarea, #root select { color: ' + panelText + ' !important; }',
+  ].join(' ');
   document.body.style.background = bg;
   document.body.style.color = text;
   try {
@@ -174,7 +179,7 @@ function CollapsibleSection({ title, children, defaultOpen = false, open: contro
           alignItems: 'center',
           fontWeight: 600,
           fontSize: 14,
-          color: '#e8e8e8',
+          color: 'inherit',
           border: '1px solid #3a3a5c',
         }}
       >
@@ -809,6 +814,14 @@ function footballSelectionsForEvent(eventName) {
         canLayAllowed: data.canLayAllowed,
         weight: data.weight,
         mustChangePassword: data.mustChangePassword,
+        houseLogoUrl: data.houseLogoUrl,
+        accentColor: data.accentColor,
+        bgColor: data.bgColor,
+        panelColor: data.panelColor,
+        textColor: data.textColor,
+        panelTextColor: data.panelTextColor,
+        buttonBgColor: data.buttonBgColor,
+        buttonTextColor: data.buttonTextColor,
       };
       if (JSON.stringify(newUser) !== JSON.stringify(user)) {
         localStorage.setItem('btm_user', JSON.stringify(newUser));

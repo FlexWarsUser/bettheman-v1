@@ -27,7 +27,12 @@ function applyHouseTheme(user) {
     tag.id = 'btm-house-theme';
     document.head.appendChild(tag);
   }
-  tag.textContent = 'html, body, #root { background: ' + bg + ' !important; color: ' + text + ' !important; min-height: 100%; }';
+  tag.textContent = [
+    'html, body, #root { background: ' + bg + ' !important; color: ' + text + ' !important; min-height: 100%; }',
+    '#root div, #root span, #root p, #root h2, #root h3, #root label, #root li { color: ' + text + ' !important; }',
+    '#root button { background: ' + btnBg + ' !important; color: ' + btnText + ' !important; }',
+    '#root input, #root textarea, #root select { color: ' + panelText + ' !important; }',
+  ].join(' ');
   document.body.style.background = bg;
   document.body.style.color = text;
   try {
@@ -174,7 +179,7 @@ function CollapsibleSection({ title, children, defaultOpen = false }) {
           alignItems: 'center',
           fontWeight: '600',
           fontSize: '15px',
-          color: '#e8e8e8',
+          color: 'inherit',
           border: '1px solid #3a3a5c'
         }}
       >
