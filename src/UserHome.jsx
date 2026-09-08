@@ -7,6 +7,14 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 function applyHouseTheme(user) {
   const accent = user?.accentColor || '#00ff88';
   const bg = user?.bgColor || '#12122a';
+  const panel = user?.panelColor || '#1a1a2e';
+  let tag = document.getElementById('btm-house-theme');
+  if (!tag) {
+    tag = document.createElement('style');
+    tag.id = 'btm-house-theme';
+    document.head.appendChild(tag);
+  }
+  tag.textContent = 'html, body, #root { background: ' + bg + ' !important; min-height: 100%; }';
   document.body.style.background = bg;
   try {
     if (user) {
@@ -14,12 +22,12 @@ function applyHouseTheme(user) {
         logoUrl: user.houseLogoUrl || '',
         accentColor: accent,
         bgColor: bg,
-        panelColor: user.panelColor || '#1a1a2e',
+        panelColor: panel,
         houseName: user.houseName || '',
       }));
     }
   } catch (e) {}
-  return { accent, bg, logoSrc: user?.houseLogoUrl || '/logo3.png' };
+  return { accent, bg, panel, logoSrc: user?.houseLogoUrl || '/logo3.png' };
 }
 
 function readSavedTheme() {
@@ -1250,7 +1258,7 @@ const submitLay = async (b) => {
       </div>
       {/* Forced password change */}
 {user.mustChangePassword && user.role !== 'admin' && user.role !== 'house' && (
-        <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginTop: 16, marginBottom: 16 }}>
+        <div style={{ background: theme.panel, border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginTop: 16, marginBottom: 16 }}>
           <div style={{ color: '#00ff88', fontWeight: 600, marginBottom: 8 }}>You must change your password</div>
           <input type="password" placeholder="Current password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} style={inputStyle} />
           <input type="password" placeholder="New password" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={inputStyle} />
@@ -1363,7 +1371,7 @@ const submitLay = async (b) => {
       top: '100%',
       left: 0,
       right: 0,
-      background: '#1a1a2e',
+      background: theme.panel,
       border: '1px solid #3a3a5c',
       borderRadius: 6,
       zIndex: 50,
@@ -1418,7 +1426,7 @@ const submitLay = async (b) => {
             top: '100%',
             left: 0,
             right: 0,
-            background: '#1a1a2e',
+            background: theme.panel,
             border: '1px solid #3a3a5c',
             borderRadius: 6,
             zIndex: 50,
@@ -1481,7 +1489,7 @@ inputMode="decimal"
 />
                      {oddsSuggestions.length > 0 && (
                       <div style={{
-                        background: '#1a1a2e',
+                        background: theme.panel,
                         border: '1px solid #3a3a5c',
                         borderRadius: 6,
                         marginTop: 4,
@@ -1637,7 +1645,7 @@ inputMode="decimal"
 In Process ({inProcess.length + Object.values(holdingBets).filter(h => h.until > Date.now()).length})
     </div>
 {inProcess.map(b => (
-  <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+  <div key={b.id} style={{ background: theme.panel, border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
     <div style={{ fontWeight: 600 }}>
       {b.event} – {b.selection} @ {b.odds}
     </div>
@@ -1659,7 +1667,7 @@ In Process ({inProcess.length + Object.values(holdingBets).filter(h => h.until >
                 <div
                   key={`hold-${b.id}`}
                   style={{
-                    background: '#1a1a2e',
+                    background: theme.panel,
                     border: '1px solid #3a3a5c',
                     borderRadius: 8,
                     padding: 12,
@@ -1689,7 +1697,7 @@ In Process ({inProcess.length + Object.values(holdingBets).filter(h => h.until >
             {activeBets.map(b => {
               const matched = getMatched(b);
               return (
-                <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+                <div key={b.id} style={{ background: theme.panel, border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
           <div style={{ fontWeight: 600 }}>
             {b.event} – {b.selection} @ {b.odds}
           </div>
@@ -1778,7 +1786,7 @@ const originalStake = b.eachWay
       }
 
       return (
-        <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+        <div key={b.id} style={{ background: theme.panel, border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
           <div style={{ fontWeight: 600 }}>
             {b.event} – {b.selection} @ {b.odds}
           </div>
@@ -1811,7 +1819,7 @@ const originalStake = b.eachWay
           <CollapsibleSection title={`Not Accepted (${rejectedBets.length})`} defaultOpen={false}>
             {rejectedBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No rejected bets.</p>}
             {rejectedBets.map(b => (
-                <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+                <div key={b.id} style={{ background: theme.panel, border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                   <div style={{ fontWeight: 600 }}>{b.event}</div>
                   <div style={{ color: '#b0b0b0' }}>
                     {b.selection} @ {b.odds} — £
@@ -1856,7 +1864,7 @@ const liability = calcLiability(laid, b.odds, {
                     ? ' (apportioned)'
                     : '';
               return (
-                <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+                <div key={b.id} style={{ background: theme.panel, border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                   <div style={{ fontWeight: 600 }}>{b.event}</div>
                   <div style={{ color: '#b0b0b0' }}>
                     {b.selection} @ {b.odds} — £
@@ -1904,7 +1912,7 @@ const resultColor = isManual || isPlaced
     ? '#ff6b6b'
     : '#00ff88';
               return (
-                <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+                <div key={b.id} style={{ background: theme.panel, border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                   <div style={{ fontWeight: 600 }}>{b.event}</div>
                   <div style={{ color: '#b0b0b0' }}>
                     {b.selection} @ {b.odds} — £
@@ -1959,7 +1967,7 @@ const liability = currentBid > 0
     }).toFixed(2)
   : '0.00';
             return (
-              <div key={b.id} style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+              <div key={b.id} style={{ background: theme.panel, border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                 <div style={{ fontWeight: 600 }}>
                   {b.event} – {b.selection} @ {b.odds} — £
                   {b.eachWay ? (remaining / 2).toFixed(2) : remaining.toFixed(2)}
@@ -2059,7 +2067,7 @@ style={{
             bottom: 12,
             width: 'min(360px, calc(100vw - 24px))',
             height: 'min(480px, calc(100vh - 24px))',
-            background: '#1a1a2e',
+            background: theme.panel,
             border: '1px solid #3a3a5c',
             borderRadius: 12,
             zIndex: 1000,
@@ -2240,7 +2248,7 @@ style={{
       )}
       {noteModal && (
   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-    <div style={{ background: '#1a1a2e', padding: 20, borderRadius: 10, maxWidth: 400, width: '90%', border: '1px solid #3a3a5c', color: '#e8e8e8' }}>
+    <div style={{ background: theme.panel, padding: 20, borderRadius: 10, maxWidth: 400, width: '90%', border: '1px solid #3a3a5c', color: '#e8e8e8' }}>
       <h3 style={{ color: '#00ff88', marginTop: 0 }}>Notes — {noteModal.name}</h3>
       <textarea
         value={noteText}

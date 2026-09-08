@@ -7,10 +7,14 @@ function applyHouseTheme(user) {
   const accent = user?.accentColor || '#00ff88';
   const bg = user?.bgColor || '#12122a';
   const panel = user?.panelColor || '#1a1a2e';
+  let tag = document.getElementById('btm-house-theme');
+  if (!tag) {
+    tag = document.createElement('style');
+    tag.id = 'btm-house-theme';
+    document.head.appendChild(tag);
+  }
+  tag.textContent = 'html, body, #root { background: ' + bg + ' !important; min-height: 100%; }';
   document.body.style.background = bg;
-  document.documentElement.style.setProperty('--btm-accent', accent);
-  document.documentElement.style.setProperty('--btm-bg', bg);
-  document.documentElement.style.setProperty('--btm-panel', panel);
   try {
     localStorage.setItem('btm_theme', JSON.stringify({
       logoUrl: user?.houseLogoUrl || '',
@@ -233,7 +237,7 @@ const inputStyle = {
   width: '100%',
   padding: '10px',
   marginBottom: 8,
-  background: '#1a1a2e',
+  background: theme.panel,
   color: '#e8e8e8',
   border: '1px solid #3a3a5c',
   borderRadius: 6,
@@ -1432,7 +1436,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
             Residual to decide: £{residual.toFixed(2)}
           </div>
           {b.layerBids && b.layerBids.length > 0 && (
-            <div style={{ fontSize: '12px', background: '#1a1a2e', padding: '8px', marginTop: '8px', borderRadius: '6px', border: '1px solid #3a3a5c' }}>
+            <div style={{ fontSize: '12px', background: theme.panel, padding: '8px', marginTop: '8px', borderRadius: '6px', border: '1px solid #3a3a5c' }}>
               <strong>Layer Bids so far:</strong><br />
               {(b.layerBids || []).map((l, i) => (
                 <div key={i}>• {l.layerName}: £{l.amount} (apportioned £{(l.actualLaid || 0).toFixed(2)})</div>
@@ -1453,7 +1457,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
             </button>
           </div>
           <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
-            <input type="number" placeholder="Partial residual amount" value={partialAmount[b.id] || ''} onChange={e => setPartialAmount({ ...partialAmount, [b.id]: e.target.value })} style={{ flex: 1, padding: '9px', background: '#1a1a2e', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: '6px' }} />
+            <input type="number" placeholder="Partial residual amount" value={partialAmount[b.id] || ''} onChange={e => setPartialAmount({ ...partialAmount, [b.id]: e.target.value })} style={{ flex: 1, padding: '9px', background: theme.panel, color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: '6px' }} />
             <button onClick={() => handleHouseAction(b.id, 'Partial', partialAmount[b.id])} style={{ background: '#d4a017', color: '#0f0c29', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>
               Accept Partial 
             </button>
@@ -1540,7 +1544,7 @@ const exposure = getExposure(b.stake, b.odds, {
               marginTop: 8,
               width: '100%',
               padding: '8px',
-              background: '#1a1a2e',
+              background: theme.panel,
               color: '#e8e8e8',
               border: '1px solid #3a3a5c',
               borderRadius: 6,
@@ -1553,7 +1557,7 @@ const exposure = getExposure(b.stake, b.odds, {
                   <button onClick={() => handleHouseAction(b.id, 'Partial', (parseFloat(b.stake) * 0.5).toFixed(2))} style={{ background: '#3a3a5c', color: 'white', padding: '6px 10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>50%</button>
                 </div>
                 <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
-                  <input type="number" placeholder="Partial amount" value={partialAmount[b.id] || ''} onChange={e => setPartialAmount({ ...partialAmount, [b.id]: e.target.value })} style={{ flex: 1, padding: '9px', background: '#1a1a2e', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: '6px' }} />
+                  <input type="number" placeholder="Partial amount" value={partialAmount[b.id] || ''} onChange={e => setPartialAmount({ ...partialAmount, [b.id]: e.target.value })} style={{ flex: 1, padding: '9px', background: theme.panel, color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: '6px' }} />
                   <button onClick={() => handleHouseAction(b.id, 'Partial', partialAmount[b.id])} style={{ background: '#d4a017', color: '#0f0c29', padding: '9px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>Accept Partial</button>
                 </div>
               </div>
@@ -1816,7 +1820,7 @@ const exposure = getExposure(b.stake, b.odds, {
  {activeTab === 'admin' && (
   <div>
     <CollapsibleSection title="Settings" defaultOpen={false}>
-      <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
+      <div style={{ background: theme.panel, border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '10px 12px', alignItems: 'center', marginBottom: '12px', textAlign: 'left' }}>
           <input
             type="checkbox"
@@ -1881,7 +1885,7 @@ const exposure = getExposure(b.stake, b.odds, {
       <p style={{ color: '#b0b0b0', marginBottom: '12px', fontSize: '13px' }}>
         Offline payments only. Credit / debit / set balances here.
       </p>
-      <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px' }}>
+      <div style={{ background: theme.panel, border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px' }}>
         <select
           value={balanceUserId}
           onChange={e => setBalanceUserId(parseInt(e.target.value))}
@@ -1917,7 +1921,7 @@ const exposure = getExposure(b.stake, b.odds, {
     </CollapsibleSection>
     <CollapsibleSection title="Events" defaultOpen={false}>
       {eventMessage && <p style={{ color: '#00ff88' }}>{eventMessage}</p>}
-      <div style={{ background: '#1a1a2e', padding: 16, borderRadius: 8, marginBottom: 16 }}>
+      <div style={{ background: theme.panel, padding: 16, borderRadius: 8, marginBottom: 16 }}>
         <div style={{ fontWeight: 600, marginBottom: 8 }}>Upload racing / football CSV</div>
         <p style={{ color: '#999', fontSize: 13, marginBottom: 8 }}>
           Racing or football CSV. Football needs home_team / away_team columns.
@@ -1981,7 +1985,7 @@ const exposure = getExposure(b.stake, b.odds, {
             <div
               key={ev.id}
               style={{
-                background: '#1a1a2e',
+                background: theme.panel,
                 border: '1px solid #3a3a5c',
                 borderRadius: 8,
                 padding: '10px 12px',
@@ -2023,7 +2027,7 @@ const exposure = getExposure(b.stake, b.odds, {
       </CollapsibleSection>
     </CollapsibleSection>
     <CollapsibleSection title="Layer pro-rata weights" defaultOpen={false}>
-      <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px' }}>
+      <div style={{ background: theme.panel, border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px' }}>
         <p style={{ color: '#b0b0b0', fontSize: '13px' }}>1.0 = equal share. 2.0 = double share. Range 1.0–2.0.</p>
         {users.filter(u => u.canLay && u.name !== 'House').map(u => (
           <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
@@ -2053,7 +2057,7 @@ const exposure = getExposure(b.stake, b.odds, {
     </CollapsibleSection>
 
     <CollapsibleSection title="Create New User" defaultOpen={false}>
-      <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
+      <div style={{ background: theme.panel, border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
         <input
           type="text"
           placeholder="Full name"
@@ -2086,7 +2090,7 @@ const exposure = getExposure(b.stake, b.odds, {
     </CollapsibleSection>
 
     <CollapsibleSection title="Branding" defaultOpen={false}>
-      <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
+      <div style={{ background: theme.panel, border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
         <p style={{ color: '#b0b0b0', fontSize: 13, marginTop: 0 }}>Logo and colours for this house. Punters see this after login.</p>
         <div style={{ marginBottom: 8, color: '#b0b0b0', fontSize: 13 }}>House name</div>
         <input value={brandName} onChange={e => setBrandName(e.target.value)} style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
@@ -2164,7 +2168,7 @@ const exposure = getExposure(b.stake, b.odds, {
 
     {currentUser?.role === 'admin' && (
     <CollapsibleSection title="Create licensed house" defaultOpen={false}>
-      <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
+      <div style={{ background: theme.panel, border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
         <p style={{ color: '#b0b0b0', fontSize: 13, marginTop: 0 }}>
           Platform admin only. Creates a new book and a house master who can invite their own customers.
         </p>
@@ -2235,7 +2239,7 @@ const exposure = getExposure(b.stake, b.odds, {
     )}
 
     <CollapsibleSection title="User rights" defaultOpen={false}>
-      <div style={{ background: '#1a1a2e', border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
+      <div style={{ background: theme.panel, border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
         <p style={{ color: '#b0b0b0', fontSize: 13 }}>Default is punter. Tick Can lay to allow laying.</p>
         {users.filter(u => Number(u.id) > 0 && u.name !== 'House').map(u => (
                      <div key={u.id} style={{ marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid #2a2a40' }}>
@@ -2349,7 +2353,7 @@ const exposure = getExposure(b.stake, b.odds, {
         style={{
           width: '100%',
           padding: 8,
-          background: '#1a1a2e',
+          background: theme.panel,
           color: '#e8e8e8',
           border: '1px solid #3a3a5c',
           borderRadius: 6,
@@ -2405,7 +2409,7 @@ const exposure = getExposure(b.stake, b.odds, {
       <div
         style={{
           flex: '2 1 280px',
-          background: '#1a1a2e',
+          background: theme.panel,
           border: '1px solid #3a3a5c',
           borderRadius: 10,
           minHeight: 360,
@@ -2545,7 +2549,7 @@ const exposure = getExposure(b.stake, b.odds, {
 )}
 {noteModal && (
   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-    <div style={{ background: '#1a1a2e', padding: 20, borderRadius: 10, maxWidth: 400, width: '90%', border: '1px solid #3a3a5c', color: '#e8e8e8' }}>
+    <div style={{ background: theme.panel, padding: 20, borderRadius: 10, maxWidth: 400, width: '90%', border: '1px solid #3a3a5c', color: '#e8e8e8' }}>
       <h3 style={{ color: '#00ff88', marginTop: 0 }}>Notes — {noteModal.name}</h3>
       <textarea
         value={noteText}
@@ -2563,7 +2567,7 @@ const exposure = getExposure(b.stake, b.odds, {
 )}
 {showBidConfirm && (
   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-    <div style={{ background: '#1a1a2e', padding: '25px', borderRadius: '10px', maxWidth: '380px', width: '90%', border: '1px solid #3a3a5c', color: '#e8e8e8' }}>
+    <div style={{ background: theme.panel, padding: '25px', borderRadius: '10px', maxWidth: '380px', width: '90%', border: '1px solid #3a3a5c', color: '#e8e8e8' }}>
       <h3 style={{ color: '#00ff88' }}>Confirm Layer Bid</h3>
       <p>Lay £{showBidConfirm.amount}?</p>
       <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
