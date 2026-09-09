@@ -302,7 +302,11 @@ if (data.user.role === 'admin' || data.user.role === 'house') {
   return (
     <div style={{ maxWidth: 400, margin: '60px auto', padding: 20, color: '#e8e8e8' }}>
       <h1 style={{ textAlign: 'center', margin: 0 }}>
-        <img src="/logo-login.png" alt="BetTheMan" style={{ maxWidth: '280px', height: 'auto' }} />
+       <img
+  src="/logo-login.png?v=2"
+  alt="BetOrLay"
+  style={{ maxWidth: '280px', height: 'auto', background: 'transparent' }}
+/>
       </h1>
       <div style={{ marginTop: 12 }}>
         <div style={{  marginBottom: 8, color: '#b0b0b0' }}>Email</div>
