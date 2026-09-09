@@ -1340,7 +1340,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
 <div style={{ maxWidth: 520, width: '100%', margin: '6px auto', padding: '6px 12px 12px', boxSizing: 'border-box', color: theme.text, fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <h1 style={{ textAlign: 'left', margin: 0, lineHeight: 0, fontSize: 0 }}>
-          <img src={theme.logoSrc} alt={currentUser?.houseName || 'BetTheMan'} style={{ maxWidth: 280, maxHeight: 140, width: 'auto', height: 'auto', display: 'block' }} />
+          <img src={theme.logoSrc} alt={currentUser?.houseName || 'BetTheMan'} style={{ maxWidth: 72, maxHeight: 36, width: 'auto', height: 'auto', display: 'block' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
           <div style={{ color: '#b0b0b0', marginBottom: 6, fontSize: 14 }}>
