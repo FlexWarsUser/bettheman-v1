@@ -272,16 +272,35 @@ export default function UserHome() {
       applyDefaultPublicTheme();
     }
     if (parsed?.id) {
-      fetch(`${API}/api/users/${parsed.id}`)
+      fetch(`${API}/api/houses/branding?actorId=${parsed.id}`)
         .then(r => r.json())
         .then(data => {
-          if (data && data.id) {
-            persistUser(data);
-            rememberHouseLogo(data.houseId, !!(data.houseLogoUrl && data.houseLogoUrl !== 'in-memory'));
-            setUser({ ...data, _brandingLoaded: true });
+          if (!data.success || !data.house) {
+            setUser(u => u ? { ...u, _brandingLoaded: true } : u);
+            return;
           }
+          const h = data.house;
+          setUser(u => {
+            const next = {
+              ...(u || parsed),
+              houseName: h.name,
+              houseLogoUrl: h.logoUrl || '',
+              accentColor: h.accentColor,
+              bgColor: h.bgColor,
+              panelColor: h.panelColor,
+              textColor: h.textColor,
+              panelTextColor: h.panelTextColor,
+              buttonBgColor: h.buttonBgColor,
+              buttonTextColor: h.buttonTextColor,
+              logoScale: h.logoScale,
+              _brandingLoaded: true,
+            };
+            persistUser(next);
+            rememberHouseLogo(next.houseId, !!h.logoUrl);
+            return next;
+          });
         })
-        .catch(() => {});
+        .catch(() => setUser(u => u ? { ...u, _brandingLoaded: true } : u));
     }
   }, []);
 

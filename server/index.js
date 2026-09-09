@@ -43,6 +43,7 @@ async function shapeUser(user) {
   const houseId = user.houseId != null ? Number(user.houseId) : null;
   let houseName = null;
   let houseLogoUrl = null;
+  let houseHasLogo = false;
   let accentColor = null;
   let bgColor = null;
   let panelColor = null;
@@ -55,7 +56,8 @@ async function shapeUser(user) {
     const house = await prisma.house.findUnique({ where: { id: houseId } });
     if (house) {
       houseName = house.name;
-      houseLogoUrl = house.logoUrl || null;
+      houseLogoUrl = null;
+      houseHasLogo = !!house.logoUrl;
       accentColor = house.accentColor || null;
       bgColor = house.bgColor || null;
       panelColor = house.panelColor || null;
@@ -82,6 +84,7 @@ async function shapeUser(user) {
     houseId,
     houseName,
     houseLogoUrl,
+    houseHasLogo,
     accentColor,
     bgColor,
     panelColor,
@@ -858,6 +861,20 @@ function validHexColor(v) {
   if (v == null || v === "") return true;
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(String(v).trim());
 }
+
+app.get("/api/houses/branding", async (req, res) => {
+  try {
+    const actor = req.query.actorId ? await getUserRow(parseInt(req.query.actorId, 10)) : null;
+    if (!actor || !actor.houseId) {
+      return res.status(403).json({ success: false, error: "House only" });
+    }
+    const house = await prisma.house.findUnique({ where: { id: Number(actor.houseId) } });
+    if (!house) return res.status(404).json({ success: false, error: "House not found" });
+    res.json({ success: true, house });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 app.post("/api/houses/branding", async (req, res) => {
   try {

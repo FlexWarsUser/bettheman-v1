@@ -290,15 +290,31 @@ const [settings, setSettings] = useState({
   }, [currentUser?.id, currentUser?.houseId]);
   useEffect(() => {
     if (!currentUser?.id) return;
-    fetch(`${API}/api/users/${currentUser.id}`)
+    fetch(`${API}/api/houses/branding?actorId=${currentUser.id}`)
       .then(r => r.json())
       .then(data => {
-        if (data && data.id) {
-          rememberHouseLogo(data.houseId, !!(data.houseLogoUrl && data.houseLogoUrl !== 'in-memory'));
-          setCurrentUser(prev => ({ ...(prev || {}), ...data, _brandingLoaded: true }));
+        if (!data.success || !data.house) {
+          setCurrentUser(prev => prev ? { ...prev, _brandingLoaded: true } : prev);
+          return;
         }
+        const h = data.house;
+        rememberHouseLogo(h.id, !!h.logoUrl);
+        setCurrentUser(prev => ({
+          ...(prev || {}),
+          houseName: h.name,
+          houseLogoUrl: h.logoUrl || '',
+          accentColor: h.accentColor,
+          bgColor: h.bgColor,
+          panelColor: h.panelColor,
+          textColor: h.textColor,
+          panelTextColor: h.panelTextColor,
+          buttonBgColor: h.buttonBgColor,
+          buttonTextColor: h.buttonTextColor,
+          logoScale: h.logoScale,
+          _brandingLoaded: true,
+        }));
       })
-      .catch(() => {});
+      .catch(() => setCurrentUser(prev => prev ? { ...prev, _brandingLoaded: true } : prev));
   }, [currentUser?.id]);
 const inputStyle = {
   width: '100%',
