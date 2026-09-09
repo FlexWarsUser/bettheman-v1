@@ -2309,8 +2309,9 @@ style={{
       )}
       {accountOpen && (
   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={() => setAccountOpen(false)}>
-    <div onClick={e => e.stopPropagation()} style={{ background: theme.panel, padding: 20, borderRadius: 12, maxWidth: 360, width: '90%', border: '1px solid #3a3a5c', color: theme.panelText }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+    <div onClick={e => e.stopPropagation()} style={{ background: theme.panel, padding: 20, borderRadius: 12, maxWidth: 360, width: '90%', border: '1px solid #3a3a5c', color: theme.panelText, position: 'relative' }}>
+      <button type="button" onClick={() => setAccountOpen(false)} aria-label="Close" style={{ position: 'absolute', top: 8, right: 8, width: 32, height: 32, border: 'none', background: 'transparent', color: theme.text, fontSize: 22, lineHeight: '32px', cursor: 'pointer' }}>×</button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingRight: 28 }}>
         <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#3d8a7e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="32" height="32" viewBox="0 0 64 64" aria-hidden="true">
             <circle cx="32" cy="32" r="32" fill="#4e9d90" />
@@ -2362,11 +2363,8 @@ style={{
           Enable notifications
         </button>
       )}
-      <button type="button" onClick={onLogout} style={{ width: '100%', padding: 10, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>
+      <button type="button" onClick={onLogout} style={{ width: '100%', padding: '7px 10px', marginTop: 4, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
         Log out
-      </button>
-      <button type="button" onClick={() => setAccountOpen(false)} style={{ width: '100%', padding: 10, marginTop: 8, background: 'transparent', color: theme.text, border: '1px solid #3a3a5c', borderRadius: 6, cursor: 'pointer' }}>
-        Close
       </button>
     </div>
   </div>
