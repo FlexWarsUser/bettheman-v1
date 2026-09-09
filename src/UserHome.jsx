@@ -408,7 +408,14 @@ const [selectionSuggestions, setSelectionSuggestions] = useState([]);
 const [showSelectionDropdown, setShowSelectionDropdown] = useState(false);
 const [oddsSuggestions, setOddsSuggestions] = useState([]);
 const [now, setNow] = useState(Date.now());   // ← add this line
-const [showMoney, setShowMoney] = useState(true);
+const [showMoney, setShowMoney] = useState(() => {
+    try {
+      const v = localStorage.getItem('btm_show_money');
+      if (v === 'false') return false;
+    } catch (e) {}
+    return true;
+  });
+  const [accountOpen, setAccountOpen] = useState(false);
 const [holdingBets, setHoldingBets] = useState({}); // id -> { bet, message, until }
 const prevInProcessIds = useRef(new Set());
   const [noteModal, setNoteModal] = useState(null);
@@ -1257,80 +1264,31 @@ const submitLay = async (b) => {
         <h1 style={{ textAlign: 'left', margin: 0, lineHeight: 0, fontSize: 0 }}>
           <img src={theme.hasCustomLogo ? theme.logoSrc : (user._brandingLoaded && !houseExpectsLogo(user.houseId) ? '/logo-login.png' : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7')} alt={user.houseName || 'BetTheMan'} style={{ maxWidth: Math.round(165 * (theme.logoScale || 100) / 100), maxHeight: Math.round(55 * (theme.logoScale || 100) / 100), width: 'auto', height: 'auto', display: 'block' }} />
         </h1>
-        <div style={{ textAlign: 'right' }}>
-  <div
-  style={{
-    color: '#00ffcc',
-    fontSize: 15,
-    fontWeight: 800,
-    marginBottom: 8,
-    letterSpacing: '0.3px',
-    textShadow: '0 0 10px rgba(0, 255, 200, 0.55)',
-  }}
->
-  {user.name}
-</div>
-          <button
-            type="button"
-            onClick={onLogout}
-            style={{ padding: '8px 12px', fontSize: 14, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer' }}
-          >
-            Log out
-          </button>
-          {!!user.canLayAllowed && (
-          <label style={{
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'flex-end',
-  gap: 8,
-  marginTop: 8,
-  cursor: 'pointer',
-  color: '#c8c8d8',
-  fontSize: 13,
-}}>
-  <input
-    type="checkbox"
-    checked={!!user.canLay}
-    onChange={toggleLayerProfile}
-  />
-  Activate Lays
-</label>
-          )}
-                  {(() => {
-            const supported = typeof Notification !== "undefined";
-            const needsEnable = !supported || Notification.permission !== "granted";
-            if (!needsEnable) return null;
-
-            return (
-              <button
-                type="button"
-                onClick={() => {
-                  if (!supported) {
-                    alert(
-                      "On iPhone: tap Share → Add to Home Screen, then open BetTheMan from the home screen icon and try again."
-                    );
-                    return;
-                  }
-                                 subscribePush(user.id);
-                }}
-                style={{
-                  marginTop: 8,
-                  padding: "6px 10px",
-                  background: "#3a3a5c",
-                  color: "#e8e8e8",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontSize: 12,
-                  display: "block",
-                  marginLeft: "auto",
-                }}
-              >
-                Enable notifications
-              </button>
-            );
-          })()}
-        </div>
+        <button
+          type="button"
+          onClick={() => setAccountOpen(true)}
+          aria-label="Account settings"
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: '50%',
+            border: '2px solid #5aa89a',
+            background: '#3d8a7e',
+            padding: 0,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            flexShrink: 0,
+          }}
+        >
+          <svg width="28" height="28" viewBox="0 0 64 64" aria-hidden="true">
+            <circle cx="32" cy="32" r="32" fill="#4e9d90" />
+            <circle cx="32" cy="24" r="11" fill="#ffffff" />
+            <path d="M12 54c3.5-12 12-18 20-18s16.5 6 20 18" fill="#ffffff" />
+          </svg>
+        </button>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
         {showMoney && (
@@ -1358,28 +1316,6 @@ const submitLay = async (b) => {
             )}
           </div>
         )}
-        <button
-          type="button"
-          onClick={() => setShowMoney((v) => !v)}
-          style={{
-            marginLeft: 'auto',
-            width: 28,
-            height: 28,
-            padding: 0,
-            borderRadius: 8,
-            border: '1px solid #2f3a5c',
-            background: 'rgba(15, 18, 40, 0.9)',
-            color: '#c8c8d8',
-            fontSize: 16,
-            fontWeight: 700,
-            cursor: 'pointer',
-            lineHeight: '26px',
-            textAlign: 'center',
-          }}
-          aria-label={showMoney ? 'Hide balance' : 'Show balance'}
-        >
-          {showMoney ? '−' : '£'}
-        </button>
       </div>
       {/* Forced password change */}
 {user.mustChangePassword && user.role !== 'admin' && user.role !== 'house' && (
@@ -2371,6 +2307,70 @@ style={{
           </div>
         </div>
       )}
+      {accountOpen && (
+  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={() => setAccountOpen(false)}>
+    <div onClick={e => e.stopPropagation()} style={{ background: theme.panel, padding: 20, borderRadius: 12, maxWidth: 360, width: '90%', border: '1px solid #3a3a5c', color: theme.panelText }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#3d8a7e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="32" height="32" viewBox="0 0 64 64" aria-hidden="true">
+            <circle cx="32" cy="32" r="32" fill="#4e9d90" />
+            <circle cx="32" cy="24" r="11" fill="#ffffff" />
+            <path d="M12 54c3.5-12 12-18 20-18s16.5 6 20 18" fill="#ffffff" />
+          </svg>
+        </div>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 18 }}>{user.name}</div>
+          <div style={{ color: '#94a3b8', fontSize: 13 }}>Account</div>
+        </div>
+      </div>
+      <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
+        <div style={{ color: '#00ff88', fontWeight: 700, marginBottom: 6 }}>Balance: £{Number(user.balance || 0).toFixed(2)}</div>
+        <div style={{ color: '#ff6b6b', fontWeight: 600 }}>Open lays: £{Number(openLaysExposure || 0).toFixed(2)}</div>
+      </div>
+      {!!user.canLayAllowed && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, cursor: 'pointer' }}>
+          <input type="checkbox" checked={!!user.canLay} onChange={toggleLayerProfile} />
+          Activate Lays
+        </label>
+      )}
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={!!showMoney}
+          onChange={() => {
+            setShowMoney(v => {
+              const next = !v;
+              try { localStorage.setItem('btm_show_money', next ? 'true' : 'false'); } catch (e) {}
+              return next;
+            });
+          }}
+        />
+        Show balance on home screen
+      </label>
+      {typeof Notification !== "undefined" && Notification.permission !== "granted" && (
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof Notification === "undefined") {
+              alert("On iPhone: tap Share → Add to Home Screen, then open BetTheMan from the home screen icon and try again.");
+              return;
+            }
+            subscribePush(user.id);
+          }}
+          style={{ width: '100%', padding: 10, marginBottom: 12, background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+        >
+          Enable notifications
+        </button>
+      )}
+      <button type="button" onClick={onLogout} style={{ width: '100%', padding: 10, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>
+        Log out
+      </button>
+      <button type="button" onClick={() => setAccountOpen(false)} style={{ width: '100%', padding: 10, marginTop: 8, background: 'transparent', color: theme.text, border: '1px solid #3a3a5c', borderRadius: 6, cursor: 'pointer' }}>
+        Close
+      </button>
+    </div>
+  </div>
+)}
       {noteModal && (
   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
     <div style={{ background: theme.panel, padding: 20, borderRadius: 10, maxWidth: 400, width: '90%', border: '1px solid #3a3a5c', color: '#e8e8e8' }}>
