@@ -2363,7 +2363,7 @@ style={{
           Enable notifications
         </button>
       )}
-      <button type="button" onClick={onLogout} style={{ width: '100%', padding: '7px 10px', marginTop: 4, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+      <button type="button" onClick={() => { if (window.confirm('Log out of BetOrLay?')) onLogout(); }} style={{ width: '100%', padding: '7px 10px', marginTop: 4, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
         Log out
       </button>
     </div>

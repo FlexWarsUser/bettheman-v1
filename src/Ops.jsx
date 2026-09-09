@@ -1401,6 +1401,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
           <button
             type="button"
             onClick={() => {
+              if (!window.confirm('Log out of BetOrLay?')) return;
               localStorage.removeItem('btm_user');
               localStorage.removeItem('btm_theme');
               window.location.href = '/';
