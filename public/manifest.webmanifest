@@ -1,19 +1,19 @@
-﻿{
-  "name": "BetTheMan",
-  "short_name": "BetTheMan",
+{
+  "name": "BetOrLay",
+  "short_name": "BetOrLay",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f0c29",
   "theme_color": "#0f0c29",
   "icons": [
     {
-      "src": "/logo3.png",
+      "src": "/logo-login.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/logo3.png",
+      "src": "/logo-login.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

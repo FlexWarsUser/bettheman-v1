@@ -1,4 +1,4 @@
-﻿self.addEventListener("install", (event) => {
+self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
@@ -7,17 +7,17 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let data = { title: "BetTheMan", body: "New activity" };
+  let data = { title: "BetOrLay", body: "New activity" };
   try {
     if (event.data) data = Object.assign(data, event.data.json());
   } catch (e) {}
 
   event.waitUntil(
-    self.registration.showNotification(data.title || "BetTheMan", {
+    self.registration.showNotification(data.title || "BetOrLay", {
       body: data.body || "",
-      icon: "/logo3.png",
-      badge: "/logo3.png",
-      tag: data.tag || ("btm-" + Date.now()),
+      icon: "/logo-login.png",
+      badge: "/logo-login.png",
+      tag: data.tag || ("bol-" + Date.now()),
       data: data
     })
   );

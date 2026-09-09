@@ -352,7 +352,7 @@ if (data.user.role === 'admin' || data.user.role === 'house') {
   return (
     <div style={{ maxWidth: 400, margin: '60px auto', padding: 20, color: '#e8e8e8' }}>
       <h1 style={{ textAlign: 'center', margin: 0 }}>
-        <img src="/logo-login.png" alt="BetTheMan" style={{ maxWidth: '280px', height: 'auto' }} />
+        <img src="/logo-login.png" alt="BetOrLay" style={{ maxWidth: '280px', height: 'auto' }} />
       </h1>
       <div style={{ marginTop: 12 }}>
         <div style={{  marginBottom: 8, color: '#b0b0b0' }}>Email</div>
@@ -1262,7 +1262,7 @@ const submitLay = async (b) => {
   {/* Header */}
        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
         <h1 style={{ textAlign: 'left', margin: 0, lineHeight: 0, fontSize: 0 }}>
-          <img src={theme.hasCustomLogo ? theme.logoSrc : (user._brandingLoaded && !houseExpectsLogo(user.houseId) ? '/logo-login.png' : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7')} alt={user.houseName || 'BetTheMan'} style={{ maxWidth: Math.round(165 * (theme.logoScale || 100) / 100), maxHeight: Math.round(55 * (theme.logoScale || 100) / 100), width: 'auto', height: 'auto', display: 'block' }} />
+          <img src={theme.hasCustomLogo ? theme.logoSrc : (user._brandingLoaded && !houseExpectsLogo(user.houseId) ? '/logo-login.png' : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7')} alt={user.houseName || 'BetOrLay'} style={{ maxWidth: Math.round(165 * (theme.logoScale || 100) / 100), maxHeight: Math.round(55 * (theme.logoScale || 100) / 100), width: 'auto', height: 'auto', display: 'block' }} />
         </h1>
         <button
           type="button"
@@ -2353,7 +2353,7 @@ style={{
           type="button"
           onClick={() => {
             if (typeof Notification === "undefined") {
-              alert("On iPhone: tap Share → Add to Home Screen, then open BetTheMan from the home screen icon and try again.");
+              alert("On iPhone: tap Share → Add to Home Screen, then open BetOrLay from the home screen icon and try again.");
               return;
             }
             subscribePush(user.id);

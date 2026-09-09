@@ -1392,7 +1392,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
 <div style={{ maxWidth: 520, width: '100%', margin: '6px auto', padding: '6px 12px 12px', boxSizing: 'border-box', color: theme.text, fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
         <h1 style={{ textAlign: 'left', margin: 0, lineHeight: 0, fontSize: 0 }}>
-          <img src={theme.hasCustomLogo ? theme.logoSrc : (currentUser?._brandingLoaded && !houseExpectsLogo(currentUser?.houseId) ? '/logo-login.png' : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7')} alt={currentUser?.houseName || 'BetTheMan'} style={{ maxWidth: Math.round(165 * (theme.logoScale || 100) / 100), maxHeight: Math.round(55 * (theme.logoScale || 100) / 100), width: 'auto', height: 'auto', display: 'block' }} />
+          <img src={theme.hasCustomLogo ? theme.logoSrc : (currentUser?._brandingLoaded && !houseExpectsLogo(currentUser?.houseId) ? '/logo-login.png' : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7')} alt={currentUser?.houseName || 'BetOrLay'} style={{ maxWidth: Math.round(165 * (theme.logoScale || 100) / 100), maxHeight: Math.round(55 * (theme.logoScale || 100) / 100), width: 'auto', height: 'auto', display: 'block' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
           <div style={{ color: '#b0b0b0', marginBottom: 6, fontSize: 14 }}>
@@ -1427,7 +1427,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
                   onClick={() => {
                 if (!supported) {
                   alert(
-                    "On iPhone: tap Share → Add to Home Screen, then open BetTheMan from the home screen icon and try again."
+                    "On iPhone: tap Share → Add to Home Screen, then open BetOrLay from the home screen icon and try again."
                   );
                   return;
                 }
