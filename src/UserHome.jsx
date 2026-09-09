@@ -56,7 +56,8 @@ function applyHouseTheme(user) {
     }
   } catch (e) {}
   const customLogo = user?.houseLogoUrl && user.houseLogoUrl !== 'in-memory' ? user.houseLogoUrl : '';
-  return { accent, bg, panel, text, panelText, btnBg, btnText, logoSrc: customLogo || '/logo-login.png' };
+  const logoScale = Number(user?.logoScale || 100);
+  return { accent, bg, panel, text, panelText, btnBg, btnText, logoSrc: customLogo || '/logo-login.png', logoScale, hasCustomLogo: !!customLogo };
 }
 
 function applyDefaultPublicTheme() {
@@ -261,7 +262,7 @@ export default function UserHome() {
         .then(data => {
           if (data && data.id) {
             persistUser(data);
-            setUser(data);
+            setUser({ ...data, _brandingLoaded: true });
           }
         })
         .catch(() => {});
@@ -285,7 +286,7 @@ export default function UserHome() {
         return;
       }
       persistUser(data.user);
-      setUser(data.user);
+      setUser({ ...data.user, _brandingLoaded: true });
 if (data.user.role === 'admin' || data.user.role === 'house') {
   window.location.href = '/ops';
   return;
@@ -1217,7 +1218,7 @@ const submitLay = async (b) => {
   {/* Header */}
        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
         <h1 style={{ textAlign: 'left', margin: 0, lineHeight: 0, fontSize: 0 }}>
-          <img src={theme.logoSrc} alt={user.houseName || 'BetTheMan'} style={{ maxWidth: 165, maxHeight: 55, width: 'auto', height: 'auto', display: 'block' }} />
+          <img src={theme.logoSrc} alt={user.houseName || 'BetTheMan'} style={{ maxWidth: Math.round(165 * (theme.logoScale || 100) / 100), maxHeight: Math.round(55 * (theme.logoScale || 100) / 100), width: 'auto', height: 'auto', display: 'block', visibility: user._brandingLoaded || theme.hasCustomLogo ? 'visible' : 'hidden' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
   <div

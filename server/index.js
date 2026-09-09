@@ -50,6 +50,7 @@ async function shapeUser(user) {
   let panelTextColor = null;
   let buttonBgColor = null;
   let buttonTextColor = null;
+  let logoScale = null;
   if (houseId) {
     const house = await prisma.house.findUnique({ where: { id: houseId } });
     if (house) {
@@ -62,6 +63,7 @@ async function shapeUser(user) {
       panelTextColor = house.panelTextColor || null;
       buttonBgColor = house.buttonBgColor || null;
       buttonTextColor = house.buttonTextColor || null;
+      logoScale = house.logoScale != null ? Number(house.logoScale) : null;
     }
   }
   const houseMasterId = houseId
@@ -87,6 +89,7 @@ async function shapeUser(user) {
     panelTextColor,
     buttonBgColor,
     buttonTextColor,
+    logoScale,
     houseMasterId,
     isPlatformAdmin: (user.role || "") === "admin",
   };
@@ -912,6 +915,10 @@ app.post("/api/houses/branding", async (req, res) => {
         return res.status(400).json({ success: false, error: "Invalid button text colour" });
       }
       data.buttonTextColor = req.body.buttonTextColor || null;
+    }
+    if (req.body.logoScale !== undefined) {
+      const n = parseInt(req.body.logoScale, 10);
+      data.logoScale = Number.isFinite(n) ? Math.min(200, Math.max(50, n)) : 100;
     }
     if (req.body.resetColors) {
       data.accentColor = null;

@@ -53,7 +53,8 @@ function applyHouseTheme(user) {
     }));
   } catch (e) {}
   const customLogo = user?.houseLogoUrl && user.houseLogoUrl !== 'in-memory' ? user.houseLogoUrl : '';
-  return { accent, bg, panel, text, panelText, btnBg, btnText, logoSrc: customLogo || '/logo-login.png' };
+  const logoScale = Number(user?.logoScale || 100);
+  return { accent, bg, panel, text, panelText, btnBg, btnText, logoSrc: customLogo || '/logo-login.png', logoScale, hasCustomLogo: !!customLogo };
 }
 
 const MOCK_USERS = [
@@ -240,6 +241,7 @@ const [brandPanelText, setBrandPanelText] = useState('#e8e8e8');
 const [brandBtnBg, setBrandBtnBg] = useState('#00ff88');
 const [brandBtnText, setBrandBtnText] = useState('#0b1220');
 const [brandLogo, setBrandLogo] = useState('');
+const [brandLogoScale, setBrandLogoScale] = useState(100);
 const [chatTabUnread, setChatTabUnread] = useState(0);
 const [settings, setSettings] = useState({
   skipHouseFirstLook: false,
@@ -267,7 +269,8 @@ const [settings, setSettings] = useState({
       setBrandPanelText(currentUser.panelTextColor || DEFAULT_BRAND.panelTextColor);
       setBrandBtnBg(currentUser.buttonBgColor || DEFAULT_BRAND.buttonBgColor);
       setBrandBtnText(currentUser.buttonTextColor || DEFAULT_BRAND.buttonTextColor);
-      setBrandLogo(currentUser.houseLogoUrl || '');
+      setBrandLogo(currentUser.houseLogoUrl && currentUser.houseLogoUrl !== 'in-memory' ? currentUser.houseLogoUrl : '');
+      setBrandLogoScale(Number(currentUser.logoScale || 100));
     }
   }, [currentUser?.id, currentUser?.houseId]);
   useEffect(() => {
@@ -276,7 +279,7 @@ const [settings, setSettings] = useState({
       .then(r => r.json())
       .then(data => {
         if (data && data.id) {
-          setCurrentUser(prev => ({ ...(prev || {}), ...data }));
+          setCurrentUser(prev => ({ ...(prev || {}), ...data, _brandingLoaded: true }));
         }
       })
       .catch(() => {});
@@ -1351,7 +1354,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
 <div style={{ maxWidth: 520, width: '100%', margin: '6px auto', padding: '6px 12px 12px', boxSizing: 'border-box', color: theme.text, fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
         <h1 style={{ textAlign: 'left', margin: 0, lineHeight: 0, fontSize: 0 }}>
-          <img src={theme.logoSrc} alt={currentUser?.houseName || 'BetTheMan'} style={{ maxWidth: 165, maxHeight: 55, width: 'auto', height: 'auto', display: 'block' }} />
+          <img src={theme.logoSrc} alt={currentUser?.houseName || 'BetTheMan'} style={{ maxWidth: Math.round(165 * (theme.logoScale || 100) / 100), maxHeight: Math.round(55 * (theme.logoScale || 100) / 100), width: 'auto', height: 'auto', display: 'block', visibility: currentUser?._brandingLoaded || theme.hasCustomLogo ? 'visible' : 'hidden' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
           <div style={{ color: '#b0b0b0', marginBottom: 6, fontSize: 14 }}>
@@ -2159,6 +2162,10 @@ const exposure = getExposure(b.stake, b.odds, {
           style={{ marginBottom: 8, color: '#e8e8e8' }}
         />
         <button type="button" onClick={() => setBrandLogo('')} style={{ marginBottom: 12, background: 'transparent', color: '#b0b0b0', border: '1px solid #3a3a5c', borderRadius: 6, padding: '4px 8px', cursor: 'pointer' }}>Clear logo</button>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ color: '#b0b0b0', fontSize: 13, marginBottom: 6 }}>Logo size {brandLogoScale}%</div>
+          <input type="range" min="50" max="200" value={brandLogoScale} onChange={e => setBrandLogoScale(parseInt(e.target.value, 10))} style={{ width: '100%' }} />
+        </div>
         {[
           ['Accent', brandAccent, setBrandAccent],
           ['Background', brandBg, setBrandBg],
@@ -2181,6 +2188,7 @@ const exposure = getExposure(b.stake, b.odds, {
               actorId: currentUser?.id,
               name: brandName,
               logoUrl: brandLogo || null,
+              logoScale: brandLogoScale,
               accentColor: brandAccent,
               bgColor: brandBg,
               panelColor: brandPanel,
@@ -2201,6 +2209,8 @@ const exposure = getExposure(b.stake, b.odds, {
                 ...currentUser,
                 houseName: data.house.name,
                 houseLogoUrl: data.house.logoUrl,
+                logoScale: data.house.logoScale,
+                _brandingLoaded: true,
                 accentColor: data.house.accentColor,
                 bgColor: data.house.bgColor,
                 panelColor: data.house.panelColor,

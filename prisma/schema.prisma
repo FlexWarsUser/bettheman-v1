@@ -19,6 +19,7 @@ model House {
   panelTextColor   String?
   buttonBgColor    String?
   buttonTextColor  String?
+  logoScale        Int?
   active    Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
