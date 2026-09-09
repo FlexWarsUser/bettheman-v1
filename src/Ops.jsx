@@ -57,6 +57,21 @@ function applyHouseTheme(user) {
   return { accent, bg, panel, text, panelText, btnBg, btnText, logoSrc: customLogo || '/logo-login.png', logoScale, hasCustomLogo: !!customLogo };
 }
 
+function rememberHouseLogo(houseId, hasCustom) {
+  try {
+    if (!houseId) return;
+    if (hasCustom) sessionStorage.setItem('btm_has_logo_' + houseId, '1');
+    else sessionStorage.removeItem('btm_has_logo_' + houseId);
+  } catch (e) {}
+}
+function houseExpectsLogo(houseId) {
+  try {
+    return !!sessionStorage.getItem('btm_has_logo_' + houseId);
+  } catch (e) {
+    return false;
+  }
+}
+
 const MOCK_USERS = [
   { id: 0, name: "House", canLay: true },
   { id: 1, name: "Alex Rivera", canLay: true },
@@ -279,6 +294,7 @@ const [settings, setSettings] = useState({
       .then(r => r.json())
       .then(data => {
         if (data && data.id) {
+          rememberHouseLogo(data.houseId, !!(data.houseLogoUrl && data.houseLogoUrl !== 'in-memory'));
           setCurrentUser(prev => ({ ...(prev || {}), ...data, _brandingLoaded: true }));
         }
       })
@@ -1354,7 +1370,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
 <div style={{ maxWidth: 520, width: '100%', margin: '6px auto', padding: '6px 12px 12px', boxSizing: 'border-box', color: theme.text, fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
         <h1 style={{ textAlign: 'left', margin: 0, lineHeight: 0, fontSize: 0 }}>
-          <img src={theme.logoSrc} alt={currentUser?.houseName || 'BetTheMan'} style={{ maxWidth: Math.round(165 * (theme.logoScale || 100) / 100), maxHeight: Math.round(55 * (theme.logoScale || 100) / 100), width: 'auto', height: 'auto', display: 'block', visibility: currentUser?._brandingLoaded || theme.hasCustomLogo ? 'visible' : 'hidden' }} />
+          <img src={theme.hasCustomLogo ? theme.logoSrc : (currentUser?._brandingLoaded && !houseExpectsLogo(currentUser?.houseId) ? '/logo-login.png' : '')} alt={currentUser?.houseName || 'BetTheMan'} style={{ maxWidth: Math.round(165 * (theme.logoScale || 100) / 100), maxHeight: Math.round(55 * (theme.logoScale || 100) / 100), width: 'auto', height: 'auto', display: 'block' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
           <div style={{ color: '#b0b0b0', marginBottom: 6, fontSize: 14 }}>

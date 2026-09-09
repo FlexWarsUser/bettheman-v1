@@ -209,6 +209,21 @@ const inputStyle = {
   fontSize: 15,
 };
 
+function rememberHouseLogo(houseId, hasCustom) {
+  try {
+    if (!houseId) return;
+    if (hasCustom) sessionStorage.setItem('btm_has_logo_' + houseId, '1');
+    else sessionStorage.removeItem('btm_has_logo_' + houseId);
+  } catch (e) {}
+}
+function houseExpectsLogo(houseId) {
+  try {
+    return !!sessionStorage.getItem('btm_has_logo_' + houseId);
+  } catch (e) {
+    return false;
+  }
+}
+
 function persistUser(user) {
   try {
     const slim = { ...user, houseLogoUrl: user?.houseLogoUrl ? 'in-memory' : '' };
@@ -262,6 +277,7 @@ export default function UserHome() {
         .then(data => {
           if (data && data.id) {
             persistUser(data);
+            rememberHouseLogo(data.houseId, !!(data.houseLogoUrl && data.houseLogoUrl !== 'in-memory'));
             setUser({ ...data, _brandingLoaded: true });
           }
         })
@@ -1218,7 +1234,7 @@ const submitLay = async (b) => {
   {/* Header */}
        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
         <h1 style={{ textAlign: 'left', margin: 0, lineHeight: 0, fontSize: 0 }}>
-          <img src={theme.logoSrc} alt={user.houseName || 'BetTheMan'} style={{ maxWidth: Math.round(165 * (theme.logoScale || 100) / 100), maxHeight: Math.round(55 * (theme.logoScale || 100) / 100), width: 'auto', height: 'auto', display: 'block', visibility: user._brandingLoaded || theme.hasCustomLogo ? 'visible' : 'hidden' }} />
+          <img src={theme.hasCustomLogo ? theme.logoSrc : (user._brandingLoaded && !houseExpectsLogo(user.houseId) ? '/logo-login.png' : '')} alt={user.houseName || 'BetTheMan'} style={{ maxWidth: Math.round(165 * (theme.logoScale || 100) / 100), maxHeight: Math.round(55 * (theme.logoScale || 100) / 100), width: 'auto', height: 'auto', display: 'block' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
   <div
