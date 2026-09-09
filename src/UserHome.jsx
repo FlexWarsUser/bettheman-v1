@@ -894,7 +894,8 @@ function footballSelectionsForEvent(eventName) {
         canLayAllowed: data.canLayAllowed,
         weight: data.weight,
         mustChangePassword: data.mustChangePassword,
-        houseLogoUrl: data.houseLogoUrl,
+        houseLogoUrl: user.houseLogoUrl,
+        houseHasLogo: data.houseHasLogo,
         accentColor: data.accentColor,
         bgColor: data.bgColor,
         panelColor: data.panelColor,
@@ -902,6 +903,7 @@ function footballSelectionsForEvent(eventName) {
         panelTextColor: data.panelTextColor,
         buttonBgColor: data.buttonBgColor,
         buttonTextColor: data.buttonTextColor,
+        logoScale: data.logoScale != null ? data.logoScale : user.logoScale,
       };
       if (JSON.stringify(newUser) !== JSON.stringify(user)) {
         persistUser(newUser);
