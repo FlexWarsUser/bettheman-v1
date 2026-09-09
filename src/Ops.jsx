@@ -522,24 +522,30 @@ socket.emit('chat:join', HOUSE_ID);
     setChatSending(false);
   };
 
-  const endChat = async () => {
-    if (!chatOtherId) return;
-    if (!window.confirm('End this chat? All messages and images will be deleted.')) return;
+  const deleteChatWith = async (otherId) => {
+    if (!otherId) return;
+    if (!window.confirm('Delete this chat? All messages and images will be removed.')) return;
     try {
       const res = await fetch(
-        `${API}/api/chat/${chatOtherId}?userId=${HOUSE_ID}`,
+        `${API}/api/chat/${otherId}?userId=${HOUSE_ID}`,
         { method: 'DELETE' }
       );
       const data = await res.json();
       if (!res.ok || !data.success) alert(data.error || 'Failed');
       else {
-        setChatMessages([]);
-        setChatOtherId(null);
+        if (Number(chatOtherId) === Number(otherId)) {
+          setChatMessages([]);
+          setChatOtherId(null);
+        }
         loadConversations();
       }
     } catch (e) {
       alert(e.message);
     }
+  };
+
+  const endChat = async () => {
+    await deleteChatWith(chatOtherId);
   };
 
   const onPickImage = (e) => {
@@ -2534,8 +2540,16 @@ const exposure = getExposure(b.stake, b.odds, {
           <p style={{ color: '#999' }}>No messages yet.</p>
         )}
         {chatConversations.map((c) => (
-          <button
+          <div
             key={c.userId}
+            style={{
+              display: 'flex',
+              gap: 6,
+              alignItems: 'stretch',
+              marginBottom: 6,
+            }}
+          >
+          <button
             type="button"
             onClick={() => {
               setChatOtherId(c.userId);
@@ -2543,9 +2557,8 @@ const exposure = getExposure(b.stake, b.odds, {
             }}
             style={{
               display: 'block',
-              width: '100%',
+              flex: 1,
               textAlign: 'left',
-              marginBottom: 6,
               padding: 10,
               background: chatOtherId === c.userId ? '#2d6a4f' : '#1a1a2e',
               border: '1px solid #3a3a5c',
@@ -2559,6 +2572,22 @@ const exposure = getExposure(b.stake, b.odds, {
               {c.lastBody?.slice(0, 40) || '—'}
             </div>
           </button>
+          <button
+            type="button"
+            onClick={() => deleteChatWith(c.userId)}
+            style={{
+              background: '#7f1d1d',
+              color: 'white',
+              border: 'none',
+              borderRadius: 8,
+              padding: '0 10px',
+              cursor: 'pointer',
+              fontSize: 12,
+            }}
+          >
+            Delete
+          </button>
+          </div>
         ))}
       </div>
 

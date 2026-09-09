@@ -974,6 +974,21 @@ async function chatAllowed(userAId, userBId) {
   return true;
 }
 
+async function houseCanManageThread(me, other) {
+  const actor = await getUserRow(me);
+  if (!isHouseOps(actor)) return false;
+  if (await chatAllowed(me, other)) return true;
+  const count = await prisma.chatMessage.count({
+    where: {
+      OR: [
+        { fromUserId: me, toUserId: other },
+        { fromUserId: other, toUserId: me },
+      ],
+    },
+  });
+  return count > 0;
+}
+
 // GET history with the other user
 app.get("/api/chat/:otherUserId", async (req, res) => {
   try {
@@ -982,7 +997,7 @@ app.get("/api/chat/:otherUserId", async (req, res) => {
     if (!me || !other) {
       return res.status(400).json({ success: false, error: "userId required" });
     }
-    if (!(await chatAllowed(me, other))) {
+    if (!(await houseCanManageThread(me, other)) && !(await chatAllowed(me, other))) {
       return res.status(403).json({ success: false, error: "Chat only with House" });
     }
 
@@ -1125,7 +1140,7 @@ app.delete("/api/chat/:otherUserId", async (req, res) => {
     if (!me || !other) {
       return res.status(400).json({ success: false, error: "userId required" });
     }
-    if (!(await chatAllowed(me, other))) {
+    if (!(await houseCanManageThread(me, other)) && !(await chatAllowed(me, other))) {
       return res.status(403).json({ success: false, error: "Chat only with House" });
     }
 
