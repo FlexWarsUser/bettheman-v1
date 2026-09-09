@@ -55,7 +55,8 @@ function applyHouseTheme(user) {
       }));
     }
   } catch (e) {}
-  return { accent, bg, panel, text, panelText, btnBg, btnText, logoSrc: user?.houseLogoUrl || '/logo3.png' };
+  const customLogo = user?.houseLogoUrl && user.houseLogoUrl !== 'in-memory' ? user.houseLogoUrl : '';
+  return { accent, bg, panel, text, panelText, btnBg, btnText, logoSrc: customLogo || '/logo-login.png' };
 }
 
 function applyDefaultPublicTheme() {
@@ -146,8 +147,8 @@ function showBetNotification(title, body) {
 
   const opts = {
     body,
-    icon: "/logo3.png",
-    badge: "/logo3.png",
+    icon: "/logo-login.png",
+    badge: "/logo-login.png",
     tag: "btm-bet-" + Date.now(),
   };
 
@@ -302,11 +303,7 @@ if (data.user.role === 'admin' || data.user.role === 'house') {
   return (
     <div style={{ maxWidth: 400, margin: '60px auto', padding: 20, color: '#e8e8e8' }}>
       <h1 style={{ textAlign: 'center', margin: 0 }}>
-       <img
-  src="/logo-login.png?v=2"
-  alt="BetOrLay"
-  style={{ maxWidth: '280px', height: 'auto', background: 'transparent' }}
-/>
+        <img src="/logo-login.png" alt="BetTheMan" style={{ maxWidth: '280px', height: 'auto' }} />
       </h1>
       <div style={{ marginTop: 12 }}>
         <div style={{  marginBottom: 8, color: '#b0b0b0' }}>Email</div>

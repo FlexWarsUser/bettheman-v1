@@ -52,7 +52,8 @@ function applyHouseTheme(user) {
       houseName: user?.houseName || '',
     }));
   } catch (e) {}
-  return { accent, bg, panel, text, panelText, btnBg, btnText, logoSrc: user?.houseLogoUrl || '/logo3.png' };
+  const customLogo = user?.houseLogoUrl && user.houseLogoUrl !== 'in-memory' ? user.houseLogoUrl : '';
+  return { accent, bg, panel, text, panelText, btnBg, btnText, logoSrc: customLogo || '/logo-login.png' };
 }
 
 const MOCK_USERS = [
@@ -150,8 +151,8 @@ function showBetNotification(title, body) {
 
   const opts = {
     body,
-    icon: "/logo3.png",
-    badge: "/logo3.png",
+    icon: "/logo-login.png",
+    badge: "/logo-login.png",
     tag: "btm-bet-" + Date.now(),
   };
 
