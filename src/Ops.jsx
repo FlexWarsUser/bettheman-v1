@@ -270,6 +270,17 @@ const [settings, setSettings] = useState({
       setBrandLogo(currentUser.houseLogoUrl || '');
     }
   }, [currentUser?.id, currentUser?.houseId]);
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    fetch(`${API}/api/users/${currentUser.id}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.id) {
+          setCurrentUser(prev => ({ ...(prev || {}), ...data }));
+        }
+      })
+      .catch(() => {});
+  }, [currentUser?.id]);
 const inputStyle = {
   width: '100%',
   padding: '10px',

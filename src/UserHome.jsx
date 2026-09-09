@@ -243,15 +243,28 @@ export default function UserHome() {
 
   useEffect(() => {
     const raw = localStorage.getItem('btm_user');
+    let parsed = null;
     if (raw) {
       try {
-        setUser(JSON.parse(raw));
+        parsed = JSON.parse(raw);
+        setUser(parsed);
       } catch {
         localStorage.removeItem('btm_user');
         applyDefaultPublicTheme();
       }
     } else {
       applyDefaultPublicTheme();
+    }
+    if (parsed?.id) {
+      fetch(`${API}/api/users/${parsed.id}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.id) {
+            persistUser(data);
+            setUser(data);
+          }
+        })
+        .catch(() => {});
     }
   }, []);
 
