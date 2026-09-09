@@ -1202,9 +1202,9 @@ const submitLay = async (b) => {
   return (
 <div style={{ maxWidth: 520, width: '100%', margin: '6px auto', padding: '6px 12px 12px', boxSizing: 'border-box', color: theme.text }}>
   {/* Header */}
-       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
         <h1 style={{ textAlign: 'left', margin: 0, lineHeight: 0, fontSize: 0 }}>
-          <img src={theme.logoSrc} alt={user.houseName || 'BetTheMan'} style={{ maxWidth: 72, maxHeight: 36, width: 'auto', height: 'auto', display: 'block' }} />
+          <img src={theme.logoSrc} alt={user.houseName || 'BetTheMan'} style={{ maxWidth: 165, maxHeight: 55, width: 'auto', height: 'auto', display: 'block' }} />
         </h1>
         <div style={{ textAlign: 'right' }}>
   <div
