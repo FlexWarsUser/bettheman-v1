@@ -971,6 +971,18 @@ const groupLedgerBets = (entries) => {
     }
     const last = list[list.length - 1];
     const types = list.map(e => String(e.eventType || ''));
+    const timeOf = (pred) => {
+      const hit = list.find(e => pred(String(e.eventType || '')));
+      return hit?.createdAt ? new Date(hit.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+    };
+    const submittedAt = timeOf(t => t === 'submitted');
+    const laidAt = timeOf(t => t === 'matched_total' || t === 'house_accepted' || t === 'house_partial' || t === 'house_reject_stop' || t === 'house_rejected');
+    const settledAt = timeOf(t => t.startsWith('settled_'));
+    const timeBits = [
+      submittedAt ? `in ${submittedAt}` : '',
+      laidAt ? `laid ${laidAt}` : '',
+      settledAt ? `settled ${settledAt}` : '',
+    ].filter(Boolean).join(' · ');
     const layerBits = list.filter(e => e.eventType === 'layer_bid' || e.eventType === 'layer_passed').map(e => {
       const d = e.details && typeof e.details === 'object' ? e.details : {};
       if (e.eventType === 'layer_passed') return `${e.actorName || 'Layer'} pass`;
@@ -1027,10 +1039,14 @@ const groupLedgerBets = (entries) => {
       layerBits.length ? layerBits.join(', ') : '',
       totalAmt != null ? `laid ${money(totalAmt)}` : (layersAmt != null ? `layers ${money(layersAmt)}` : ''),
       settleBit,
+      timeBits,
     ].filter(Boolean);
     rows.push({
       betId,
       createdAt: last.createdAt,
+      submittedAt,
+      laidAt,
+      settledAt,
       line: parts.join(' · '),
       event: bits.event || '',
       selection: bits.selection || '',
@@ -1049,14 +1065,16 @@ const groupLedgerBets = (entries) => {
 };
 const downloadLedgerCsv = () => {
   const grouped = groupLedgerBets(ledger);
-  const rows = [['Time', 'Bet ID', 'Punter', 'Event', 'Selection', 'Odds', 'Each way', 'Stake', 'House', 'Layers', 'Total laid', 'Result', 'Summary']];
+  const rows = [['Submitted', 'Laid', 'Settled', 'Bet ID', 'Punter', 'Event', 'Selection', 'Odds', 'Each way', 'Stake', 'House', 'Layers', 'Total laid', 'Result', 'Summary']];
   const csvVal = (v) => {
     const s = v == null ? '' : String(v);
     return '"' + s.replace(/"/g, '""') + '"';
   };
   for (const g of [...grouped].reverse()) {
     rows.push([
-      g.createdAt ? new Date(g.createdAt).toLocaleString('en-GB') : '',
+      g.submittedAt || '',
+      g.laidAt || '',
+      g.settledAt || '',
       g.betId,
       g.punter,
       g.event,
