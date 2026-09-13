@@ -123,23 +123,30 @@ function getHouseTheme(key) {
 
 const MII_SKIN = ['#f2d3b1', '#ecad80', '#d08b5b', '#ae5d29', '#9e5622', '#763900'];
 const MII_HAIR = ['#0e0e0e', '#6a4e35', '#afafaf', '#b9a05f', '#77311d', '#85c2c6', '#3eac2c'];
-const MII_HAIR_F = [['Long A','long01'],['Long B','long04'],['Long C','long08'],['Long D','long10'],['Long E','long16'],['Long F','long19'],['Long G','long20'],['Long H','long26']];
-const MII_HAIR_M = [['Crop A','short01'],['Crop B','short04'],['Crop C','short07'],['Crop D','short10'],['Crop E','short12'],['Crop F','short14'],['Crop G','short16'],['Crop H','short19']];
+const MII_HAIR_F = [['Long A','long01'],['Long B','long04'],['Long C','long08'],['Long D','long10'],['Long E','long16'],['Long F','long19'],['Long G','long20'],['Long H','long26'],['Balding','short19'],['Bald','bald']];
+const MII_HAIR_M = [['Crop A','short01'],['Crop B','short04'],['Crop C','short07'],['Crop D','short10'],['Crop E','short12'],['Crop F','short14'],['Crop G','short16'],['Balding','short19'],['Bald','bald']];
 const MII_EYES = [['Open','variant01'],['Soft','variant05'],['Keen','variant08'],['Calm','variant12'],['Bright','variant16'],['Sharp','variant19'],['Warm','variant23'],['Deep','variant26']];
 const MII_MOUTH = [['Smile','variant02'],['Grin','variant01'],['Soft','variant06'],['Neutral','variant10'],['Wide','variant15'],['Open','variant20'],['Small','variant25'],['Set','variant30']];
 const MII_GLASSES = [['None','none'],['Round','variant01'],['Square','variant02'],['Narrow','variant03'],['Thick','variant05']];
-const DEFAULT_MII = { sex: 'female', skin: '#f2d3b1', hair: '#0e0e0e', style: 'long16', eyes: 'variant12', mouth: 'variant02', glasses: 'none' };
+const MII_FACE = [['Oval','oval'],['Round','round'],['Slim','slim']];
+const MII_BROWS = [['Soft','variant02'],['Straight','variant06'],['Arched','variant10'],['Heavy','variant14']];
+const MII_FEATURE = [['None','none'],['Moustache','mustache'],['Freckles','freckles'],['Blush','blush'],['Birthmark','birthmark']];
+const DEFAULT_MII = { sex: 'female', skin: '#f2d3b1', hair: '#0e0e0e', style: 'long16', eyes: 'variant12', mouth: 'variant02', glasses: 'none', face: 'oval', brows: 'variant06', feature: 'none' };
 
 function miiUrl(mii) {
   const m = { ...DEFAULT_MII, ...(mii || {}) };
   const female = m.sex !== 'male';
-  const hairMap = { long: 'long16', bob: 'long10', bun: 'long20', short: 'short16', spike: 'short07', bald: 'short01' };
-  const allowedHair = new Set(['long01','long04','long08','long10','long16','long19','long20','long26','short01','short04','short07','short10','short12','short14','short16','short19']);
+  const hairMap = { long: 'long16', bob: 'long10', bun: 'long20', short: 'short16', spike: 'short07', bald: 'bald' };
+  const allowedHair = new Set(['long01','long04','long08','long10','long16','long19','long20','long26','short01','short04','short07','short10','short12','short14','short16','short19','bald']);
   const rawHair = hairMap[m.style] || m.style || (female ? 'long16' : 'short16');
-  const hair = allowedHair.has(rawHair) ? rawHair : (female ? 'long16' : 'short16');
+  const bald = rawHair === 'bald';
+  const hair = bald ? 'short01' : (allowedHair.has(rawHair) ? rawHair : (female ? 'long16' : 'short16'));
   const eyes = ({ lash: 'variant12', round: 'variant05', happy: 'variant16' }[m.eyes] || m.eyes || 'variant12');
   const mouth = ({ smile: 'variant02', open: 'variant20', flat: 'variant10' }[m.mouth] || m.mouth || 'variant02');
   const glasses = m.glasses && m.glasses !== 'none' ? m.glasses : (m.extra === 'glasses' ? 'variant01' : '');
+  const feature = m.feature && m.feature !== 'none' ? m.feature : '';
+  const brows = m.brows || 'variant06';
+  const scale = m.face === 'round' ? '118' : m.face === 'slim' ? '86' : '100';
   const q = new URLSearchParams({
     seed: 'bol',
     radius: '50',
@@ -148,11 +155,16 @@ function miiUrl(mii) {
     skinColor: String(m.skin || 'f2d3b1').replace('#', ''),
     hairColor: String(m.hair || '0e0e0e').replace('#', ''),
     hair,
+    hairProbability: bald ? '0' : '100',
     eyes,
     mouth,
+    eyebrows: brows,
     glassesProbability: glasses ? '100' : '0',
+    featuresProbability: feature ? '100' : '0',
+    scale,
   });
   if (glasses) q.set('glasses', glasses);
+  if (feature) q.set('features', feature);
   return 'https://api.dicebear.com/9.x/adventurer/svg?' + q.toString();
 }
 function MiiFace({ mii, size = 64 }) {
@@ -2718,6 +2730,9 @@ style={{
           </div>
           {[
             ['style', 'Hair', miiDraft.sex === 'male' ? MII_HAIR_M : MII_HAIR_F],
+            ['face', 'Face shape', MII_FACE],
+            ['brows', 'Brows', MII_BROWS],
+            ['feature', 'Facial hair & marks', MII_FEATURE],
             ['eyes', 'Eyes', MII_EYES],
             ['mouth', 'Mouth', MII_MOUTH],
             ['glasses', 'Glasses', MII_GLASSES],
