@@ -230,6 +230,12 @@ function applyHouseTheme(user) {
     font.href = 'https://fonts.googleapis.com/css2?family=Bungee&family=Luckiest+Guy&display=swap';
     document.head.appendChild(font);
   }
+  if (!document.getElementById('btm-board-anim')) {
+    const anim = document.createElement('style');
+    anim.id = 'btm-board-anim';
+    anim.textContent = '@keyframes bolShine{0%{filter:brightness(1)}50%{filter:brightness(1.28)}100%{filter:brightness(1)}}@keyframes bolSweep{0%{background-position:-140% 0}100%{background-position:240% 0}}.bol-shine{animation:bolShine 2.8s ease-in-out infinite}.bol-title{background-image:linear-gradient(90deg,#ffe14a 0%,#fff 42%,#ff7af0 50%,#ffe14a 58%,#18f0ff 100%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:bolSweep 4.2s linear infinite}.bol-cash{animation:bolShine 2.2s ease-in-out infinite}';
+    document.head.appendChild(anim);
+  }
   if (!tag) {
     tag = document.createElement('style');
     tag.id = 'btm-house-theme';
@@ -1857,9 +1863,9 @@ inputMode="decimal"
         letterSpacing: 1,
         textTransform: 'uppercase',
         fontFamily: 'Bungee, "Luckiest Guy", Impact, sans-serif',
-        textShadow: '0 3px 0 #7a00c8, 0 0 16px #ff3de8',
+        textShadow: '0 3px 0 #7a00c8',
         lineHeight: 1.1,
-      }}>
+      }} className="bol-title">
         PARTY MODE
       </div>
       <div style={{
@@ -1871,7 +1877,7 @@ inputMode="decimal"
         textTransform: 'uppercase',
         fontFamily: 'Bungee, sans-serif',
         textShadow: '0 0 10px #18f0ff',
-      }}>
+      }} className="bol-shine">
         LIVE STANDINGS
       </div>
 
@@ -1884,9 +1890,9 @@ inputMode="decimal"
         const onPodium = isTop3;
         const medal = row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : null;
         const arrow =
-          row.movement === 'up'   ? <span style={{ color: onPodium ? '#0a5a20' : '#00ff88', fontWeight: 900 }}>▲</span> :
-          row.movement === 'down' ? <span style={{ color: onPodium ? '#7a1010' : '#ff6b6b', fontWeight: 900 }}>▼</span> :
-                                    <span style={{ color: onPodium ? '#3a2a00' : '#7aa' }}>•</span>;
+          row.movement === 'up'   ? <span style={{ color: '#39ff88', fontWeight: 900 }}>▲</span> :
+          row.movement === 'down' ? <span style={{ color: '#ff5d6a', fontWeight: 900 }}>▼</span> :
+                                    <span style={{ color: '#ffd24a' }}>•</span>;
 
         return (
           <div
@@ -1929,26 +1935,26 @@ inputMode="decimal"
               fontFamily: '"Luckiest Guy", "Titan One", Impact, sans-serif',
               fontWeight: 400,
               letterSpacing: 0.6,
-              color: row.rank === 1 ? '#2a1600' : row.rank === 2 ? '#1a2230' : row.rank === 3 ? '#2a1000' : '#7ef9ff',
+              color: row.rank === 1 ? '#fff6b0' : row.rank === 2 ? '#ffffff' : row.rank === 3 ? '#ffe0c2' : '#7ef9ff',
               fontSize: isTop3 ? 20 : 17,
               lineHeight: 1.05,
-              textShadow: onPodium ? '0 1px 0 rgba(255,255,255,0.35)' : '0 2px 0 #120018, 0 0 8px rgba(255,61,232,0.45)',
+              textShadow: '-1px -1px 0 #1a0a00, 1px -1px 0 #1a0a00, -1px 1px 0 #1a0a00, 1px 1px 0 #1a0a00, 0 0 10px rgba(255,225,74,0.55)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
-            }}>
+            }} className="bol-shine">
               {row.name}
             </div>
 
             <div style={{
               fontWeight: 700,
               fontSize: 15,
-              color: onPodium ? '#102010' : '#7CFF6B',
+              color: '#b8ff4a',
               fontFamily: 'Bungee, sans-serif',
               fontSize: 14,
-              textShadow: onPodium ? '0 1px 0 rgba(255,255,255,0.35)' : '0 0 8px #2aff6a',
+              textShadow: '-1px -1px 0 #102010, 1px 1px 0 #102010, 0 0 8px #2aff6a',
               fontVariantNumeric: 'tabular-nums',
-            }}>
+            }} className="bol-cash">
               £{row.net.toFixed(0)}
             </div>
           </div>
