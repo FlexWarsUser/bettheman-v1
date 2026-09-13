@@ -2251,7 +2251,6 @@ const exposure = getExposure(b.stake, b.odds, {
           <input type="checkbox" checked={brandShimmer} onChange={e => setBrandShimmer(e.target.checked)} />
           Shimmer on Submit button
         </label>
-        <div style={{ height: 36, borderRadius: 8, marginBottom: 12, background: 'linear-gradient(135deg, ' + brandBtnBg + ', ' + (brandBtnEnd || brandBtnBg) + ')' }} />
         <button
           type="button"
           onClick={async () => {
