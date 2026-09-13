@@ -129,80 +129,68 @@ const DEFAULT_MII = { sex: 'female', skin: '#f2c7a0', hair: '#2b1b0e', style: 'l
 function MiiFace({ mii, size = 64 }) {
   const m = { ...DEFAULT_MII, ...(mii || {}) };
   const female = m.sex !== 'male';
-  const jaw = female ? 16 : 18;
+  const uid = 'm' + String(m.skin + m.hair + (m.shirt || '') + size).replace(/[^a-zA-Z0-9]/g, '').slice(0, 18);
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" style={{ display: 'block' }}>
+    <svg width={size} height={size} viewBox="0 0 80 80" style={{ display: 'block' }}>
       <defs>
-        <radialGradient id="miiSky" cx="50%" cy="30%" r="70%">
-          <stop offset="0%" stopColor="#3a4a6a" />
-          <stop offset="100%" stopColor="#121826" />
-        </radialGradient>
-        <radialGradient id="miiSkin" cx="40%" cy="35%" r="70%">
-          <stop offset="0%" stopColor="#fff6" />
-          <stop offset="45%" stopColor={m.skin} />
-          <stop offset="100%" stopColor={m.skin} />
-        </radialGradient>
+        <linearGradient id={uid + 'bg'} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#2a3144" />
+          <stop offset="100%" stopColor="#12161f" />
+        </linearGradient>
+        <clipPath id={uid + 'clip'}><circle cx="40" cy="40" r="40" /></clipPath>
       </defs>
-      <circle cx="32" cy="32" r="32" fill="url(#miiSky)" />
-      <ellipse cx="32" cy="58" rx="20" ry="10" fill={m.shirt || '#1e3a5f'} />
-      <ellipse cx="32" cy="36" rx={female ? 15 : 16.5} ry={jaw} fill="url(#miiSkin)" />
-      {m.style === 'long' && <path d="M14 36 Q12 52 18 58 Q32 50 46 58 Q52 52 50 36 Q48 22 32 18 Q16 22 14 36" fill={m.hair} />}
-      {m.style === 'bob' && <path d="M16 28 Q16 50 24 54 Q32 48 40 54 Q48 50 48 28 Q46 14 32 14 Q18 14 16 28" fill={m.hair} />}
-      {m.style === 'short' && <path d="M15 30 Q32 10 49 30 L47 24 Q32 12 17 24 Z" fill={m.hair} />}
-      {m.style === 'spike' && <path d="M16 30 L20 10 L26 28 L32 8 L38 28 L44 10 L48 30 Q32 16 16 30" fill={m.hair} />}
-      {m.style === 'bun' && (
-        <>
-          <path d="M16 30 Q32 12 48 30 Q32 18 16 30" fill={m.hair} />
-          <circle cx="32" cy="12" r="7" fill={m.hair} />
-        </>
-      )}
-      {m.style === 'bald' && female && <path d="M20 26 Q32 16 44 26" fill={m.hair} />}
-      <ellipse cx="32" cy="34" rx="3.2" ry="4.2" fill={m.skin} stroke="#0002" />
-      {m.eyes === 'happy' ? (
-        <>
-          <path d="M21 32 q5 -5 10 0" stroke="#222" strokeWidth="2" fill="none" />
-          <path d="M33 32 q5 -5 10 0" stroke="#222" strokeWidth="2" fill="none" />
-        </>
-      ) : (
-        <>
-          <ellipse cx="24" cy="33" rx="3.1" ry="3.4" fill="#fff" />
-          <ellipse cx="40" cy="33" rx="3.1" ry="3.4" fill="#fff" />
-          <circle cx="24.4" cy="33.2" r="1.5" fill="#2a1a10" />
-          <circle cx="40.4" cy="33.2" r="1.5" fill="#2a1a10" />
-          <circle cx="25.2" cy="32.4" r="0.5" fill="#fff" />
-          <circle cx="41.2" cy="32.4" r="0.5" fill="#fff" />
-          {m.eyes === 'lash' && (
-            <>
-              <path d="M21 30 l2 -2 M24 29 l0 -2.2 M27 30 l-2 -2" stroke="#222" strokeWidth="1.1" />
-              <path d="M37 30 l2 -2 M40 29 l0 -2.2 M43 30 l-2 -2" stroke="#222" strokeWidth="1.1" />
-            </>
-          )}
-        </>
-      )}
-      {female && <ellipse cx="20" cy="40" rx="3.5" ry="2" fill="#f08" opacity="0.18" />}
-      {female && <ellipse cx="44" cy="40" rx="3.5" ry="2" fill="#f08" opacity="0.18" />}
-      {m.mouth === 'open' ? (
-        <ellipse cx="32" cy="45" rx="4.2" ry="3.2" fill="#8b2040" />
-      ) : m.mouth === 'flat' ? (
-        <path d="M26 45 h12" stroke="#5a3030" strokeWidth="1.8" />
-      ) : (
-        <path d="M25 43 q7 8 14 0" stroke={female ? '#c45' : '#5a3030'} strokeWidth="2" fill="none" />
-      )}
-      {!female && m.extra === 'beard' && <path d="M20 42 Q32 56 44 42 Q32 48 20 42" fill={m.hair} opacity="0.85" />}
-      {m.extra === 'glasses' && (
-        <>
-          <rect x="17" y="29" width="13" height="9" rx="3" fill="#fff3" stroke="#222" />
-          <rect x="34" y="29" width="13" height="9" rx="3" fill="#fff3" stroke="#222" />
-          <path d="M30 33.5 h4" stroke="#222" />
-        </>
-      )}
-      {m.extra === 'earrings' && (
-        <>
-          <circle cx="16" cy="40" r="1.6" fill="#e8c872" />
-          <circle cx="48" cy="40" r="1.6" fill="#e8c872" />
-        </>
-      )}
-      {m.extra === 'cap' && <path d="M14 24 Q32 8 50 24 L54 26 H10 Z" fill={m.hair} />}
+      <g clipPath={'url(#' + uid + 'clip)'}>
+        <rect width="80" height="80" fill={'url(#' + uid + 'bg)'} />
+        <ellipse cx="40" cy="78" rx="28" ry="16" fill={m.shirt || '#1e3a5f'} />
+        {m.style === 'long' && <path d="M12 42 C10 62 22 74 40 70 C58 74 70 62 68 42 C66 22 54 14 40 14 C26 14 14 22 12 42" fill={m.hair} />}
+        {m.style === 'bob' && <path d="M16 36 C16 58 26 64 40 62 C54 64 64 58 64 36 C62 16 52 12 40 12 C28 12 18 16 16 36" fill={m.hair} />}
+        {m.style === 'short' && <path d="M18 34 C20 16 32 12 40 12 C48 12 60 16 62 34 C58 20 40 16 22 22 Z" fill={m.hair} />}
+        {m.style === 'spike' && <path d="M18 36 L22 12 L28 32 L34 10 L40 30 L46 10 L52 32 L58 12 L62 36 C52 22 28 22 18 36" fill={m.hair} />}
+        {m.style === 'bun' && (<><circle cx="40" cy="14" r="9" fill={m.hair} /><path d="M18 34 C22 16 58 16 62 34 C54 22 26 22 18 34" fill={m.hair} /></>)}
+        {m.style === 'bald' && <path d="M24 30 C32 22 48 22 56 30" fill="none" stroke={m.hair} strokeWidth="2" />}
+        <ellipse cx="40" cy="42" rx={female ? 16 : 17.5} ry={female ? 19 : 20.5} fill={m.skin} />
+        <ellipse cx="40" cy="46" rx="3.2" ry="4.4" fill={m.skin} stroke="rgba(0,0,0,0.08)" />
+        {m.eyes === 'happy' ? (
+          <>
+            <path d="M28 42 q5 -4 10 0" stroke="#2a2118" strokeWidth="1.6" fill="none" />
+            <path d="M42 42 q5 -4 10 0" stroke="#2a2118" strokeWidth="1.6" fill="none" />
+          </>
+        ) : (
+          <>
+            <ellipse cx="31" cy="41.5" rx="2.6" ry="2.8" fill="#f4efe8" />
+            <ellipse cx="49" cy="41.5" rx="2.6" ry="2.8" fill="#f4efe8" />
+            <ellipse cx="31.2" cy="41.7" rx="1.15" ry="1.3" fill="#3b2a1c" />
+            <ellipse cx="49.2" cy="41.7" rx="1.15" ry="1.3" fill="#3b2a1c" />
+            <path d="M28.2 39.4 q2.8 -1.2 5.6 0" stroke="#2a2118" strokeWidth="1.05" fill="none" />
+            <path d="M46.2 39.4 q2.8 -1.2 5.6 0" stroke="#2a2118" strokeWidth="1.05" fill="none" />
+            {m.eyes === 'lash' && (
+              <>
+                <path d="M28.4 38.6 l1.1 -1.3 M31 38 v-1.5 M33.6 38.6 l-1.1 -1.3" stroke="#2a2118" strokeWidth="0.8" />
+                <path d="M46.4 38.6 l1.1 -1.3 M49 38 v-1.5 M51.6 38.6 l-1.1 -1.3" stroke="#2a2118" strokeWidth="0.8" />
+              </>
+            )}
+          </>
+        )}
+        {female && <ellipse cx="27" cy="48" rx="4" ry="2.2" fill="#d9968a" opacity="0.16" />}
+        {female && <ellipse cx="53" cy="48" rx="4" ry="2.2" fill="#d9968a" opacity="0.16" />}
+        {m.mouth === 'open' ? (
+          <ellipse cx="40" cy="54" rx="3.2" ry="2" fill="#7a2a3a" />
+        ) : m.mouth === 'flat' ? (
+          <path d="M35 53.5 h10" stroke="#6a3a38" strokeWidth="1.4" strokeLinecap="round" />
+        ) : (
+          <path d="M35 52.5 q5 3.8 10 0" stroke="#8a4542" strokeWidth="1.45" fill="none" strokeLinecap="round" />
+        )}
+        {!female && m.extra === 'beard' && <path d="M26 52 C32 64 48 64 54 52 C46 58 34 58 26 52" fill={m.hair} opacity="0.8" />}
+        {m.extra === 'glasses' && (
+          <>
+            <rect x="25" y="38" width="13" height="8" rx="2" fill="none" stroke="#1a1a1a" strokeWidth="1.3" />
+            <rect x="42" y="38" width="13" height="8" rx="2" fill="none" stroke="#1a1a1a" strokeWidth="1.3" />
+            <path d="M38 42 h4" stroke="#1a1a1a" strokeWidth="1.2" />
+          </>
+        )}
+        {m.extra === 'earrings' && (<><circle cx="23" cy="50" r="1.5" fill="#c9a227" /><circle cx="57" cy="50" r="1.5" fill="#c9a227" /></>)}
+        {m.extra === 'cap' && <path d="M16 30 Q40 10 64 30 L68 33 H12 Z" fill={m.hair} />}
+      </g>
     </svg>
   );
 }
@@ -229,21 +217,23 @@ function cropPhotoInteractive(src, zoom, offX, offY) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
+      const box = 192;
+      const preview = 160;
       const canvas = document.createElement('canvas');
-      canvas.width = 192;
-      canvas.height = 192;
+      canvas.width = box;
+      canvas.height = box;
       const ctx = canvas.getContext('2d');
-      const side = Math.min(img.width, img.height) / zoom;
-      const cx = img.width / 2 + (offX / 100) * img.width * 0.35;
-      const cy = img.height / 2 + (offY / 100) * img.height * 0.35;
-      const sx = Math.max(0, Math.min(img.width - side, cx - side / 2));
-      const sy = Math.max(0, Math.min(img.height - side, cy - side / 2));
+      const scale = box / preview;
+      const dispW = preview * zoom * scale;
+      const dispH = (img.height / img.width) * dispW;
+      const dx = box / 2 + offX * scale - dispW / 2;
+      const dy = box / 2 + offY * scale - dispH / 2;
       ctx.beginPath();
-      ctx.arc(96, 96, 96, 0, Math.PI * 2);
+      ctx.arc(box / 2, box / 2, box / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(img, sx, sy, side, side, 0, 0, 192, 192);
-      resolve(canvas.toDataURL('image/jpeg', 0.72));
+      ctx.drawImage(img, dx, dy, dispW, dispH);
+      resolve(canvas.toDataURL('image/jpeg', 0.82));
     };
     img.onerror = reject;
     img.src = src;
