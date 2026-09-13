@@ -2249,7 +2249,8 @@ async function readAvatar(houseId, userId) {
     const row = await prisma.houseSetting.findUnique({
       where: { houseId_key: { houseId: Number(houseId), key } },
     }).catch(() => null);
-    if (row && row.value) {
+    if (row) {
+      if (!row.value || row.value === "null") return null;
       try { return JSON.parse(row.value); } catch (e) { return null; }
     }
   }
@@ -2283,7 +2284,11 @@ app.post("/api/users/:id/avatar", async (req, res) => {
     }
     const kind = String(req.body.kind || "mii");
     if (kind === "none" || kind === "clear") {
-      await setSetting(avatarKey(id), "", actor.houseId);
+      const key = avatarKey(id);
+      if (actor.houseId) {
+        await prisma.houseSetting.deleteMany({ where: { houseId: Number(actor.houseId), key } });
+      }
+      await prisma.setting.deleteMany({ where: { key } });
       return res.json({ success: true, avatar: null });
     }
     let avatar = { kind: "mii", mii: req.body.mii || {} };

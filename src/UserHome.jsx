@@ -438,6 +438,8 @@ function persistUser(user) {
   try {
     if (user?.id && user?.avatar?.kind === 'photo' && user.avatar.photo) {
       try { sessionStorage.setItem('btm_avatar_' + user.id, user.avatar.photo); } catch (e) {}
+    } else if (user?.id && !user?.avatar) {
+      try { sessionStorage.removeItem('btm_avatar_' + user.id); } catch (e) {}
     }
     const avatar = user?.avatar
       ? (user.avatar.kind === 'photo' ? { kind: 'photo' } : { kind: 'mii', mii: user.avatar.mii || user.avatar })
@@ -499,8 +501,8 @@ export default function UserHome() {
       fetch(`${API}/api/users/${parsed.id}/avatar?actorId=${parsed.id}`)
         .then(r => r.json())
         .then(data => {
-          if (data && data.success && data.avatar) {
-            setUser(u => u ? { ...u, avatar: data.avatar } : { ...parsed, avatar: data.avatar });
+          if (data && data.success) {
+            setUser(u => u ? { ...u, avatar: data.avatar || null } : { ...parsed, avatar: data.avatar || null });
           }
         })
         .catch(() => {});
@@ -2767,7 +2769,10 @@ style={{
                 });
                 const data = await res.json();
                 if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Could not reset');
-                onUserUpdate({ ...user, avatar: null });
+                const updated = { ...user, avatar: null };
+                try { sessionStorage.removeItem('btm_avatar_' + user.id); } catch (e) {}
+                persistUser(updated);
+                onUserUpdate(updated);
                 setCropSrc('');
                 setAvatarMsg('Default avatar restored');
                 setShowDesigner(false);
