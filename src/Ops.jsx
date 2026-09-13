@@ -1546,7 +1546,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
 
       <div style={{ marginTop: 4, marginBottom: 12 }}>
         <span style={{ color: '#00ff88', fontWeight: 600 }}>
-          Balance: £{Number(users.find(u => Number(u.id) === 7)?.balance ?? 0).toFixed(2)}
+          Balance: £{Number(currentUser?.balance ?? 0).toFixed(2)}
         </span>
          {(() => {
           const exp =
