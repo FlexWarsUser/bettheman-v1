@@ -943,12 +943,74 @@ const fetchBets = async () => {
 
 const fetchLedger = async () => {
   try {
-    const res = await fetch(`${API}/api/ledger?limit=200${currentUser?.id ? `&actorId=${currentUser.id}` : ''}`);
+    const res = await fetch(`${API}/api/ledger?limit=500${currentUser?.id ? `&actorId=${currentUser.id}` : ''}`);
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) setLedger(data);
     }
   } catch (e) {}
+};
+const formatLedgerLine = (entry) => {
+  const d = entry.details && typeof entry.details === 'object' ? entry.details : {};
+  const money = (n) => '£' + (Number(n) || 0).toFixed(2);
+  const slip = d.event ? `${d.event} – ${d.selection} @ ${d.odds}${d.eachWay ? ' EW' : ''}` : '';
+  const type = String(entry.eventType || '');
+  if (type === 'submitted') return `${entry.actorName || 'Punter'} submitted ${slip} stake ${money(d.stake)}`;
+  if (type === 'house_accepted') return `House took ${money(d.houseLaid || d.amount || d.stake)} — full match on ${slip}`;
+  if (type === 'house_partial') return `House laid ${money(d.amount != null ? d.amount : d.houseLaid)} on ${slip} (house total ${money(d.houseLaid)})`;
+  if (type === 'house_passed') return `House passed ${slip} to layers`;
+  if (type === 'house_reject_stop') return `House rejected and stopped ${slip}`;
+  if (type === 'house_rejected') return `House rejected ${slip}`;
+  if (type === 'offered_to_layers') return `${slip} offered to layers`;
+  if (type === 'layer_bid') return `${entry.actorName || 'Layer'} bid ${money(d.amount)} on ${slip}`;
+  if (type === 'layer_passed') return `${entry.actorName || 'Layer'} passed ${slip}`;
+  if (type === 'residual_to_house') return `Residual ${money(d.residual || d.unmatched)} returned to House on ${slip}`;
+  if (type === 'matched_total') return `Matched total ${money(d.totalLaid)} on ${slip} (house ${money(d.houseLaid)}, layers ${money(d.layersLaid)}, unmatched ${money(d.unmatched)})`;
+  if (type === 'settled_won') return `Settled WON ${slip}`;
+  if (type === 'settled_lost') return `Settled LOST ${slip}`;
+  if (type === 'settled_manual') return `Settled manual ${slip}${d.notes ? ' — ' + d.notes : ''}`;
+  return `${type.replace(/_/g, ' ')} ${slip}`.trim();
+};
+const downloadLedgerCsv = () => {
+  const rows = [
+    ['Time', 'Bet ID', 'Action', 'Who', 'Event', 'Selection', 'Odds', 'Each way', 'Stake', 'Amount', 'House laid', 'Layers laid', 'Total laid', 'Unmatched', 'Summary'],
+  ];
+  const csvVal = (v) => {
+    const s = v == null ? '' : String(v);
+    return '"' + s.replace(/"/g, '""') + '"';
+  };
+  const list = [...ledger].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  for (const entry of list) {
+    const d = entry.details && typeof entry.details === 'object' ? entry.details : {};
+    const time = entry.createdAt ? new Date(entry.createdAt).toLocaleString('en-GB') : '';
+    rows.push([
+      time,
+      entry.betId != null ? entry.betId : '',
+      String(entry.eventType || '').replace(/_/g, ' '),
+      entry.actorName || '',
+      d.event || '',
+      d.selection || '',
+      d.odds || '',
+      d.eachWay ? 'Y' : '',
+      d.stake != null ? Number(d.stake).toFixed(2) : '',
+      d.amount != null ? Number(d.amount).toFixed(2) : '',
+      d.houseLaid != null ? Number(d.houseLaid).toFixed(2) : (d.houseAmount != null ? Number(d.houseAmount).toFixed(2) : ''),
+      d.layersLaid != null ? Number(d.layersLaid).toFixed(2) : '',
+      d.totalLaid != null ? Number(d.totalLaid).toFixed(2) : '',
+      d.unmatched != null ? Number(d.unmatched).toFixed(2) : '',
+      formatLedgerLine(entry),
+    ]);
+  }
+  const csv = '\uFEFF' + rows.map(r => r.map(csvVal).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'betorlay-ledger.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 };
 const fetchSettings = async () => {
   try {
@@ -2688,42 +2750,28 @@ const exposure = getExposure(b.stake, b.odds, {
         <button
           type="button"
           onClick={fetchLedger}
-          style={{ background: '#3a3a5c', color: 'white', padding: '8px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+          style={{ background: '#3a3a5c', color: 'white', padding: '8px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer', marginRight: 8 }}
         >
           Refresh Ledger
         </button>
+        <button
+          type="button"
+          onClick={downloadLedgerCsv}
+          disabled={!ledger.length}
+          style={{ background: theme.btnBg, color: theme.btnText, padding: '8px 12px', border: 'none', borderRadius: '6px', cursor: ledger.length ? 'pointer' : 'default', fontWeight: 700 }}
+        >
+          Download Excel
+        </button>
       </div>
       {ledger.length === 0 && <p style={muted}>No ledger entries yet.</p>}
-      {ledger.map(entry => {
-        const d = entry.details && typeof entry.details === 'object' ? entry.details : {};
-        const money = (n) => '£' + (Number(n) || 0).toFixed(2);
-        const slip = d.event ? `${d.event} – ${d.selection} @ ${d.odds}${d.eachWay ? ' EW' : ''}` : '';
-        const type = String(entry.eventType || '');
-        let line = '';
-        if (type === 'submitted') line = `${entry.actorName || 'Punter'} submitted ${slip} stake ${money(d.stake)}`;
-        else if (type === 'house_accepted') line = `House took ${money(d.houseLaid || d.amount || d.stake)} — full match on ${slip}`;
-        else if (type === 'house_partial') line = `House laid ${money(d.amount != null ? d.amount : d.houseLaid)} on ${slip} (house total ${money(d.houseLaid)})`;
-        else if (type === 'house_passed') line = `House passed ${slip} to layers`;
-        else if (type === 'house_reject_stop') line = `House rejected and stopped ${slip}`;
-        else if (type === 'house_rejected') line = `House rejected ${slip}`;
-        else if (type === 'offered_to_layers') line = `${slip} offered to layers`;
-        else if (type === 'layer_bid') line = `${entry.actorName || 'Layer'} bid ${money(d.amount)} on ${slip}`;
-        else if (type === 'layer_passed') line = `${entry.actorName || 'Layer'} passed ${slip}`;
-        else if (type === 'residual_to_house') line = `Residual ${money(d.residual || d.unmatched)} returned to House on ${slip}`;
-        else if (type === 'matched_total') line = `Matched total ${money(d.totalLaid)} on ${slip} (house ${money(d.houseLaid)}, layers ${money(d.layersLaid)}, unmatched ${money(d.unmatched)})`;
-        else if (type === 'settled_won') line = `Settled WON ${slip}`;
-        else if (type === 'settled_lost') line = `Settled LOST ${slip}`;
-        else if (type === 'settled_manual') line = `Settled manual ${slip}${d.notes ? ' — ' + d.notes : ''}`;
-        else line = `${type.replace(/_/g, ' ')} ${slip}`.trim();
-        return (
-          <div key={entry.id} style={{ ...card, fontSize: '13px', padding: '10px 12px' }}>
-            <div style={{ fontWeight: 600, color: '#e8e8e8', lineHeight: 1.35 }}>{line}</div>
-            <div style={{ ...muted, marginTop: 4 }}>
-              Bet #{entry.betId} · {entry.createdAt ? new Date(entry.createdAt).toLocaleString('en-GB') : ''}
-            </div>
+      {ledger.map(entry => (
+        <div key={entry.id} style={{ ...card, fontSize: '13px', padding: '10px 12px' }}>
+          <div style={{ fontWeight: 600, color: '#e8e8e8', lineHeight: 1.35 }}>{formatLedgerLine(entry)}</div>
+          <div style={{ ...muted, marginTop: 4 }}>
+            Bet #{entry.betId} · {entry.createdAt ? new Date(entry.createdAt).toLocaleString('en-GB') : ''}
           </div>
-        );
-      })}
+        </div>
+      ))}
     </CollapsibleSection>
   </div>
 )}
