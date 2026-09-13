@@ -436,6 +436,9 @@ function houseExpectsLogo(houseId) {
 
 function persistUser(user) {
   try {
+    if (user?.id && user?.avatar?.kind === 'photo' && user.avatar.photo) {
+      try { sessionStorage.setItem('btm_avatar_' + user.id, user.avatar.photo); } catch (e) {}
+    }
     const avatar = user?.avatar
       ? (user.avatar.kind === 'photo' ? { kind: 'photo' } : { kind: 'mii', mii: user.avatar.mii || user.avatar })
       : null;
@@ -478,6 +481,12 @@ export default function UserHome() {
     if (raw) {
       try {
         parsed = JSON.parse(raw);
+        if (parsed?.id && parsed?.avatar?.kind === 'photo' && !parsed.avatar.photo) {
+          try {
+            const cached = sessionStorage.getItem('btm_avatar_' + parsed.id);
+            if (cached) parsed = { ...parsed, avatar: { kind: 'photo', photo: cached } };
+          } catch (e) {}
+        }
         setUser(parsed);
       } catch {
         localStorage.removeItem('btm_user');
@@ -1159,6 +1168,7 @@ function footballSelectionsForEvent(eventName) {
         buttonBgColor: data.buttonBgColor,
         buttonTextColor: data.buttonTextColor,
         logoScale: data.logoScale != null ? data.logoScale : user.logoScale,
+        avatar: data.avatar != null ? data.avatar : user.avatar,
       };
       if (JSON.stringify(newUser) !== JSON.stringify(user)) {
         persistUser(newUser);
@@ -2671,7 +2681,9 @@ style={{
                     });
                     const data = await res.json();
                     if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Save failed');
-                    onUserUpdate({ ...user, avatar: data.avatar });
+                    const updated = { ...user, avatar: data.avatar };
+                    persistUser(updated);
+                    onUserUpdate(updated);
                     setAvatarMsg('Photo saved');
                     setCropSrc('');
                     setShowDesigner(false);
@@ -2734,7 +2746,9 @@ style={{
               });
               const data = await res.json();
               if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Save failed');
-              onUserUpdate({ ...user, avatar: data.avatar });
+              const updated = { ...user, avatar: data.avatar };
+              persistUser(updated);
+              onUserUpdate(updated);
               setAvatarMsg('Avatar saved');
               setShowDesigner(false);
             }}
