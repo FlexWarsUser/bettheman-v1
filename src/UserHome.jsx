@@ -528,6 +528,7 @@ const [showMoney, setShowMoney] = useState(() => {
   const [totpSecret, setTotpSecret] = useState('');
   const [totpSetupCode, setTotpSetupCode] = useState('');
   const [totpMsg, setTotpMsg] = useState('');
+  const [totpOffPending, setTotpOffPending] = useState(false);
 const [holdingBets, setHoldingBets] = useState({}); // id -> { bet, message, until }
 const prevInProcessIds = useRef(new Set());
   const [noteModal, setNoteModal] = useState(null);
@@ -2433,7 +2434,6 @@ style={{
         </div>
         <div>
           <div style={{ fontWeight: 800, fontSize: 18 }}>{user.name}</div>
-          <div style={{ color: '#94a3b8', fontSize: 13 }}>Account</div>
         </div>
       </div>
       <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
@@ -2461,21 +2461,34 @@ style={{
         Show balance on home screen
       </label>
       <div style={{ marginBottom: 12, paddingTop: 8, borderTop: '1px solid #3a3a5c' }}>
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>Two-factor login</div>
-        {user.totpEnabled ? (
-          <>
-            <div style={{ color: '#00ff88', fontSize: 13, marginBottom: 8 }}>On — authenticator required at sign in</div>
-            <input value={totpSetupCode} onChange={e => setTotpSetupCode(e.target.value)} placeholder="Code to turn off" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
-            <button type="button" onClick={async () => {
-              const res = await fetch(`${API}/api/auth/2fa/disable`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: user.id, code: totpSetupCode }) });
-              const data = await res.json();
-              if (!res.ok || !data.success) return setTotpMsg(data.error || 'Failed');
-              setTotpMsg('2FA off');
-              setTotpSetupCode('');
-              onUserUpdate({ ...user, totpEnabled: false });
-            }} style={{ width: '100%', padding: 8, background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Turn off 2FA</button>
-          </>
-        ) : totpSecret ? (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={(!!user.totpEnabled && !totpOffPending) || !!totpSecret}
+            onChange={async (e) => {
+              const on = e.target.checked;
+              setTotpMsg('');
+              if (on) {
+                setTotpOffPending(false);
+                const res = await fetch(`${API}/api/auth/2fa/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: user.id }) });
+                const data = await res.json();
+                if (!res.ok || !data.success) return setTotpMsg(data.error || 'Failed');
+                setTotpSecret(data.secret);
+                setTotpSetupCode('');
+                return;
+              }
+              if (!user.totpEnabled) {
+                setTotpSecret('');
+                setTotpSetupCode('');
+                return;
+              }
+              setTotpSecret('');
+              setTotpOffPending(true);
+            }}
+          />
+          Two-factor login
+        </label>
+        {!!totpSecret && !user.totpEnabled && (
           <>
             <div style={{ fontSize: 13, marginBottom: 6 }}>Add this key in Google Authenticator / Authy:</div>
             <div style={{ fontFamily: 'monospace', wordBreak: 'break-all', marginBottom: 8 }}>{totpSecret}</div>
@@ -2488,16 +2501,23 @@ style={{
               setTotpSecret('');
               setTotpSetupCode('');
               onUserUpdate({ ...user, totpEnabled: true });
-            }} style={{ width: '100%', padding: 8, background: '#00ff88', color: '#0b1220', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Confirm and enable</button>
+            }} style={{ width: '100%', padding: 8, background: '#00ff88', color: '#0b1220', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Confirm code</button>
           </>
-        ) : (
-          <button type="button" onClick={async () => {
-            const res = await fetch(`${API}/api/auth/2fa/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: user.id }) });
-            const data = await res.json();
-            if (!res.ok || !data.success) return setTotpMsg(data.error || 'Failed');
-            setTotpSecret(data.secret);
-            setTotpMsg('');
-          }} style={{ width: '100%', padding: 8, background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Set up 2FA</button>
+        )}
+        {!!user.totpEnabled && totpOffPending && (
+          <>
+            <div style={{ color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Enter a code to turn off 2FA.</div>
+            <input value={totpSetupCode} onChange={e => setTotpSetupCode(e.target.value)} placeholder="Code to turn off" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
+            <button type="button" onClick={async () => {
+              const res = await fetch(`${API}/api/auth/2fa/disable`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: user.id, code: totpSetupCode }) });
+              const data = await res.json();
+              if (!res.ok || !data.success) return setTotpMsg(data.error || 'Failed');
+              setTotpMsg('2FA off');
+              setTotpSetupCode('');
+              setTotpOffPending(false);
+              onUserUpdate({ ...user, totpEnabled: false });
+            }} style={{ width: '100%', padding: 8, background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Confirm turn off</button>
+          </>
         )}
         {totpMsg && <div style={{ marginTop: 8, fontSize: 13 }}>{totpMsg}</div>}
       </div>

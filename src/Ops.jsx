@@ -2489,7 +2489,7 @@ const exposure = getExposure(b.stake, b.odds, {
     <CollapsibleSection title="User rights" defaultOpen={false}>
       <div style={{ background: theme.panel, border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
         <p style={{ color: '#b0b0b0', fontSize: 13 }}>Default is punter. Tick Can lay to allow laying.</p>
-        {users.filter(u => Number(u.id) > 0 && u.name !== 'House').map(u => (
+        {users.filter(u => Number(u.id) > 0 && u.name !== 'House' && u.role !== 'house' && u.role !== 'admin' && Number(u.id) !== Number(currentUser?.id)).map(u => (
                      <div key={u.id} style={{ marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid #2a2a40' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                 <span style={{ flex: 1 }}>{u.name}</span>
