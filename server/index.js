@@ -2248,11 +2248,11 @@ async function readAvatar(houseId, userId) {
       where: { houseId_key: { houseId: Number(houseId), key } },
     }).catch(() => null);
     if (row && row.value) {
-      try { return JSON.parse(row.value); } catch (e) {}
+      try { return JSON.parse(row.value); } catch (e) { return null; }
     }
   }
   const row = await prisma.setting.findUnique({ where: { key } }).catch(() => null);
-  if (!row || !row.value) return null;
+  if (!row || !row.value || row.value === "null") return null;
   try { return JSON.parse(row.value); } catch (e) { return null; }
 }
 
@@ -2280,6 +2280,10 @@ app.post("/api/users/:id/avatar", async (req, res) => {
       return res.status(403).json({ success: false, error: "You can only change your own avatar" });
     }
     const kind = String(req.body.kind || "mii");
+    if (kind === "none" || kind === "clear") {
+      await setSetting(avatarKey(id), "", actor.houseId);
+      return res.json({ success: true, avatar: null });
+    }
     let avatar = { kind: "mii", mii: req.body.mii || {} };
     if (kind === "photo") {
       const photo = String(req.body.photo || "");

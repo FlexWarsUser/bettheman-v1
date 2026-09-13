@@ -123,12 +123,21 @@ function getHouseTheme(key) {
 
 const MII_SKIN = ['#f2d3b1', '#ecad80', '#d08b5b', '#ae5d29', '#9e5622', '#763900'];
 const MII_HAIR = ['#0e0e0e', '#6a4e35', '#afafaf', '#b9a05f', '#77311d', '#85c2c6', '#3eac2c'];
-const DEFAULT_MII = { sex: 'female', skin: '#f2d3b1', hair: '#0e0e0e', style: 'long', eyes: 'variant12', mouth: 'variant02', extra: 'none' };
+const MII_HAIR_F = ['long01','long04','long08','long10','long12','long16','long19','long20','long23','long26'];
+const MII_HAIR_M = ['short01','short04','short07','short10','short12','short14','short16','short19','short21','short24'];
+const MII_EYES = ['variant01','variant05','variant08','variant12','variant16','variant19','variant23','variant26'];
+const MII_MOUTH = ['variant01','variant02','variant06','variant10','variant15','variant20','variant25','variant30'];
+const MII_GLASSES = ['none','variant01','variant02','variant03','variant05'];
+const DEFAULT_MII = { sex: 'female', skin: '#f2d3b1', hair: '#0e0e0e', style: 'long16', eyes: 'variant12', mouth: 'variant02', glasses: 'none' };
 
 function miiUrl(mii) {
   const m = { ...DEFAULT_MII, ...(mii || {}) };
   const female = m.sex !== 'male';
   const hairMap = { long: 'long16', bob: 'long10', bun: 'long20', short: 'short16', spike: 'short07', bald: 'short01' };
+  const hair = hairMap[m.style] || m.style || (female ? 'long16' : 'short16');
+  const eyes = ({ lash: 'variant12', round: 'variant05', happy: 'variant16' }[m.eyes] || m.eyes || 'variant12');
+  const mouth = ({ smile: 'variant02', open: 'variant20', flat: 'variant10' }[m.mouth] || m.mouth || 'variant02');
+  const glasses = m.glasses && m.glasses !== 'none' ? m.glasses : (m.extra === 'glasses' ? 'variant01' : '');
   const q = new URLSearchParams({
     seed: 'bol',
     radius: '50',
@@ -136,12 +145,12 @@ function miiUrl(mii) {
     backgroundColor: '1b2230',
     skinColor: String(m.skin || 'f2d3b1').replace('#', ''),
     hairColor: String(m.hair || '0e0e0e').replace('#', ''),
-    hair: hairMap[m.style] || (female ? 'long16' : 'short16'),
-    eyes: ({ lash: 'variant12', round: 'variant05', happy: 'variant16' }[m.eyes] || m.eyes || 'variant12'),
-    mouth: ({ smile: 'variant02', open: 'variant20', flat: 'variant10' }[m.mouth] || m.mouth || 'variant02'),
-    glassesProbability: m.extra === 'glasses' ? '100' : '0',
-    glasses: 'variant01',
+    hair,
+    eyes,
+    mouth,
+    glassesProbability: glasses ? '100' : '0',
   });
+  if (glasses) q.set('glasses', glasses);
   return 'https://api.dicebear.com/9.x/adventurer/svg?' + q.toString();
 }
 function MiiFace({ mii, size = 64 }) {
@@ -2583,6 +2592,26 @@ style={{
             </button>
           </div>
         )}
+        {!!user.avatar && (
+          <button
+            type="button"
+            onClick={async () => {
+              const res = await fetch(`${API}/api/users/${user.id}/avatar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ actorId: user.id, kind: 'none' }),
+              });
+              const data = await res.json();
+              if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Could not reset');
+              onUserUpdate({ ...user, avatar: null });
+              setCropSrc('');
+              setAvatarMsg('Default avatar restored');
+            }}
+            style={{ width: '100%', marginTop: 8, padding: 8, background: 'transparent', color: theme.text, border: '1px solid #3a3a5c', borderRadius: 6, cursor: 'pointer' }}
+          >
+            Remove photo / avatar
+          </button>
+        )}
         {avatarMsg && <div style={{ marginTop: 8, fontSize: 13 }}>{avatarMsg}</div>}
       </div>
       <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
@@ -2621,7 +2650,7 @@ style={{
           <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Sex</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
             {['female', 'male'].map(s => (
-              <button key={s} type="button" onClick={() => setMiiDraft(d => ({ ...d, sex: s, style: s === 'female' ? 'long' : 'short', extra: 'none' }))} style={{ flex: 1, padding: 6, borderRadius: 6, border: miiDraft.sex === s ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer' }}>{s}</button>
+              <button key={s} type="button" onClick={() => setMiiDraft(d => ({ ...d, sex: s, style: s === 'female' ? 'long16' : 'short16', glasses: 'none' }))} style={{ flex: 1, padding: 6, borderRadius: 6, border: miiDraft.sex === s ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer' }}>{s}</button>
             ))}
           </div>
           <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Skin</div>
@@ -2637,10 +2666,10 @@ style={{
             ))}
           </div>
           {[
-            ['style', 'Hair', miiDraft.sex === 'male' ? ['short', 'spike', 'bald'] : ['long', 'bob', 'bun', 'short']],
-            ['eyes', 'Eyes', ['lash', 'round', 'happy']],
-            ['mouth', 'Mouth', ['smile', 'open', 'flat']],
-            ['extra', 'Extra', ['none', 'glasses']],
+            ['style', 'Hair', miiDraft.sex === 'male' ? MII_HAIR_M : MII_HAIR_F],
+            ['eyes', 'Eyes', MII_EYES],
+            ['mouth', 'Mouth', MII_MOUTH],
+            ['glasses', 'Glasses', MII_GLASSES],
           ].map(([key, label, opts]) => (
             <div key={key} style={{ marginBottom: 8 }}>
               <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{label}</div>
