@@ -54,7 +54,7 @@ function totpValid(secret, code) {
   const entered = String(code || "").replace(/\s/g, "");
   if (!/^\d{6}$/.test(entered) || !secret) return false;
   const now = Math.floor(Date.now() / 1000 / 30);
-  return [-1, 0, 1].some((w) => totpCode(secret, now + w) === entered);
+  return [-2, -1, 0, 1, 2].some((w) => totpCode(secret, now + w) === entered);
 }
 
 const prisma = new PrismaClient();
@@ -1526,7 +1526,10 @@ app.post("/api/auth/2fa/disable", async (req, res) => {
     if (!actor) return res.status(403).json({ success: false, error: "Not allowed" });
     const rows = await prisma.$queryRaw`SELECT "totpSecret", "totpEnabled" FROM "User" WHERE id = ${actor.id}`;
     const row = rows[0];
-    if (!row || !row.totpEnabled || !totpValid(row.totpSecret, req.body.code)) {
+    if (!row || !row.totpSecret) {
+      return res.status(400).json({ success: false, error: "2FA is not set up" });
+    }
+    if (!totpValid(row.totpSecret, req.body.code)) {
       return res.status(400).json({ success: false, error: "Invalid code" });
     }
     await prisma.$executeRaw`UPDATE "User" SET "totpEnabled" = false, "totpSecret" = NULL WHERE id = ${actor.id}`;

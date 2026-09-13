@@ -2470,6 +2470,7 @@ style={{
               setTotpMsg('');
               if (on) {
                 setTotpOffPending(false);
+                if (user.totpEnabled) return;
                 const res = await fetch(`${API}/api/auth/2fa/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: user.id }) });
                 const data = await res.json();
                 if (!res.ok || !data.success) return setTotpMsg(data.error || 'Failed');
@@ -2509,7 +2510,7 @@ style={{
             <div style={{ color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Enter a code to turn off 2FA.</div>
             <input value={totpSetupCode} onChange={e => setTotpSetupCode(e.target.value)} placeholder="Code to turn off" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
             <button type="button" onClick={async () => {
-              const res = await fetch(`${API}/api/auth/2fa/disable`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: user.id, code: totpSetupCode }) });
+              const res = await fetch(`${API}/api/auth/2fa/disable`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: user.id, code: String(totpSetupCode || '').replace(/\s/g, '') }) });
               const data = await res.json();
               if (!res.ok || !data.success) return setTotpMsg(data.error || 'Failed');
               setTotpMsg('2FA off');
