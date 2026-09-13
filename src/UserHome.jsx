@@ -121,17 +121,17 @@ function getHouseTheme(key) {
   return HOUSE_THEMES.find(t => t.key === key) || HOUSE_THEMES[0];
 }
 
-const MII_SKIN = ['#f2d3b1', '#ecad80', '#d08b5b', '#ae5d29', '#9e5622', '#763900'];
-const MII_HAIR = ['#0e0e0e', '#6a4e35', '#afafaf', '#b9a05f', '#77311d', '#85c2c6', '#3eac2c'];
-const MII_HAIR_F = [['Long A','long01'],['Long B','long04'],['Long C','long08'],['Long D','long10'],['Long E','long16'],['Long F','long19'],['Long G','long20'],['Long H','long26'],['Balding','short19'],['Bald','bald']];
-const MII_HAIR_M = [['Crop A','short01'],['Crop B','short04'],['Crop C','short07'],['Crop D','short10'],['Crop E','short12'],['Crop F','short14'],['Crop G','short16'],['Balding','short19'],['Bald','bald']];
-const MII_EYES = [['Open','variant01'],['Soft','variant05'],['Keen','variant08'],['Calm','variant12'],['Bright','variant16'],['Sharp','variant19'],['Warm','variant23'],['Deep','variant26']];
-const MII_MOUTH = [['Smile','variant02'],['Grin','variant01'],['Soft','variant06'],['Neutral','variant10'],['Wide','variant15'],['Open','variant20'],['Small','variant25'],['Set','variant30']];
-const MII_GLASSES = [['None','none'],['Round','variant01'],['Square','variant02'],['Narrow','variant03'],['Thick','variant05']];
-const MII_FACE = [['Oval','oval'],['Round','round'],['Slim','slim']];
-const MII_BROWS = [['Soft','variant02'],['Straight','variant06'],['Arched','variant10'],['Heavy','variant14']];
-const MII_FEATURE = [['None','none'],['Moustache','mustache'],['Freckles','freckles'],['Blush','blush'],['Birthmark','birthmark']];
-const DEFAULT_MII = { sex: 'female', skin: '#f2d3b1', hair: '#0e0e0e', style: 'long16', eyes: 'variant12', mouth: 'variant02', glasses: 'none', face: 'oval', brows: 'variant06', feature: 'none' };
+export const MII_SKIN = ['#f2d3b1', '#ecad80', '#d08b5b', '#ae5d29', '#9e5622', '#763900'];
+export const MII_HAIR = ['#0e0e0e', '#6a4e35', '#afafaf', '#b9a05f', '#77311d', '#85c2c6', '#3eac2c'];
+export const MII_HAIR_F = [['Long A','long01'],['Long B','long04'],['Long C','long08'],['Long D','long10'],['Long E','long16'],['Long F','long19'],['Long G','long20'],['Long H','long26'],['Balding','short19'],['Bald','bald']];
+export const MII_HAIR_M = [['Crop A','short01'],['Crop B','short04'],['Crop C','short07'],['Crop D','short10'],['Crop E','short12'],['Crop F','short14'],['Crop G','short16'],['Balding','short19'],['Bald','bald']];
+export const MII_EYES = [['Open','variant01'],['Soft','variant05'],['Keen','variant08'],['Calm','variant12'],['Bright','variant16'],['Sharp','variant19'],['Warm','variant23'],['Deep','variant26']];
+export const MII_MOUTH = [['Smile','variant02'],['Grin','variant01'],['Soft','variant06'],['Neutral','variant10'],['Wide','variant15'],['Open','variant20'],['Small','variant25'],['Set','variant30']];
+export const MII_GLASSES = [['None','none'],['Round','variant01'],['Square','variant02'],['Narrow','variant03'],['Thick','variant05']];
+export const MII_FACE = [['Oval','oval'],['Round','round'],['Slim','slim']];
+export const MII_BROWS = [['Soft','variant02'],['Straight','variant06'],['Arched','variant10'],['Heavy','variant14']];
+export const MII_FEATURE = [['None','none'],['Moustache','mustache'],['Freckles','freckles'],['Blush','blush'],['Birthmark','birthmark']];
+export const DEFAULT_MII = { sex: 'female', skin: '#f2d3b1', hair: '#0e0e0e', style: 'long16', eyes: 'variant12', mouth: 'variant02', glasses: 'none', face: 'oval', brows: 'variant06', feature: 'none' };
 
 function miiUrl(mii) {
   const m = { ...DEFAULT_MII, ...(mii || {}) };
@@ -167,7 +167,7 @@ function miiUrl(mii) {
   if (feature) q.set('features', feature);
   return 'https://api.dicebear.com/9.x/adventurer/svg?' + q.toString();
 }
-function MiiFace({ mii, size = 64 }) {
+export function MiiFace({ mii, size = 64 }) {
   return (
     <img
       src={miiUrl(mii)}
@@ -180,7 +180,7 @@ function MiiFace({ mii, size = 64 }) {
   );
 }
 
-function AvatarView({ avatar, size = 42 }) {
+export function AvatarView({ avatar, size = 42 }) {
   const wrap = { width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#3d8a7e' };
   if (avatar?.kind === 'photo' && avatar.photo) {
     return <img src={avatar.photo} alt="" style={{ ...wrap, objectFit: 'cover', display: 'block' }} />;
@@ -198,7 +198,7 @@ function AvatarView({ avatar, size = 42 }) {
   );
 }
 
-function cropPhotoInteractive(src, zoom, offX, offY) {
+export function cropPhotoInteractive(src, zoom, offX, offY) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -434,7 +434,7 @@ function houseExpectsLogo(houseId) {
   }
 }
 
-function persistUser(user) {
+export function persistUser(user) {
   try {
     if (user?.id && user?.avatar?.kind === 'photo' && user.avatar.photo) {
       try { sessionStorage.setItem('btm_avatar_' + user.id, user.avatar.photo); } catch (e) {}

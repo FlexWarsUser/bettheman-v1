@@ -1,5 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
+import {
+  AvatarView,
+  persistUser,
+  DEFAULT_MII,
+  MiiFace,
+  MII_SKIN,
+  MII_HAIR,
+  MII_HAIR_F,
+  MII_HAIR_M,
+  MII_EYES,
+  MII_MOUTH,
+  MII_GLASSES,
+  MII_FACE,
+  MII_BROWS,
+  MII_FEATURE,
+  cropPhotoInteractive,
+} from './UserHome';
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
@@ -369,6 +386,18 @@ const [settings, setSettings] = useState({
   const [chatText, setChatText] = useState('');
   const [chatImage, setChatImage] = useState(null);
   const [chatSending, setChatSending] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [showDesigner, setShowDesigner] = useState(false);
+  const [miiDraft, setMiiDraft] = useState({ ...DEFAULT_MII, ...(currentUser?.avatar?.mii || {}) });
+  const [cropSrc, setCropSrc] = useState('');
+  const [cropZoom, setCropZoom] = useState(1);
+  const [cropX, setCropX] = useState(0);
+  const [cropY, setCropY] = useState(0);
+  const [avatarMsg, setAvatarMsg] = useState('');
+  const [totpSecret, setTotpSecret] = useState('');
+  const [totpSetupCode, setTotpSetupCode] = useState('');
+  const [totpOffPending, setTotpOffPending] = useState(false);
+  const [totpMsg, setTotpMsg] = useState('');
   const HOUSE_ID = Number(currentUser?.houseMasterId || currentUser?.id || 7);
   const theme = applyHouseTheme(currentUser);
   useEffect(() => {
@@ -380,6 +409,16 @@ const [settings, setSettings] = useState({
       setBrandLogoScale(Number(currentUser.logoScale || 100));
     }
   }, [currentUser?.id, currentUser?.houseId]);
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    fetch(`${API}/api/users/${currentUser.id}/avatar?actorId=${currentUser.id}`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data || !data.success) return;
+        setCurrentUser(prev => prev ? { ...prev, avatar: data.avatar || null } : prev);
+      })
+      .catch(() => {});
+  }, [currentUser?.id]);
   useEffect(() => {
     if (!currentUser?.id) return;
     fetch(`${API}/api/houses/branding?actorId=${currentUser.id}`)
@@ -1487,63 +1526,152 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
         <h1 style={{ textAlign: 'left', margin: 0, lineHeight: 0, fontSize: 0 }}>
           <img src={theme.hasCustomLogo ? theme.logoSrc : (currentUser?._brandingLoaded && !houseExpectsLogo(currentUser?.houseId) ? '/logo-login.png' : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7')} alt={currentUser?.houseName || 'BetOrLay'} style={{ maxWidth: Math.round(165 * (theme.logoScale || 100) / 100), maxHeight: Math.round(55 * (theme.logoScale || 100) / 100), width: 'auto', height: 'auto', display: 'block' }} />
         </h1>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ color: '#b0b0b0', marginBottom: 6, fontSize: 14 }}>
-            {currentUser?.name}
-          </div>
-          <button
-            type="button"
-            onClick={() => {
+        <button type="button" onClick={() => setAccountOpen(true)} style={{ border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }} aria-label="Account">
+          <AvatarView avatar={currentUser?.avatar} size={42} />
+        </button>
+      </div>
+
+      {accountOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={() => setAccountOpen(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: theme.panel, padding: 20, borderRadius: 12, maxWidth: 360, width: '90%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #3a3a5c', color: theme.panelText, position: 'relative' }}>
+            <button type="button" onClick={() => setAccountOpen(false)} aria-label="Close" style={{ position: 'absolute', top: 8, right: 8, width: 32, height: 32, border: 'none', background: 'transparent', color: theme.text, fontSize: 22, cursor: 'pointer' }}>×</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingRight: 28 }}>
+              <AvatarView avatar={currentUser?.avatar} size={56} />
+              <div style={{ fontWeight: 800, fontSize: 18 }}>{currentUser?.name}</div>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, cursor: 'pointer' }}>
+              <input type="checkbox" checked={showDesigner} onChange={e => setShowDesigner(e.target.checked)} />
+              Avatar designer
+            </label>
+            {showDesigner && (
+              <div style={{ marginBottom: 14, padding: 12, border: '1px solid #3a3a5c', borderRadius: 8 }}>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>Upload photo</div>
+                <input type="file" accept="image/*" onChange={(e) => {
+                  const file = e.target.files && e.target.files[0];
+                  if (!file) return;
+                  setCropSrc(URL.createObjectURL(file));
+                  setCropZoom(1); setCropX(0); setCropY(0); setAvatarMsg('');
+                }} style={{ color: theme.text, width: '100%', marginBottom: 8 }} />
+                {!!cropSrc && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ width: 160, height: 160, borderRadius: '50%', overflow: 'hidden', margin: '0 auto 10px', border: '2px solid #5aa89a', position: 'relative', background: '#111' }}>
+                      <img src={cropSrc} alt="" style={{ position: 'absolute', left: '50%', top: '50%', width: (160 * cropZoom) + 'px', height: 'auto', transform: 'translate(calc(-50% + ' + cropX + 'px), calc(-50% + ' + cropY + 'px))', maxWidth: 'none' }} />
+                    </div>
+                    <input type="range" min="1" max="3" step="0.05" value={cropZoom} onChange={e => setCropZoom(Number(e.target.value))} style={{ width: '100%' }} />
+                    <input type="range" min="-80" max="80" value={cropX} onChange={e => setCropX(Number(e.target.value))} style={{ width: '100%' }} />
+                    <input type="range" min="-80" max="80" value={cropY} onChange={e => setCropY(Number(e.target.value))} style={{ width: '100%' }} />
+                    <button type="button" onClick={async () => {
+                      const photo = await cropPhotoInteractive(cropSrc, cropZoom, cropX, cropY);
+                      const res = await fetch(`${API}/api/users/${currentUser.id}/avatar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: currentUser.id, kind: 'photo', photo }) });
+                      const data = await res.json();
+                      if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Save failed');
+                      const updated = { ...currentUser, avatar: data.avatar };
+                      persistUser(updated); setCurrentUser(updated); setCropSrc(''); setShowDesigner(false);
+                    }} style={{ width: '100%', marginTop: 8, padding: 8, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Save cropped photo</button>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><MiiFace mii={miiDraft} size={110} /></div>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Sex</div>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  {['female', 'male'].map(s => (
+                    <button key={s} type="button" onClick={() => setMiiDraft(d => ({ ...d, sex: s, style: s === 'female' ? 'long16' : 'short16', glasses: 'none' }))} style={{ flex: 1, padding: 6, borderRadius: 6, border: miiDraft.sex === s ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer' }}>{s}</button>
+                  ))}
+                </div>
+                {[
+                  ['style', 'Hair', miiDraft.sex === 'male' ? MII_HAIR_M : MII_HAIR_F],
+                  ['face', 'Face shape', MII_FACE],
+                  ['brows', 'Brows', MII_BROWS],
+                  ['feature', 'Facial hair & marks', MII_FEATURE],
+                  ['eyes', 'Eyes', MII_EYES],
+                  ['mouth', 'Mouth', MII_MOUTH],
+                  ['glasses', 'Glasses', MII_GLASSES],
+                ].map(([key, label, opts]) => (
+                  <div key={key} style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{label}</div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {opts.map(([name, val]) => (
+                        <button key={val} type="button" onClick={() => setMiiDraft(d => ({ ...d, [key]: val }))} style={{ padding: '4px 8px', borderRadius: 6, border: miiDraft[key] === val ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer', fontSize: 12 }}>{name}</button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                  {MII_SKIN.map(c => (
+                    <button key={c} type="button" onClick={() => setMiiDraft(d => ({ ...d, skin: c }))} style={{ width: 22, height: 22, borderRadius: '50%', background: c, border: miiDraft.skin === c ? '2px solid #fff' : '1px solid #555', cursor: 'pointer' }} />
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                  {MII_HAIR.map(c => (
+                    <button key={c} type="button" onClick={() => setMiiDraft(d => ({ ...d, hair: c }))} style={{ width: 22, height: 22, borderRadius: '50%', background: c, border: miiDraft.hair === c ? '2px solid #fff' : '1px solid #555', cursor: 'pointer' }} />
+                  ))}
+                </div>
+                <button type="button" onClick={async () => {
+                  const res = await fetch(`${API}/api/users/${currentUser.id}/avatar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: currentUser.id, kind: 'mii', mii: miiDraft }) });
+                  const data = await res.json();
+                  if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Save failed');
+                  const updated = { ...currentUser, avatar: data.avatar };
+                  persistUser(updated); setCurrentUser(updated); setShowDesigner(false);
+                }} style={{ width: '100%', padding: 8, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Save avatar</button>
+                {avatarMsg && <div style={{ marginTop: 8, fontSize: 13 }}>{avatarMsg}</div>}
+              </div>
+            )}
+            <div style={{ marginBottom: 12, paddingTop: 8, borderTop: '1px solid #3a3a5c' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, cursor: 'pointer' }}>
+                <input type="checkbox" checked={(!!currentUser?.totpEnabled && !totpOffPending) || !!totpSecret} onChange={async (e) => {
+                  const on = e.target.checked;
+                  setTotpMsg('');
+                  if (on) {
+                    setTotpOffPending(false);
+                    if (currentUser.totpEnabled) return;
+                    const res = await fetch(`${API}/api/auth/2fa/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: currentUser.id }) });
+                    const data = await res.json();
+                    if (!res.ok || !data.success) return setTotpMsg(data.error || 'Failed');
+                    setTotpSecret(data.secret); setTotpSetupCode('');
+                    return;
+                  }
+                  if (!currentUser.totpEnabled) { setTotpSecret(''); setTotpSetupCode(''); return; }
+                  setTotpSecret(''); setTotpOffPending(true);
+                }} />
+                Two-factor login
+              </label>
+              {!!totpSecret && !currentUser?.totpEnabled && (
+                <>
+                  <div style={{ fontSize: 13, marginBottom: 6 }}>Add this key in Google Authenticator / Authy:</div>
+                  <div style={{ fontFamily: 'monospace', wordBreak: 'break-all', marginBottom: 8 }}>{totpSecret}</div>
+                  <input value={totpSetupCode} onChange={e => setTotpSetupCode(e.target.value)} placeholder="6-digit code" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
+                  <button type="button" onClick={async () => {
+                    const res = await fetch(`${API}/api/auth/2fa/enable`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: currentUser.id, code: totpSetupCode }) });
+                    const data = await res.json();
+                    if (!res.ok || !data.success) return setTotpMsg(data.error || 'Failed');
+                    setTotpMsg('2FA on'); setTotpSecret(''); setTotpSetupCode('');
+                    const updated = { ...currentUser, totpEnabled: true }; persistUser(updated); setCurrentUser(updated);
+                  }} style={{ width: '100%', padding: 8, background: '#00ff88', color: '#0b1220', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Confirm code</button>
+                </>
+              )}
+              {!!currentUser?.totpEnabled && totpOffPending && (
+                <>
+                  <div style={{ color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Enter a code to turn off 2FA.</div>
+                  <input value={totpSetupCode} onChange={e => setTotpSetupCode(e.target.value)} placeholder="Code to turn off" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
+                  <button type="button" onClick={async () => {
+                    const res = await fetch(`${API}/api/auth/2fa/disable`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: currentUser.id, code: String(totpSetupCode || '').replace(/\s/g, '') }) });
+                    const data = await res.json();
+                    if (!res.ok || !data.success) return setTotpMsg(data.error || 'Failed');
+                    setTotpMsg('2FA off'); setTotpSetupCode(''); setTotpOffPending(false);
+                    const updated = { ...currentUser, totpEnabled: false }; persistUser(updated); setCurrentUser(updated);
+                  }} style={{ width: '100%', padding: 8, background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Confirm turn off</button>
+                </>
+              )}
+              {totpMsg && <div style={{ marginTop: 8, fontSize: 13 }}>{totpMsg}</div>}
+            </div>
+            <button type="button" onClick={() => {
               if (!window.confirm('Log out of BetOrLay?')) return;
               localStorage.removeItem('btm_user');
               localStorage.removeItem('btm_theme');
               window.location.href = '/';
-            }}
-            style={{
-              padding: '8px 12px',
-              background: theme.btnBg,
-              color: theme.btnText,
-              border: 'none',
-              borderRadius: 6,
-              cursor: 'pointer',
-            }}
-          >
-            Log out
-          </button>
-{(() => {
-  const supported = typeof Notification !== "undefined";
-  const needsEnable = !supported || Notification.permission !== "granted";
-  if (!needsEnable) return null;
-
-  return (
-    <button
-      type="button"
-                  onClick={() => {
-                if (!supported) {
-                  alert(
-                    "On iPhone: tap Share → Add to Home Screen, then open BetOrLay from the home screen icon and try again."
-                  );
-                  return;
-                }
-                subscribePush(currentUser?.id || 7);
-              }}
-      style={{
-        marginTop: 8,
-        padding: "8px 12px",
-        background: "#3a3a5c",
-        color: "#e8e8e8",
-        border: "none",
-        borderRadius: 6,
-        cursor: "pointer",
-      }}
-    >
-      Enable notifications
-    </button>
-  );
-})()}
+            }} style={{ width: '100%', padding: '7px 10px', background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Log out</button>
+          </div>
         </div>
-      </div>
-
+      )}
       <div style={{ marginTop: 4, marginBottom: 12 }}>
         <span style={{ color: '#00ff88', fontWeight: 600 }}>
           Balance: £{Number(currentUser?.balance ?? 0).toFixed(2)}
