@@ -2241,10 +2241,17 @@ function avatarKey(userId) {
   return "avatar_" + Number(userId);
 }
 async function readAvatar(houseId, userId) {
-  if (!houseId || !userId) return null;
-  const row = await prisma.houseSetting.findUnique({
-    where: { houseId_key: { houseId: Number(houseId), key: avatarKey(userId) } },
-  }).catch(() => null);
+  if (!userId) return null;
+  const key = avatarKey(userId);
+  if (houseId) {
+    const row = await prisma.houseSetting.findUnique({
+      where: { houseId_key: { houseId: Number(houseId), key } },
+    }).catch(() => null);
+    if (row && row.value) {
+      try { return JSON.parse(row.value); } catch (e) {}
+    }
+  }
+  const row = await prisma.setting.findUnique({ where: { key } }).catch(() => null);
   if (!row || !row.value) return null;
   try { return JSON.parse(row.value); } catch (e) { return null; }
 }
@@ -2272,7 +2279,6 @@ app.post("/api/users/:id/avatar", async (req, res) => {
     if (!actor || Number(actor.id) !== id) {
       return res.status(403).json({ success: false, error: "You can only change your own avatar" });
     }
-    if (!actor.houseId) return res.status(400).json({ success: false, error: "No house" });
     const kind = String(req.body.kind || "mii");
     let avatar = { kind: "mii", mii: req.body.mii || {} };
     if (kind === "photo") {

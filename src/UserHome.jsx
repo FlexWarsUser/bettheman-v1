@@ -121,29 +121,26 @@ function getHouseTheme(key) {
   return HOUSE_THEMES.find(t => t.key === key) || HOUSE_THEMES[0];
 }
 
-const MII_SKIN = ['#f8d5c2', '#f2c7a0', '#e0a070', '#c68642', '#8d5524', '#5c3310'];
-const MII_HAIR = ['#1a1a1a', '#2b1b0e', '#6b3a1f', '#c4a35a', '#d4542a', '#6b2d5b', '#3a6ea5'];
-const MII_SHIRT = ['#1e3a5f', '#0f766e', '#7f1d1d', '#4c1d95', '#365314', '#0b1220'];
-const DEFAULT_MII = { sex: 'female', skin: '#f2c7a0', hair: '#2b1b0e', style: 'long', eyes: 'lash', mouth: 'smile', extra: 'none', shirt: '#1e3a5f' };
+const MII_SKIN = ['#f2d3b1', '#ecad80', '#d08b5b', '#ae5d29', '#9e5622', '#763900'];
+const MII_HAIR = ['#0e0e0e', '#6a4e35', '#afafaf', '#b9a05f', '#77311d', '#85c2c6', '#3eac2c'];
+const DEFAULT_MII = { sex: 'female', skin: '#f2d3b1', hair: '#0e0e0e', style: 'long', eyes: 'variant12', mouth: 'variant02', extra: 'none' };
 
 function miiUrl(mii) {
   const m = { ...DEFAULT_MII, ...(mii || {}) };
   const female = m.sex !== 'male';
-  const hairMap = { long: 'long16', bob: 'long08', bun: 'long19', short: 'short14', spike: 'short08', bald: 'short01' };
-  const eyesMap = { lash: 'variant12', round: 'variant05', happy: 'variant16' };
-  const mouthMap = { smile: 'variant02', open: 'variant20', flat: 'variant10' };
+  const hairMap = { long: 'long16', bob: 'long10', bun: 'long20', short: 'short16', spike: 'short07', bald: 'short01' };
   const q = new URLSearchParams({
-    seed: [m.sex, m.style, m.skin, m.hair].join('-'),
+    seed: 'bol',
     radius: '50',
-    size: '160',
+    size: '128',
     backgroundColor: '1b2230',
-    skinColor: String(m.skin || '').replace('#', ''),
-    hairColor: String(m.hair || '').replace('#', ''),
-    hair: hairMap[m.style] || (female ? 'long16' : 'short14'),
-    eyes: eyesMap[m.eyes] || 'variant05',
-    mouth: mouthMap[m.mouth] || 'variant02',
+    skinColor: String(m.skin || 'f2d3b1').replace('#', ''),
+    hairColor: String(m.hair || '0e0e0e').replace('#', ''),
+    hair: hairMap[m.style] || (female ? 'long16' : 'short16'),
+    eyes: ({ lash: 'variant12', round: 'variant05', happy: 'variant16' }[m.eyes] || m.eyes || 'variant12'),
+    mouth: ({ smile: 'variant02', open: 'variant20', flat: 'variant10' }[m.mouth] || m.mouth || 'variant02'),
     glassesProbability: m.extra === 'glasses' ? '100' : '0',
-    earringsProbability: m.extra === 'earrings' ? '100' : '0',
+    glasses: 'variant01',
   });
   return 'https://api.dicebear.com/9.x/adventurer/svg?' + q.toString();
 }
@@ -402,7 +399,10 @@ function houseExpectsLogo(houseId) {
 
 function persistUser(user) {
   try {
-    const slim = { ...user, houseLogoUrl: user?.houseLogoUrl ? 'in-memory' : '' };
+    const avatar = user?.avatar
+      ? (user.avatar.kind === 'photo' ? { kind: 'photo' } : { kind: 'mii', mii: user.avatar.mii || user.avatar })
+      : null;
+    const slim = { ...user, houseLogoUrl: user?.houseLogoUrl ? 'in-memory' : '', avatar };
     localStorage.setItem('btm_user', JSON.stringify(slim));
   } catch (e) {
     try {
@@ -450,6 +450,14 @@ export default function UserHome() {
       applyDefaultPublicTheme();
     }
     if (parsed?.id) {
+      fetch(`${API}/api/users/${parsed.id}/avatar?actorId=${parsed.id}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.success && data.avatar) {
+            setUser(u => u ? { ...u, avatar: data.avatar } : { ...parsed, avatar: data.avatar });
+          }
+        })
+        .catch(() => {});
       fetch(`${API}/api/houses/branding?actorId=${parsed.id}`)
         .then(r => r.json())
         .then(data => {
@@ -2628,17 +2636,11 @@ style={{
               <button key={c} type="button" onClick={() => setMiiDraft(d => ({ ...d, hair: c }))} style={{ width: 22, height: 22, borderRadius: '50%', background: c, border: miiDraft.hair === c ? '2px solid #fff' : '1px solid #555', cursor: 'pointer' }} />
             ))}
           </div>
-          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Shirt</div>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-            {MII_SHIRT.map(c => (
-              <button key={c} type="button" onClick={() => setMiiDraft(d => ({ ...d, shirt: c }))} style={{ width: 22, height: 22, borderRadius: 4, background: c, border: miiDraft.shirt === c ? '2px solid #fff' : '1px solid #555', cursor: 'pointer' }} />
-            ))}
-          </div>
           {[
-            ['style', 'Hair', miiDraft.sex === 'male' ? ['short', 'spike', 'bald', 'bun'] : ['long', 'bob', 'bun', 'short']],
+            ['style', 'Hair', miiDraft.sex === 'male' ? ['short', 'spike', 'bald'] : ['long', 'bob', 'bun', 'short']],
             ['eyes', 'Eyes', ['lash', 'round', 'happy']],
             ['mouth', 'Mouth', ['smile', 'open', 'flat']],
-            ['extra', 'Extra', miiDraft.sex === 'male' ? ['none', 'beard', 'glasses', 'cap'] : ['none', 'earrings', 'glasses', 'cap']],
+            ['extra', 'Extra', ['none', 'glasses']],
           ].map(([key, label, opts]) => (
             <div key={key} style={{ marginBottom: 8 }}>
               <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{label}</div>
