@@ -367,6 +367,8 @@ const [houseName, setHouseName] = useState('');
 const [houseMasterName, setHouseMasterName] = useState('');
 const [houseMasterEmail, setHouseMasterEmail] = useState('');
 const [houseMasterPassword, setHouseMasterPassword] = useState('');
+const [houseActivate, setHouseActivate] = useState('');
+const [houseDeactivate, setHouseDeactivate] = useState('');
 const [houses, setHouses] = useState([]);
 const [brandName, setBrandName] = useState('');
 const [brandThemeKey, setBrandThemeKey] = useState('classic');
@@ -1112,6 +1114,11 @@ useEffect(() => {
   fetchUsers();
   fetchLedger();
   fetchSettings();
+  if (currentUser?.role === 'admin') {
+    fetch(`${API}/api/houses?actorId=${currentUser.id}`).then(r => r.json()).then(d => {
+      if (d && Array.isArray(d.houses)) setHouses(d.houses);
+    }).catch(() => {});
+  }
   const interval = setInterval(fetchBets, 60000);
   return () => clearInterval(interval);
 }, []);
@@ -2737,6 +2744,10 @@ const exposure = getExposure(b.stake, b.odds, {
           onChange={e => setHouseMasterPassword(e.target.value)}
           style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}
         />
+        <div style={{ color: '#94a3b8', fontSize: 12, marginBottom: 4 }}>Active from (optional)</div>
+        <input type="datetime-local" value={houseActivate} onChange={e => setHouseActivate(e.target.value)} style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
+        <div style={{ color: '#94a3b8', fontSize: 12, marginBottom: 4 }}>Active until (optional)</div>
+        <input type="datetime-local" value={houseDeactivate} onChange={e => setHouseDeactivate(e.target.value)} style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
         <button
           type="button"
           onClick={async () => {
@@ -2753,6 +2764,8 @@ const exposure = getExposure(b.stake, b.odds, {
                   masterName: houseMasterName,
                   masterEmail: houseMasterEmail,
                   masterPassword: houseMasterPassword,
+                  activateAt: houseActivate ? new Date(houseActivate).toISOString() : '',
+                  deactivateAt: houseDeactivate ? new Date(houseDeactivate).toISOString() : '',
                 }),
               });
               const data = await res.json();
@@ -2762,6 +2775,8 @@ const exposure = getExposure(b.stake, b.odds, {
               setHouseMasterName('');
               setHouseMasterEmail('');
               setHouseMasterPassword('');
+              setHouseActivate('');
+              setHouseDeactivate('');
               setHouses(h => [...h, data.house]);
             } catch (e) {
               alert(e.message);
@@ -2771,6 +2786,44 @@ const exposure = getExposure(b.stake, b.odds, {
         >
           Create house + master
         </button>
+        {houses.filter(h => Number(h.id) !== 1).map(h => (
+          <div key={h.id} style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #2a2a40' }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>{h.name} {h.liveError ? <span style={{ color: '#ff6b6b', fontWeight: 600 }}>({h.liveError})</span> : <span style={{ color: '#00ff88', fontWeight: 600 }}>(live)</span>}</div>
+            <div style={{ color: '#94a3b8', fontSize: 12, marginBottom: 4 }}>Active from</div>
+            <input
+              type="datetime-local"
+              defaultValue={h.activateAt ? new Date(h.activateAt).toISOString().slice(0, 16) : ''}
+              onBlur={async (e) => {
+                const activateAt = e.target.value ? new Date(e.target.value).toISOString() : '';
+                const deact = document.getElementById('deact-' + h.id);
+                const deactivateAt = deact && deact.value ? new Date(deact.value).toISOString() : '';
+                await fetch(`${API}/api/houses/${h.id}/schedule`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ actorId: currentUser.id, activateAt, deactivateAt }),
+                });
+              }}
+              style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}
+            />
+            <div style={{ color: '#94a3b8', fontSize: 12, marginBottom: 4 }}>Active until</div>
+            <input
+              id={'deact-' + h.id}
+              type="datetime-local"
+              defaultValue={h.deactivateAt ? new Date(h.deactivateAt).toISOString().slice(0, 16) : ''}
+              onBlur={async (e) => {
+                const deactivateAt = e.target.value ? new Date(e.target.value).toISOString() : '';
+                const actEl = e.target.parentElement.querySelector('input[type="datetime-local"]');
+                const activateAt = actEl && actEl.value ? new Date(actEl.value).toISOString() : '';
+                await fetch(`${API}/api/houses/${h.id}/schedule`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ actorId: currentUser.id, activateAt, deactivateAt }),
+                });
+              }}
+              style={{ width: '100%', padding: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}
+            />
+          </div>
+        ))}
       </div>
     </CollapsibleSection>
     )}

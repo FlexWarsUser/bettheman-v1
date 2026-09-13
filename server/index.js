@@ -176,6 +176,41 @@ function actorHouseId(actor) {
   return actor.houseId != null ? Number(actor.houseId) : null;
 }
 
+async function readHouseSchedule(houseId) {
+  if (!houseId) return { activateAt: null, deactivateAt: null };
+  const rows = await prisma.houseSetting.findMany({
+    where: { houseId: Number(houseId), key: { in: ["activateAt", "deactivateAt"] } },
+  });
+  const out = { activateAt: null, deactivateAt: null };
+  for (const r of rows) {
+    if (r.key === "activateAt" && r.value) out.activateAt = r.value;
+    if (r.key === "deactivateAt" && r.value) out.deactivateAt = r.value;
+  }
+  return out;
+}
+
+function houseWindowError(schedule, houseRow) {
+  if (houseRow && houseRow.active === false) return "This book is inactive";
+  const now = Date.now();
+  if (schedule.activateAt) {
+    const t = Date.parse(schedule.activateAt);
+    if (!Number.isNaN(t) && now < t) return "This book is not active yet";
+  }
+  if (schedule.deactivateAt) {
+    const t = Date.parse(schedule.deactivateAt);
+    if (!Number.isNaN(t) && now > t) return "This book has expired";
+  }
+  return null;
+}
+
+async function assertHouseLive(houseId) {
+  if (!houseId || Number(houseId) === 1) return { ok: true };
+  const houseRow = await prisma.house.findUnique({ where: { id: Number(houseId) } }).catch(() => null);
+  const schedule = await readHouseSchedule(houseId);
+  const error = houseWindowError(schedule, houseRow);
+  return error ? { ok: false, error } : { ok: true };
+}
+
 function isPlatformAdmin(actor) {
   return !!actor && actor.role === "admin";
 }
@@ -1001,7 +1036,12 @@ app.get("/api/houses", async (req, res) => {
       return res.status(403).json({ success: false, error: "Admin only" });
     }
     const houses = await prisma.house.findMany({ orderBy: { id: "asc" } });
-    res.json({ success: true, houses });
+    const withSched = [];
+    for (const h of houses) {
+      const schedule = await readHouseSchedule(h.id);
+      withSched.push({ ...h, ...schedule, liveError: houseWindowError(schedule, h) });
+    }
+    res.json({ success: true, houses: withSched });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -1052,13 +1092,38 @@ app.post("/api/houses", async (req, res) => {
     for (const key of keys) {
       await setSetting(key, DEFAULT_SETTINGS[key], house.id);
     }
+    if (req.body.activateAt) await setSetting("activateAt", String(req.body.activateAt), house.id);
+    if (req.body.deactivateAt) await setSetting("deactivateAt", String(req.body.deactivateAt), house.id);
     res.json({
       success: true,
-      house,
+      house: { ...house, activateAt: req.body.activateAt || null, deactivateAt: req.body.deactivateAt || null },
       master: { id: master.id, name: master.name, email: master.email, role: master.role, houseId: house.id },
     });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/houses/:id/schedule", async (req, res) => {
+  try {
+    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    if (!isPlatformAdmin(actor)) {
+      return res.status(403).json({ success: false, error: "Platform admin only" });
+    }
+    const id = parseInt(req.params.id, 10);
+    if (!id || id === 1) return res.status(400).json({ success: false, error: "Cannot schedule the main house" });
+    const house = await prisma.house.findUnique({ where: { id } });
+    if (!house) return res.status(404).json({ success: false, error: "House not found" });
+    const activateAt = req.body.activateAt ? new Date(req.body.activateAt).toISOString() : "";
+    const deactivateAt = req.body.deactivateAt ? new Date(req.body.deactivateAt).toISOString() : "";
+    await setSetting("activateAt", activateAt, id);
+    await setSetting("deactivateAt", deactivateAt, id);
+    if (req.body.active != null) {
+      await prisma.house.update({ where: { id }, data: { active: !!req.body.active } });
+    }
+    res.json({ success: true, houseId: id, activateAt: activateAt || null, deactivateAt: deactivateAt || null });
+  } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -1595,6 +1660,10 @@ app.post("/api/auth/login", async (req, res) => {
     if (!ok) {
       return res.status(401).json({ success: false, error: "Invalid login" });
     }
+    if (user.role !== "admin") {
+      const live = await assertHouseLive(user.houseId);
+      if (!live.ok) return res.status(403).json({ success: false, error: live.error });
+    }
     if (user.totpEnabled) {
       return res.json({ success: true, needs2fa: true, userId: user.id, email: user.email });
     }
@@ -1622,6 +1691,10 @@ app.post("/api/auth/2fa/login", async (req, res) => {
     }
     if (!user.totpEnabled || !totpValid(user.totpSecret, code)) {
       return res.status(401).json({ success: false, error: "Invalid code" });
+    }
+    if (user.role !== "admin") {
+      const live = await assertHouseLive(user.houseId);
+      if (!live.ok) return res.status(403).json({ success: false, error: live.error });
     }
     res.json({ success: true, user: await shapeUser(user) });
   } catch (err) {
@@ -1803,6 +1876,10 @@ app.post("/api/users", async (req, res) => {
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
     const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    if (actor && actor.role !== "admin") {
+      const live = await assertHouseLive(actor.houseId);
+      if (!live.ok) return res.status(403).json({ success: false, error: live.error });
+    }
     let role = String(req.body.role || "punter");
     const canLay = Boolean(req.body.canLay);
     if (!name || !email || !password) {
@@ -1849,6 +1926,11 @@ app.post("/api/users", async (req, res) => {
 app.post("/api/bets", async (req, res) => {
   try {
         const punterId = parseInt(req.body.punterId);
+        const punterLive = await getUserRow(punterId);
+        if (punterLive && punterLive.role !== "admin") {
+          const live = await assertHouseLive(punterLive.houseId);
+          if (!live.ok) return res.status(403).json({ success: false, error: live.error });
+        }
        const stake = parseFloat(req.body.stake);
     if (!Number.isFinite(stake) || stake <= 0) {
       return res.status(400).json({ success: false, error: "Invalid stake" });
