@@ -505,8 +505,48 @@ function getPlaceFraction(fieldSize, isHandicap) {
   return 0.2;
 }
 
-async function settleBet(bet, result, notes = null, manualPayouts = null, placeFraction = undefined) {
-  if (bet.settledAt) return { error: "Already settled" };
+async function reverseSettlement(bet) {
+  const houseLaid = Number(bet.houseAmount || 0);
+  const layers = Array.isArray(bet.layerBids) ? bet.layerBids : [];
+  const result = bet.result;
+  if (!result) return;
+  if (result === "won") {
+    const eachWay = !!bet.eachWay;
+    let frac;
+    if (eachWay) {
+      const event = await prisma.event.findFirst({ where: { name: { equals: bet.event, mode: "insensitive" } } });
+      frac = getPlaceFraction(event?.fieldSize, !!event?.isHandicap);
+    }
+    const matchedStake = houseLaid + layers.reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
+    const payout = eachWay ? calcReturn(matchedStake, bet.odds, true, frac) : calcReturn(matchedStake, bet.odds, false, undefined);
+    await changeUserBalance(bet.punterId, -payout);
+    if (houseLaid > 0) {
+      const houseLiability = eachWay ? calcExposure(houseLaid, bet.odds, true, frac) : calcExposure(houseLaid, bet.odds, false, undefined);
+      await changeUserBalance(7, houseLiability);
+    }
+    for (const l of layers) {
+      if (l.rejected) continue;
+      const amt = parseFloat(l.actualLaid) || 0;
+      if (amt <= 0) continue;
+      const liability = eachWay ? calcExposure(amt, bet.odds, true, frac) : calcExposure(amt, bet.odds, false, undefined);
+      await changeUserBalance(l.layerId, liability);
+    }
+  } else if (result === "lost") {
+    if (houseLaid > 0) await changeUserBalance(7, -houseLaid);
+    for (const l of layers) {
+      if (l.rejected) continue;
+      const amt = parseFloat(l.actualLaid) || 0;
+      if (amt <= 0) continue;
+      await changeUserBalance(l.layerId, -amt);
+    }
+  }
+}
+
+async function settleBet(bet, result, notes = null, manualPayouts = null, placeFraction = undefined, resettle = false) {
+  if (bet.settledAt && !resettle) return { error: "Already settled" };
+  if (bet.settledAt && resettle) {
+    await reverseSettlement(bet);
+  }
 
   // 1. Mark settled FIRST
   const updated = await prisma.bet.update({
@@ -2327,18 +2367,18 @@ res.json({ success: true, bet: serialized });
 app.post("/api/bets/:id/settle", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { result, notes, manualPayouts, placeFraction } = req.body; // result = "won" | "lost" | "manual"
+    const { result, notes, manualPayouts, placeFraction, resettle } = req.body; // result = "won" | "lost" | "manual"
 
     const bet = await prisma.bet.findUnique({ where: { id } }); 
     if (!bet) return res.status(404).json({ success: false, error: "Bet not found" });
     if (bet.phase !== "finalized" && bet.phase !== "settled") {
       return res.status(400).json({ success: false, error: "Bet is not ready for settlement" });
     }
-    if (bet.settledAt) {
+    if (bet.settledAt && !resettle) {
       return res.status(400).json({ success: false, error: "Already settled" });
     }
 
-    const outcome = await settleBet(bet, result, notes, manualPayouts, placeFraction);
+    const outcome = await settleBet(bet, result, notes, manualPayouts, placeFraction, !!resettle);
     if (outcome.error) return res.status(400).json({ success: false, error: outcome.error });
 
     const serialized = serializeBet(outcome.bet);

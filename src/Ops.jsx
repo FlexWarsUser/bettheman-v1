@@ -1353,7 +1353,7 @@ const handleSettle = async (betId, result) => {
     const res = await fetch(`${API}/api/bets/${betId}/settle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ result }),
+      body: JSON.stringify({ result, resettle: true }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -1415,6 +1415,7 @@ const settleEachWay = async (bet, result) => {
         result,
         placeFraction,
         notes: `EW terms: ${label}`,
+        resettle: !!bet.settledAt,
       }),
     });
     if (!res.ok) {
@@ -1469,7 +1470,7 @@ const handleManualSettle = async (betId, notes, manualPayouts) => {
     const res = await fetch(`${API}/api/bets/${betId}/settle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ result: 'manual', notes, manualPayouts }),
+      body: JSON.stringify({ result: 'manual', notes, manualPayouts, resettle: true }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -2273,6 +2274,14 @@ const exposure = getExposure(b.stake, b.odds, {
             )}
             <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
               Settled: {new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' })} UTC
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => { if (!window.confirm('Resettle this bet? Previous result will be reversed.')) return; b.eachWay ? settleEachWay(b, 'won') : handleSettle(b.id, 'won'); }} style={{ padding: '6px 10px', background: '#00ff88', color: '#0b1220', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Resettle WON</button>
+              {!!b.eachWay && (
+                <button type="button" onClick={() => { if (!window.confirm('Resettle this bet? Previous result will be reversed.')) return; settleEachWay(b, 'placed'); }} style={{ padding: '6px 10px', background: '#ffb347', color: '#0b1220', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Resettle PLACED</button>
+              )}
+              <button type="button" onClick={() => { if (!window.confirm('Resettle this bet? Previous result will be reversed.')) return; handleSettle(b.id, 'lost'); }} style={{ padding: '6px 10px', background: '#ff6b6b', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Resettle LOST</button>
+              <button type="button" onClick={() => { if (!window.confirm('Resettle this bet? Previous result will be reversed.')) return; openManualSettle(b); }} style={{ padding: '6px 10px', background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Manual</button>
             </div>
           </div>
         ))}
