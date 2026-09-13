@@ -1881,11 +1881,12 @@ inputMode="decimal"
 
       {leaderboard.map((row) => {
         const isTop3 = row.rank <= 3;
+        const onPodium = isTop3;
         const medal = row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : null;
         const arrow =
-          row.movement === 'up'   ? <span style={{ color: '#00ff88' }}>▲</span> :
-          row.movement === 'down' ? <span style={{ color: '#ff6b6b' }}>▼</span> :
-                                    <span style={{ color: '#888' }}>–</span>;
+          row.movement === 'up'   ? <span style={{ color: onPodium ? '#0a5a20' : '#00ff88', fontWeight: 900 }}>▲</span> :
+          row.movement === 'down' ? <span style={{ color: onPodium ? '#7a1010' : '#ff6b6b', fontWeight: 900 }}>▼</span> :
+                                    <span style={{ color: onPodium ? '#3a2a00' : '#7aa' }}>•</span>;
 
         return (
           <div
@@ -1928,10 +1929,10 @@ inputMode="decimal"
               fontFamily: '"Luckiest Guy", "Titan One", Impact, sans-serif',
               fontWeight: 400,
               letterSpacing: 0.6,
-              color: row.rank === 1 ? '#fff4b0' : row.rank === 2 ? '#ffffff' : row.rank === 3 ? '#ffe0c0' : '#7ef9ff',
+              color: row.rank === 1 ? '#2a1600' : row.rank === 2 ? '#1a2230' : row.rank === 3 ? '#2a1000' : '#7ef9ff',
               fontSize: isTop3 ? 20 : 17,
               lineHeight: 1.05,
-              textShadow: '0 2px 0 #120018, 0 0 8px rgba(255,61,232,0.45)',
+              textShadow: onPodium ? '0 1px 0 rgba(255,255,255,0.35)' : '0 2px 0 #120018, 0 0 8px rgba(255,61,232,0.45)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -1942,10 +1943,10 @@ inputMode="decimal"
             <div style={{
               fontWeight: 700,
               fontSize: 15,
-              color: '#7CFF6B',
+              color: onPodium ? '#102010' : '#7CFF6B',
               fontFamily: 'Bungee, sans-serif',
               fontSize: 14,
-              textShadow: '0 0 8px #2aff6a',
+              textShadow: onPodium ? '0 1px 0 rgba(255,255,255,0.35)' : '0 0 8px #2aff6a',
               fontVariantNumeric: 'tabular-nums',
             }}>
               £{row.net.toFixed(0)}
