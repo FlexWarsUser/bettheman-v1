@@ -2602,81 +2602,6 @@ style={{
           <div style={{ fontWeight: 800, fontSize: 18 }}>{user.name}</div>
         </div>
       </div>
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 6 }}>Change photo</div>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => {
-            const file = e.target.files && e.target.files[0];
-            if (!file) return;
-            const url = URL.createObjectURL(file);
-            setCropSrc(url);
-            setCropZoom(1);
-            setCropX(0);
-            setCropY(0);
-            setAvatarMsg('');
-          }}
-          style={{ color: theme.text, width: '100%' }}
-        />
-        {!!cropSrc && (
-          <div style={{ marginTop: 10 }}>
-            <div style={{ width: 160, height: 160, borderRadius: '50%', overflow: 'hidden', margin: '0 auto 10px', border: '2px solid #5aa89a', position: 'relative', background: '#111' }}>
-              <img src={cropSrc} alt="" style={{ position: 'absolute', left: '50%', top: '50%', width: (160 * cropZoom) + 'px', height: 'auto', transform: 'translate(calc(-50% + ' + cropX + 'px), calc(-50% + ' + cropY + 'px))', maxWidth: 'none' }} />
-            </div>
-            <div style={{ fontSize: 12, color: '#94a3b8' }}>Zoom</div>
-            <input type="range" min="1" max="3" step="0.05" value={cropZoom} onChange={e => setCropZoom(Number(e.target.value))} style={{ width: '100%' }} />
-            <div style={{ fontSize: 12, color: '#94a3b8' }}>Left / right</div>
-            <input type="range" min="-80" max="80" value={cropX} onChange={e => setCropX(Number(e.target.value))} style={{ width: '100%' }} />
-            <div style={{ fontSize: 12, color: '#94a3b8' }}>Up / down</div>
-            <input type="range" min="-80" max="80" value={cropY} onChange={e => setCropY(Number(e.target.value))} style={{ width: '100%' }} />
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  const photo = await cropPhotoInteractive(cropSrc, cropZoom, cropX, cropY);
-                  const res = await fetch(`${API}/api/users/${user.id}/avatar`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ actorId: user.id, kind: 'photo', photo }),
-                  });
-                  const data = await res.json();
-                  if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Save failed');
-                  onUserUpdate({ ...user, avatar: data.avatar });
-                  setAvatarMsg('Photo saved');
-                  setCropSrc('');
-                } catch (err) {
-                  setAvatarMsg(err.message || 'Crop failed');
-                }
-              }}
-              style={{ width: '100%', marginTop: 8, padding: 8, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
-            >
-              Save cropped photo
-            </button>
-          </div>
-        )}
-        {!!user.avatar && (
-          <button
-            type="button"
-            onClick={async () => {
-              const res = await fetch(`${API}/api/users/${user.id}/avatar`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ actorId: user.id, kind: 'none' }),
-              });
-              const data = await res.json();
-              if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Could not reset');
-              onUserUpdate({ ...user, avatar: null });
-              setCropSrc('');
-              setAvatarMsg('Default avatar restored');
-            }}
-            style={{ width: '100%', marginTop: 8, padding: 8, background: 'transparent', color: theme.text, border: '1px solid #3a3a5c', borderRadius: 6, cursor: 'pointer' }}
-          >
-            Remove photo / avatar
-          </button>
-        )}
-        {avatarMsg && <div style={{ marginTop: 8, fontSize: 13 }}>{avatarMsg}</div>}
-      </div>
       <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
         <div style={{ color: '#00ff88', fontWeight: 700, marginBottom: 6 }}>Balance: £{Number(user.balance || 0).toFixed(2)}</div>
         <div style={{ color: '#ff6b6b', fontWeight: 600 }}>Open lays: £{Number(openLaysExposure || 0).toFixed(2)}</div>
@@ -2707,6 +2632,59 @@ style={{
       </label>
       {showDesigner && (
         <div style={{ marginBottom: 14, padding: 12, border: '1px solid #3a3a5c', borderRadius: 8 }}>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>Upload photo</div>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files && e.target.files[0];
+              if (!file) return;
+              const url = URL.createObjectURL(file);
+              setCropSrc(url);
+              setCropZoom(1);
+              setCropX(0);
+              setCropY(0);
+              setAvatarMsg('');
+            }}
+            style={{ color: theme.text, width: '100%', marginBottom: 8 }}
+          />
+          {!!cropSrc && (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ width: 160, height: 160, borderRadius: '50%', overflow: 'hidden', margin: '0 auto 10px', border: '2px solid #5aa89a', position: 'relative', background: '#111' }}>
+                <img src={cropSrc} alt="" style={{ position: 'absolute', left: '50%', top: '50%', width: (160 * cropZoom) + 'px', height: 'auto', transform: 'translate(calc(-50% + ' + cropX + 'px), calc(-50% + ' + cropY + 'px))', maxWidth: 'none' }} />
+              </div>
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>Zoom</div>
+              <input type="range" min="1" max="3" step="0.05" value={cropZoom} onChange={e => setCropZoom(Number(e.target.value))} style={{ width: '100%' }} />
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>Left / right</div>
+              <input type="range" min="-80" max="80" value={cropX} onChange={e => setCropX(Number(e.target.value))} style={{ width: '100%' }} />
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>Up / down</div>
+              <input type="range" min="-80" max="80" value={cropY} onChange={e => setCropY(Number(e.target.value))} style={{ width: '100%' }} />
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const photo = await cropPhotoInteractive(cropSrc, cropZoom, cropX, cropY);
+                    const res = await fetch(`${API}/api/users/${user.id}/avatar`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ actorId: user.id, kind: 'photo', photo }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Save failed');
+                    onUserUpdate({ ...user, avatar: data.avatar });
+                    setAvatarMsg('Photo saved');
+                    setCropSrc('');
+                    setShowDesigner(false);
+                  } catch (err) {
+                    setAvatarMsg(err.message || 'Crop failed');
+                  }
+                }}
+                style={{ width: '100%', marginTop: 8, padding: 8, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
+              >
+                Save cropped photo
+              </button>
+            </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
             <MiiFace mii={miiDraft} size={110} />
           </div>
@@ -2758,11 +2736,34 @@ style={{
               if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Save failed');
               onUserUpdate({ ...user, avatar: data.avatar });
               setAvatarMsg('Avatar saved');
+              setShowDesigner(false);
             }}
             style={{ width: '100%', padding: 8, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
           >
             Save avatar
           </button>
+          {!!user.avatar && (
+            <button
+              type="button"
+              onClick={async () => {
+                const res = await fetch(`${API}/api/users/${user.id}/avatar`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ actorId: user.id, kind: 'none' }),
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Could not reset');
+                onUserUpdate({ ...user, avatar: null });
+                setCropSrc('');
+                setAvatarMsg('Default avatar restored');
+                setShowDesigner(false);
+              }}
+              style={{ width: '100%', marginTop: 8, padding: 8, background: 'transparent', color: theme.text, border: '1px solid #3a3a5c', borderRadius: 6, cursor: 'pointer' }}
+            >
+              Remove photo / avatar
+            </button>
+          )}
+          {avatarMsg && <div style={{ marginTop: 8, fontSize: 13 }}>{avatarMsg}</div>}
         </div>
       )}
       <div style={{ marginBottom: 12, paddingTop: 8, borderTop: '1px solid #3a3a5c' }}>
