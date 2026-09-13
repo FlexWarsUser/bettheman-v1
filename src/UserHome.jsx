@@ -227,7 +227,7 @@ function applyHouseTheme(user) {
     const font = document.createElement('link');
     font.id = 'btm-board-font';
     font.rel = 'stylesheet';
-    font.href = 'https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap';
+    font.href = 'https://fonts.googleapis.com/css2?family=Bungee&family=Luckiest+Guy&display=swap';
     document.head.appendChild(font);
   }
   if (!tag) {
@@ -1842,25 +1842,37 @@ inputMode="decimal"
     onToggle={setLeaderboardOpen}
   >
     <div style={{
-      background: 'linear-gradient(160deg, #1b1140 0%, #12203a 45%, #0b1220 100%)',
-      border: '1px solid rgba(0,255,136,0.28)',
-      boxShadow: '0 0 24px rgba(0,198,255,0.12)',
-      borderRadius: 14,
-      padding: '16px',
+      background: 'linear-gradient(165deg, #3b0a5c 0%, #1a0a40 35%, #06142e 70%, #021018 100%)',
+      border: '2px solid #ff3de8',
+      boxShadow: '0 0 0 2px #18f0ff, 0 0 28px rgba(255,61,232,0.35), inset 0 0 40px rgba(24,240,255,0.08)',
+      borderRadius: 16,
+      padding: '16px 14px 14px',
       overflow: 'hidden',
     }}>
       <div style={{
         textAlign: 'center',
-        marginBottom: 14,
-        fontSize: 13,
-        color: '#ffe566',
-        letterSpacing: 1.4,
+        marginBottom: 4,
+        fontSize: 22,
+        color: '#ffe14a',
+        letterSpacing: 1,
         textTransform: 'uppercase',
-        fontWeight: 400,
-        fontFamily: '"Luckiest Guy", Impact, sans-serif',
-        textShadow: '0 0 12px rgba(255,229,102,0.35)',
+        fontFamily: 'Bungee, "Luckiest Guy", Impact, sans-serif',
+        textShadow: '0 3px 0 #7a00c8, 0 0 16px #ff3de8',
+        lineHeight: 1.1,
       }}>
-        Party Mode • Live Standings
+        PARTY MODE
+      </div>
+      <div style={{
+        textAlign: 'center',
+        marginBottom: 14,
+        fontSize: 12,
+        color: '#18f0ff',
+        letterSpacing: 3,
+        textTransform: 'uppercase',
+        fontFamily: 'Bungee, sans-serif',
+        textShadow: '0 0 10px #18f0ff',
+      }}>
+        LIVE STANDINGS
       </div>
 
       {leaderboard.length === 0 && (
@@ -1886,13 +1898,15 @@ inputMode="decimal"
               marginBottom: 6,
               borderRadius: 10,
               background: row.rank === 1
-                ? 'linear-gradient(90deg, rgba(255,215,0,0.22), rgba(255,215,0,0.04))'
+                ? 'linear-gradient(90deg, #7a4d00 0%, #ffd24a 45%, #3a2200 100%)'
                 : row.rank === 2
-                ? 'linear-gradient(90deg, rgba(192,192,192,0.2), rgba(192,192,192,0.04))'
+                ? 'linear-gradient(90deg, #3d4a5c 0%, #cfd8e6 50%, #2a3340 100%)'
                 : row.rank === 3
-                ? 'linear-gradient(90deg, rgba(205,127,50,0.22), rgba(205,127,50,0.04))'
-                : 'rgba(255,255,255,0.04)',
-              border: isTop3 ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent',
+                ? 'linear-gradient(90deg, #5a2a0a 0%, #e08a3c 50%, #3a1608 100%)'
+                : row.rank % 2 === 0
+                ? 'linear-gradient(90deg, #14224a, #1c1450)'
+                : 'linear-gradient(90deg, #1a0d3a, #102038)',
+              border: row.rank === 1 ? '1px solid #ffe14a' : row.rank === 2 ? '1px solid #d7e0ee' : row.rank === 3 ? '1px solid #ff9a4a' : '1px solid rgba(24,240,255,0.18)',
             }}
           >
             <div style={{
@@ -1914,10 +1928,10 @@ inputMode="decimal"
               fontFamily: '"Luckiest Guy", "Titan One", Impact, sans-serif',
               fontWeight: 400,
               letterSpacing: 0.6,
-              color: row.rank === 1 ? '#ffd84a' : row.rank === 2 ? '#f2f2f2' : row.rank === 3 ? '#ffb070' : '#7ef0c0',
+              color: row.rank === 1 ? '#fff4b0' : row.rank === 2 ? '#ffffff' : row.rank === 3 ? '#ffe0c0' : '#7ef9ff',
               fontSize: isTop3 ? 20 : 17,
               lineHeight: 1.05,
-              textShadow: row.rank === 1 ? '0 2px 0 #8a5a00, 0 0 12px rgba(255,216,74,0.45)' : '0 2px 0 rgba(0,0,0,0.45)',
+              textShadow: '0 2px 0 #120018, 0 0 8px rgba(255,61,232,0.45)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -1928,7 +1942,10 @@ inputMode="decimal"
             <div style={{
               fontWeight: 700,
               fontSize: 15,
-              color: '#00ff88',
+              color: '#7CFF6B',
+              fontFamily: 'Bungee, sans-serif',
+              fontSize: 14,
+              textShadow: '0 0 8px #2aff6a',
               fontVariantNumeric: 'tabular-nums',
             }}>
               £{row.net.toFixed(0)}
