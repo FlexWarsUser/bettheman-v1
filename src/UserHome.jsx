@@ -1858,20 +1858,20 @@ inputMode="decimal"
       <div style={{
         textAlign: 'center',
         marginBottom: 4,
-        fontSize: 22,
+        fontSize: 24,
         color: '#ffe14a',
         letterSpacing: 1,
         textTransform: 'uppercase',
         fontFamily: 'Bungee, "Luckiest Guy", Impact, sans-serif',
-        textShadow: '0 3px 0 #7a00c8',
+        textShadow: '-2px -2px 0 #3b0066, 2px -2px 0 #3b0066, -2px 2px 0 #3b0066, 2px 2px 0 #3b0066, 0 0 14px #ff3de8',
         lineHeight: 1.1,
-      }} className="bol-title">
+      }} className="bol-shine">
         PARTY MODE
       </div>
       <div style={{
         textAlign: 'center',
         marginBottom: 14,
-        fontSize: 12,
+        fontSize: 13,
         color: '#18f0ff',
         letterSpacing: 3,
         textTransform: 'uppercase',
@@ -1917,10 +1917,10 @@ inputMode="decimal"
             }}
           >
             <div style={{
-              width: 36,
+              width: 44,
               textAlign: 'center',
               fontWeight: 800,
-              fontSize: isTop3 ? 18 : 15,
+              fontSize: isTop3 ? 28 : 18,
               color: row.rank === 1 ? '#ffd700' : row.rank === 2 ? '#e8e8e8' : row.rank === 3 ? '#cd7f32' : '#c8c8d8',
             }}>
               {medal || row.rank}
@@ -1948,10 +1948,9 @@ inputMode="decimal"
 
             <div style={{
               fontWeight: 700,
-              fontSize: 15,
               color: '#b8ff4a',
               fontFamily: 'Bungee, sans-serif',
-              fontSize: 14,
+              fontSize: 20,
               textShadow: '-1px -1px 0 #102010, 1px 1px 0 #102010, 0 0 8px #2aff6a',
               fontVariantNumeric: 'tabular-nums',
             }} className="bol-cash">
