@@ -348,15 +348,45 @@ async function changeUserBalance(id, delta) {
   console.log(`💰 User ${id} balance ${current} → ${next} (delta ${delta})`);
   return next;
 }
-async function writeLedger({ betId = null, eventType, actorId = null, actorName = null, details = {} }) {
+function ledgerBetBits(bet, extra = {}) {
+  if (!bet) return extra;
+  const layers = Array.isArray(bet.layerBids) ? bet.layerBids : [];
+  const layersOffered = layers
+    .filter(l => !l.rejected)
+    .reduce((s, l) => s + (parseFloat(l.amount) || 0), 0);
+  const layersLaid = layers.reduce((s, l) => s + (parseFloat(l.actualLaid != null ? l.actualLaid : 0) || 0), 0);
+  const houseLaid = Number(bet.houseAmount || 0);
+  const stake = Number(bet.stake) || 0;
+  const totalLaid = houseLaid + layersLaid;
+  return {
+    houseId: bet.houseId != null ? Number(bet.houseId) : null,
+    event: bet.event,
+    selection: bet.selection,
+    odds: bet.odds,
+    stake,
+    eachWay: !!bet.eachWay,
+    punterName: bet.punterName,
+    houseLaid,
+    layersOffered,
+    layersLaid,
+    totalLaid,
+    unmatched: Math.round(Math.max(0, stake - totalLaid) * 100) / 100,
+    phase: bet.phase,
+    status: bet.status,
+    ...extra,
+  };
+}
+
+async function writeLedger({ betId = null, eventType, actorId = null, actorName = null, details = {}, bet = null }) {
   try {
+    const merged = { ...ledgerBetBits(bet), ...details };
     await prisma.ledgerEntry.create({
       data: {
         betId: betId != null ? parseInt(betId) : null,
         eventType,
         actorId: actorId != null ? parseInt(actorId) : null,
         actorName: actorName || null,
-        details,
+        details: merged,
       }
     });
   } catch (err) {
@@ -597,12 +627,11 @@ await writeLedger({
             : "settled_manual",
   actorId: null,
   actorName: "System",
+  bet: updated,
   details: {
     result,
     notes: notes || null,
-    houseAmount: bet.houseAmount,
-    layerBids: bet.layerBids,
-  }
+  },
 });
   return { success: true, bet: updated };
 }
@@ -727,6 +756,13 @@ async function processExpiredTimers() {
       },
     });
     console.log(`[HOUSE TIMER] Bet ${bet.id} moved to layer_bidding`);
+    await writeLedger({
+      betId: bet.id,
+      eventType: "offered_to_layers",
+      actorName: "System",
+      bet: updated,
+      details: { reason: "house_timer" },
+    });
     const serialized = serializeBet(updated);
     io.emit("betUpdated", serialized);
     await emitBetNotify({
@@ -778,6 +814,13 @@ const { bids, totalLaid } = await applyProRata(currentBids, remainingForLayers, 
         }
       });
       await settleBalancesForBet(updated);   // balance fix
+      await writeLedger({
+        betId: bet.id,
+        eventType: "matched_total",
+        actorName: "System",
+        bet: updated,
+        details: { reason: "layers_full", layersLaid: totalLaid, houseLaid, totalLaid: houseLaid + totalLaid, unmatched: 0 },
+      });
     } else {
   const settings = await getSettings(bet.houseId);
   if (settings.skipHouseResidual) {
@@ -798,6 +841,13 @@ const { bids, totalLaid } = await applyProRata(currentBids, remainingForLayers, 
     const updated = await prisma.bet.update({ where: { id: bet.id }, data });
     await settleBalancesForBet(updated);
     console.log(`[SKIP RESIDUAL] Bet ${bet.id} finalized. Total: £${totalWithHouse.toFixed(2)}`);
+    await writeLedger({
+      betId: bet.id,
+      eventType: "matched_total",
+      actorName: "System",
+      bet: updated,
+      details: { reason: "skip_residual", houseLaid, layersLaid: totalLaid, totalLaid: totalWithHouse, unmatched: Math.max(0, stake - totalWithHouse) },
+    });
   } else {
     const residual = Math.round((remainingForLayers - totalLaid) * 100) / 100;
     await prisma.bet.update({
@@ -811,6 +861,13 @@ const { bids, totalLaid } = await applyProRata(currentBids, remainingForLayers, 
       }
     });
     console.log(`[RESIDUAL] £${residual} to House for bet ${bet.id}`);
+    await writeLedger({
+      betId: bet.id,
+      eventType: "residual_to_house",
+      actorName: "System",
+      bet: { ...bet, phase: "house_residual", residualStake: residual, layerBids: bids },
+      details: { residual, houseLaid, layersLaid: totalLaid },
+    });
   }
 }
     changed = true;
@@ -843,6 +900,13 @@ const { bids, totalLaid } = await applyProRata(currentBids, remainingForLayers, 
     const updated = await prisma.bet.update({ where: { id: bet.id }, data });
     await settleBalancesForBet(updated);   // balance fix
     console.log(`[RESIDUAL EXPIRED] Bet ${bet.id} finalized. Total laid: £${totalLaid.toFixed(2)}`);
+    await writeLedger({
+      betId: bet.id,
+      eventType: "matched_total",
+      actorName: "System",
+      bet: updated,
+      details: { reason: "residual_expired", houseLaid, layersLaid, totalLaid, unmatched: Math.max(0, Number(bet.stake) - totalLaid) },
+    });
     changed = true;
   }
 
@@ -1771,17 +1835,12 @@ status: "pending",
 });
     const serialized = serializeBet(bet);
     await writeLedger({
-  betId: bet.id,
-  eventType: "submitted",
-  actorId: bet.punterId,
-  actorName: bet.punterName,
-  details: {
-    event: bet.event,
-    selection: bet.selection,
-    odds: bet.odds,
-    stake: bet.stake,
-  }
-});
+      betId: bet.id,
+      eventType: "submitted",
+      actorId: bet.punterId,
+      actorName: bet.punterName,
+      bet,
+    });
     console.log("🆕 New Bet:", serialized.id, serialized.event);
     io.emit("betUpdated", serialized);
     await emitBetNotify({
@@ -1916,19 +1975,35 @@ console.log("UPDATE DATA", data);
         }
       const serialized = serializeBet(updated);
       await writeLedger({
-    betId: id,
-    eventType: action === "Accepted" ? "house_accepted"
-              : action === "Partial" ? "house_partial"
-              : "house_rejected",
-    actorId: 0,
-    actorName: "House",
-    details: {
-      action,
-      houseAmount: updated.houseAmount,
-      amount: amount || null,
-      phase: updated.phase,
-    }
-  });
+        betId: id,
+        eventType: action === "Accepted" ? "house_accepted"
+                  : action === "Partial" ? "house_partial"
+                  : action === "RejectStop" ? "house_reject_stop"
+                  : "house_passed",
+        actorId: req.body.actorId || null,
+        actorName: req.body.actorName || "House",
+        bet: updated,
+        details: {
+          action,
+          amount: amount != null ? parseFloat(amount) : null,
+          notes: notes ? String(notes).trim() : null,
+        },
+      });
+      if (updated.phase === "finalized") {
+        const bits = ledgerBetBits(updated);
+        await writeLedger({
+          betId: id,
+          eventType: "matched_total",
+          actorName: "System",
+          bet: updated,
+          details: {
+            houseLaid: bits.houseLaid,
+            layersLaid: bits.layersLaid,
+            totalLaid: bits.totalLaid,
+            unmatched: bits.unmatched,
+          },
+        });
+      }
     console.log(`🏠 House ${action} bet ${id} - HouseAmount: £${serialized.houseAmount}`);
     io.emit("betUpdated", serialized);
     if (updated.phase === "layer_bidding" || updated.phase === "house_residual") {
@@ -2093,6 +2168,17 @@ if (action !== "reject") {
 
     let updated = await prisma.bet.update({ where: { id }, data: { layerBids } });
     console.log(`Layer ${action} on bet ${id}`, layerBids);
+    await writeLedger({
+      betId: id,
+      eventType: action === "reject" ? "layer_passed" : "layer_bid",
+      actorId: layerId,
+      actorName: layerName || (layerUser && layerUser.name) || "Layer",
+      bet: updated,
+      details: {
+        amount: action === "reject" ? 0 : bidAmount,
+        remainingAfterHouse: remaining,
+      },
+    });
 
     if (bet.phase === "layer_bidding") {
       const actedIds = layerBids.map(b => b.layerId);
@@ -2122,6 +2208,13 @@ if (action !== "reject") {
                   });
         await settleBalancesForBet(updated);
         console.log(`[EARLY FULL] Bet ${id} fully covered. Laid: £${totalLaid.toFixed(2)}`);
+        await writeLedger({
+          betId: id,
+          eventType: "matched_total",
+          actorName: "System",
+          bet: updated,
+          details: { reason: "layers_full", layersLaid: totalLaid, houseLaid: Number(bet.houseAmount || 0), totalLaid: Number(bet.houseAmount || 0) + totalLaid, unmatched: 0 },
+        });
        } else {
   const settings = await getSettings(bet.houseId);
   if (settings.skipHouseResidual) {
@@ -2142,6 +2235,13 @@ if (action !== "reject") {
     updated = await prisma.bet.update({ where: { id }, data });
     await settleBalancesForBet(updated);
     console.log(`[SKIP RESIDUAL EARLY] Bet ${id} finalized. Total: £${totalWithHouse.toFixed(2)}`);
+    await writeLedger({
+      betId: id,
+      eventType: "matched_total",
+      actorName: "System",
+      bet: updated,
+      details: { reason: "skip_residual", totalLaid: totalWithHouse, unmatched: Math.max(0, Number(bet.stake) - totalWithHouse) },
+    });
   } else {
     updated = await prisma.bet.update({
       where: { id },
@@ -2154,6 +2254,13 @@ if (action !== "reject") {
       }
     });
     console.log(`[EARLY RESIDUAL] £${residual} to House for bet ${id} (all layers acted)`);
+    await writeLedger({
+      betId: id,
+      eventType: "residual_to_house",
+      actorName: "System",
+      bet: updated,
+      details: { residual },
+    });
   }
 }
      } else if (allLayersActed && activeBidsTotal >= remaining - 0.01) {
@@ -2170,6 +2277,13 @@ if (action !== "reject") {
       });
       await settleBalancesForBet(updated);
       console.log(`[EARLY FULL] Bet ${id} fully covered by layers. Laid: £${totalLaid.toFixed(2)}`);
+      await writeLedger({
+        betId: id,
+        eventType: "matched_total",
+        actorName: "System",
+        bet: updated,
+        details: { reason: "layers_full", layersLaid: totalLaid, houseLaid: Number(bet.houseAmount || 0), totalLaid: Number(bet.houseAmount || 0) + totalLaid, unmatched: 0 },
+      });
     }
     }
 
@@ -2208,11 +2322,29 @@ app.post("/api/bets/:id/settle", async (req, res) => {
 });
 app.get("/api/ledger", async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+    const limit = Math.min(parseInt(req.query.limit) || 200, 500);
     const betId = req.query.betId ? parseInt(req.query.betId) : null;
+    const actorId = parseInt(req.query.actorId, 10);
+    const actor = actorId ? await getUserRow(actorId) : null;
+    const hid = actor && actor.houseId != null ? Number(actor.houseId) : 1;
+    const houseWhere = hid === 1 ? { OR: [{ houseId: 1 }, { houseId: null }] } : { houseId: hid };
+    const houseBets = await prisma.bet.findMany({
+      where: houseWhere,
+      select: { id: true },
+    });
+    const allowedIds = new Set(houseBets.map(b => Number(b.id)));
+    const where = {};
+    if (betId) {
+      if (!allowedIds.has(betId)) return res.json([]);
+      where.betId = betId;
+    } else if (!allowedIds.size) {
+      return res.json([]);
+    } else {
+      where.betId = { in: [...allowedIds] };
+    }
 
     const entries = await prisma.ledgerEntry.findMany({
-      where: betId ? { betId } : undefined,
+      where,
       orderBy: { createdAt: "desc" },
       take: limit,
     });

@@ -943,7 +943,7 @@ const fetchBets = async () => {
 
 const fetchLedger = async () => {
   try {
-    const res = await fetch(`${API}/api/ledger?limit=100`);
+    const res = await fetch(`${API}/api/ledger?limit=200${currentUser?.id ? `&actorId=${currentUser.id}` : ''}`);
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) setLedger(data);
@@ -1168,7 +1168,7 @@ const handleHouseAction = async (betId, action, amount = null, notes = null) => 
   if (confirmMessage && !window.confirm(confirmMessage)) return;
 
   try {
-    const body = { action };
+    const body = { action, actorId: currentUser?.id, actorName: currentUser?.name || 'House' };
     if (amount != null && amount !== '') body.amount = parseFloat(amount);
     if (notes) body.notes = notes;
     await fetch(`${API}/api/bets/${betId}/action`, {
@@ -2694,26 +2694,36 @@ const exposure = getExposure(b.stake, b.odds, {
         </button>
       </div>
       {ledger.length === 0 && <p style={muted}>No ledger entries yet.</p>}
-      {ledger.map(entry => (
-        <div key={entry.id} style={{ ...card, fontSize: '12px' }}>
-          <div style={{ fontWeight: '600', color: '#00ff88' }}>
-            {entry.eventType}
-            {entry.betId != null ? ` — Bet #${entry.betId}` : ''}
+      {ledger.map(entry => {
+        const d = entry.details && typeof entry.details === 'object' ? entry.details : {};
+        const money = (n) => '£' + (Number(n) || 0).toFixed(2);
+        const slip = d.event ? `${d.event} – ${d.selection} @ ${d.odds}${d.eachWay ? ' EW' : ''}` : '';
+        const type = String(entry.eventType || '');
+        let line = '';
+        if (type === 'submitted') line = `${entry.actorName || 'Punter'} submitted ${slip} stake ${money(d.stake)}`;
+        else if (type === 'house_accepted') line = `House took ${money(d.houseLaid || d.amount || d.stake)} — full match on ${slip}`;
+        else if (type === 'house_partial') line = `House laid ${money(d.amount != null ? d.amount : d.houseLaid)} on ${slip} (house total ${money(d.houseLaid)})`;
+        else if (type === 'house_passed') line = `House passed ${slip} to layers`;
+        else if (type === 'house_reject_stop') line = `House rejected and stopped ${slip}`;
+        else if (type === 'house_rejected') line = `House rejected ${slip}`;
+        else if (type === 'offered_to_layers') line = `${slip} offered to layers`;
+        else if (type === 'layer_bid') line = `${entry.actorName || 'Layer'} bid ${money(d.amount)} on ${slip}`;
+        else if (type === 'layer_passed') line = `${entry.actorName || 'Layer'} passed ${slip}`;
+        else if (type === 'residual_to_house') line = `Residual ${money(d.residual || d.unmatched)} returned to House on ${slip}`;
+        else if (type === 'matched_total') line = `Matched total ${money(d.totalLaid)} on ${slip} (house ${money(d.houseLaid)}, layers ${money(d.layersLaid)}, unmatched ${money(d.unmatched)})`;
+        else if (type === 'settled_won') line = `Settled WON ${slip}`;
+        else if (type === 'settled_lost') line = `Settled LOST ${slip}`;
+        else if (type === 'settled_manual') line = `Settled manual ${slip}${d.notes ? ' — ' + d.notes : ''}`;
+        else line = `${type.replace(/_/g, ' ')} ${slip}`.trim();
+        return (
+          <div key={entry.id} style={{ ...card, fontSize: '13px', padding: '10px 12px' }}>
+            <div style={{ fontWeight: 600, color: '#e8e8e8', lineHeight: 1.35 }}>{line}</div>
+            <div style={{ ...muted, marginTop: 4 }}>
+              Bet #{entry.betId} · {entry.createdAt ? new Date(entry.createdAt).toLocaleString('en-GB') : ''}
+            </div>
           </div>
-          <div style={muted}>
-            {entry.actorName || 'System'}
-            {entry.actorId != null ? ` (id ${entry.actorId})` : ''}
-          </div>
-          <div style={{ color: '#999', marginTop: '4px' }}>
-            {entry.createdAt ? new Date(entry.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : ''}
-          </div>
-          {entry.details && (
-            <pre style={{ marginTop: '6px', whiteSpace: 'pre-wrap', color: '#b0b0b0', fontSize: '11px' }}>
-              {typeof entry.details === 'string' ? entry.details : JSON.stringify(entry.details, null, 2)}
-            </pre>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </CollapsibleSection>
   </div>
 )}
