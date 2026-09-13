@@ -2454,13 +2454,11 @@ app.get("/api/events", async (req, res) => {
     to.setDate(to.getDate() + 25);
     to.setHours(23, 59, 59, 999);
 
-    const actorId = parseInt(req.query.actorId || req.query.userId, 10);
-    const actor = actorId ? await getUserRow(actorId) : null;
     const where = {
       active: true,
       date: { gte: from, lte: to },
+      OR: [{ houseId: 1 }, { houseId: null }],
     };
-    if (actor && actor.houseId) where.houseId = Number(actor.houseId);
     if (q) {
       where.name = { contains: q, mode: "insensitive" };
     }
@@ -2484,12 +2482,15 @@ app.post("/api/events", async (req, res) => {
       return res.status(400).json({ success: false, error: "type, name, date required" });
     }
     const actor = actorId ? await getUserRow(actorId) : null;
+    if (actor && !isPlatformAdmin(actor) && Number(actor.houseId) !== 1) {
+      return res.status(403).json({ success: false, error: "Licensed houses use the main event list" });
+    }
     const event = await prisma.event.create({
       data: {
         type: String(type).toLowerCase(),
         name: String(name).trim(),
         date: new Date(date),
-        houseId: actor && actor.houseId ? Number(actor.houseId) : 1,
+        houseId: 1,
       },
     });
     res.json({ success: true, event });
@@ -2506,7 +2507,10 @@ app.post("/api/events/bulk", async (req, res) => {
       return res.status(400).json({ success: false, error: "No events provided" });
     }
     const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
-    const houseId = actor && actor.houseId ? Number(actor.houseId) : 1;
+    if (actor && !isPlatformAdmin(actor) && Number(actor.houseId) !== 1) {
+      return res.status(403).json({ success: false, error: "Licensed houses use the main event list" });
+    }
+    const houseId = 1;
 
     const data = rows
       .filter(r => r.type && r.name && r.date)
@@ -2531,7 +2535,10 @@ app.delete("/api/events", async (req, res) => {
     const actor = req.body?.actorId || req.query.actorId
       ? await getUserRow(req.body?.actorId || req.query.actorId)
       : null;
-    const where = actor && actor.houseId ? { houseId: Number(actor.houseId) } : {};
+    if (actor && !isPlatformAdmin(actor) && Number(actor.houseId) !== 1) {
+      return res.status(403).json({ success: false, error: "Licensed houses use the main event list" });
+    }
+    const where = { OR: [{ houseId: 1 }, { houseId: null }] };
     const result = await prisma.event.deleteMany({ where });
     res.json({ success: true, count: result.count });
   } catch (err) {
@@ -2541,6 +2548,12 @@ app.delete("/api/events", async (req, res) => {
 // DELETE /api/events/:id
 app.delete("/api/events/:id", async (req, res) => {
   try {
+    const actor = req.body?.actorId || req.query.actorId
+      ? await getUserRow(req.body?.actorId || req.query.actorId)
+      : null;
+    if (actor && !isPlatformAdmin(actor) && Number(actor.houseId) !== 1) {
+      return res.status(403).json({ success: false, error: "Licensed houses use the main event list" });
+    }
     const id = parseInt(req.params.id);
     await prisma.event.delete({ where: { id } });
     res.json({ success: true });

@@ -2103,6 +2103,7 @@ const exposure = getExposure(b.stake, b.odds, {
         </div>
       </div>
     </CollapsibleSection>
+    {(currentUser?.role === 'admin' || Number(currentUser?.houseId) === 1) && (
     <CollapsibleSection title="Events" defaultOpen={false}>
       {eventMessage && <p style={{ color: '#00ff88' }}>{eventMessage}</p>}
       <div style={{ background: theme.panel, padding: 16, borderRadius: 8, marginBottom: 16 }}>
@@ -2210,6 +2211,7 @@ const exposure = getExposure(b.stake, b.odds, {
         </div>
       </CollapsibleSection>
     </CollapsibleSection>
+    )}
     <CollapsibleSection title="Layer pro-rata weights" defaultOpen={false}>
       <div style={{ background: theme.panel, border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px' }}>
         <p style={{ color: '#b0b0b0', fontSize: '13px' }}>1.0 = equal share. 2.0 = double share. Range 1.0–2.0.</p>
