@@ -1081,7 +1081,19 @@ const downloadLedgerCsv = () => {
       g.punter,
       g.event,
       g.selection,
-      g.odds,
+      (() => {
+        const o = String(g.odds || '').trim();
+        if (!o) return '';
+        if (o.includes('/')) {
+          const [n, d] = o.split('/');
+          const num = parseFloat(n);
+          const den = parseFloat(d) || 1;
+          if (!num || !den) return o;
+          return (1 + num / den).toFixed(2);
+        }
+        const n = parseFloat(o);
+        return Number.isFinite(n) ? n.toFixed(2) : o;
+      })(),
       g.eachWay,
       g.stake,
       g.house,
@@ -2896,28 +2908,21 @@ const exposure = getExposure(b.stake, b.odds, {
     </CollapsibleSection>
 
     <CollapsibleSection title="Ledger" defaultOpen={false}>
-      <div style={{ marginBottom: '10px' }}>
-        <button
-          type="button"
-          onClick={fetchLedger}
-          style={{ background: '#3a3a5c', color: 'white', padding: '8px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer', marginRight: 8 }}
-        >
-          Refresh Ledger
-        </button>
+      <div style={{ marginBottom: '8px' }}>
         <button
           type="button"
           onClick={downloadLedgerCsv}
           disabled={!ledger.length}
-          style={{ background: theme.btnBg, color: theme.btnText, padding: '8px 12px', border: 'none', borderRadius: '6px', cursor: ledger.length ? 'pointer' : 'default', fontWeight: 700 }}
+          style={{ background: theme.btnBg, color: theme.btnText, padding: '4px 8px', border: 'none', borderRadius: 6, cursor: ledger.length ? 'pointer' : 'default', fontWeight: 600, fontSize: 11 }}
         >
           Download Excel
         </button>
       </div>
       {ledger.length === 0 && <p style={muted}>No ledger entries yet.</p>}
       {groupLedgerBets(ledger).map(row => (
-        <div key={row.betId} style={{ ...card, fontSize: '13px', padding: '10px 12px' }}>
-          <div style={{ fontWeight: 600, color: '#e8e8e8', lineHeight: 1.4 }}>{row.line}</div>
-          <div style={{ ...muted, marginTop: 4 }}>{row.createdAt ? new Date(row.createdAt).toLocaleString('en-GB') : ''}</div>
+        <div key={row.betId} style={{ ...card, fontSize: '11px', padding: '7px 10px' }}>
+          <div style={{ fontWeight: 600, color: '#e8e8e8', lineHeight: 1.35, fontSize: 11 }}>{row.line}</div>
+          <div style={{ ...muted, marginTop: 3, fontSize: 10 }}>{row.createdAt ? new Date(row.createdAt).toLocaleString('en-GB') : ''}</div>
         </div>
       ))}
     </CollapsibleSection>
