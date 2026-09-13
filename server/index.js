@@ -164,6 +164,7 @@ async function shapeUser(user) {
     panelColorEnd,
     panelPattern,
     themeKey,
+    avatar: houseId ? await readAvatar(houseId, user.id) : null,
     houseMasterId,
     isPlatformAdmin: (user.role || "") === "admin",
     totpEnabled: !!user.totpEnabled,
@@ -2236,6 +2237,58 @@ app.get("/api/settings", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+function avatarKey(userId) {
+  return "avatar_" + Number(userId);
+}
+async function readAvatar(houseId, userId) {
+  if (!houseId || !userId) return null;
+  const row = await prisma.houseSetting.findUnique({
+    where: { houseId_key: { houseId: Number(houseId), key: avatarKey(userId) } },
+  }).catch(() => null);
+  if (!row || !row.value) return null;
+  try { return JSON.parse(row.value); } catch (e) { return null; }
+}
+
+app.get("/api/users/:id/avatar", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const actor = req.query.actorId ? await getUserRow(parseInt(req.query.actorId, 10)) : null;
+    const target = await getUserRow(id);
+    if (!target) return res.status(404).json({ success: false, error: "Not found" });
+    if (actor && actor.houseId && target.houseId && Number(actor.houseId) !== Number(target.houseId)) {
+      return res.status(403).json({ success: false, error: "Not allowed" });
+    }
+    const avatar = await readAvatar(target.houseId, id);
+    res.json({ success: true, avatar });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/users/:id/avatar", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    if (!actor || Number(actor.id) !== id) {
+      return res.status(403).json({ success: false, error: "You can only change your own avatar" });
+    }
+    if (!actor.houseId) return res.status(400).json({ success: false, error: "No house" });
+    const kind = String(req.body.kind || "mii");
+    let avatar = { kind: "mii", mii: req.body.mii || {} };
+    if (kind === "photo") {
+      const photo = String(req.body.photo || "");
+      if (!photo.startsWith("data:image/") || photo.length > 400000) {
+        return res.status(400).json({ success: false, error: "Photo too large. Use a smaller image." });
+      }
+      avatar = { kind: "photo", photo };
+    }
+    await setSetting(avatarKey(id), JSON.stringify(avatar), actor.houseId);
+    res.json({ success: true, avatar });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/leaderboard
 app.get('/api/leaderboard', async (req, res) => {
   try {
@@ -2300,15 +2353,17 @@ app.get('/api/leaderboard', async (req, res) => {
       if (prevRow?.value) previous = JSON.parse(prevRow.value);
     } catch (_) {}
 
-    const withMovement = ranked.map(u => {
+    const withMovement = [];
+    for (const u of ranked) {
       const prevRank = previous[u.id];
       let movement = 'same';
       if (prevRank != null) {
         if (u.rank < prevRank) movement = 'up';
         else if (u.rank > prevRank) movement = 'down';
       }
-      return { ...u, movement, prevRank: prevRank ?? null };
-    });
+      const avatar = await readAvatar(houseId, u.id);
+      withMovement.push({ ...u, movement, prevRank: prevRank ?? null, avatar });
+    }
 
     // Save current ranks for next time
     const newPrev = {};

@@ -121,6 +121,98 @@ function getHouseTheme(key) {
   return HOUSE_THEMES.find(t => t.key === key) || HOUSE_THEMES[0];
 }
 
+const MII_SKIN = ['#f2c7a0', '#e0a070', '#c68642', '#8d5524', '#f8d5c2', '#ffd5b0'];
+const MII_HAIR = ['#2b1b0e', '#6b3a1f', '#c4a35a', '#1a1a1a', '#d4542a', '#3d2b1f'];
+const DEFAULT_MII = { skin: '#f2c7a0', hair: '#2b1b0e', style: 'short', eyes: 'round', mouth: 'smile', extra: 'none' };
+
+function MiiFace({ mii, size = 64 }) {
+  const m = { ...DEFAULT_MII, ...(mii || {}) };
+  const s = size;
+  return (
+    <svg width={s} height={s} viewBox="0 0 64 64" style={{ display: 'block' }}>
+      <circle cx="32" cy="32" r="32" fill="#1b2433" />
+      <circle cx="32" cy="34" r="18" fill={m.skin} />
+      {m.style !== 'bald' && (
+        <path d={m.style === 'spike' ? 'M16 28 Q32 8 48 28 Q32 18 16 28' : m.style === 'curl' ? 'M14 30 Q18 10 32 16 Q46 10 50 30 Q32 22 14 30' : m.style === 'bun' ? 'M18 30 Q32 12 46 30 M32 10 a6 6 0 1 0 0.1 0' : 'M14 30 Q32 8 50 30 L48 24 Q32 12 16 24 Z'} fill={m.hair} />
+      )}
+      {m.eyes === 'happy' ? (
+        <>
+          <path d="M22 32 q4 -4 8 0" stroke="#222" strokeWidth="2" fill="none" />
+          <path d="M34 32 q4 -4 8 0" stroke="#222" strokeWidth="2" fill="none" />
+        </>
+      ) : m.eyes === 'wink' ? (
+        <>
+          <circle cx="24" cy="33" r="2.2" fill="#222" />
+          <path d="M34 33 q4 -3 8 0" stroke="#222" strokeWidth="2" fill="none" />
+        </>
+      ) : (
+        <>
+          <circle cx="24" cy="33" r="2.4" fill="#222" />
+          <circle cx="40" cy="33" r="2.4" fill="#222" />
+        </>
+      )}
+      {m.mouth === 'open' ? (
+        <ellipse cx="32" cy="44" rx="4" ry="3" fill="#b23" />
+      ) : m.mouth === 'flat' ? (
+        <path d="M26 44 h12" stroke="#222" strokeWidth="2" />
+      ) : (
+        <path d="M26 42 q6 6 12 0" stroke="#222" strokeWidth="2" fill="none" />
+      )}
+      {m.extra === 'glasses' && (
+        <>
+          <rect x="18" y="29" width="12" height="8" rx="2" fill="none" stroke="#222" strokeWidth="1.6" />
+          <rect x="34" y="29" width="12" height="8" rx="2" fill="none" stroke="#222" strokeWidth="1.6" />
+          <path d="M30 33 h4" stroke="#222" strokeWidth="1.6" />
+        </>
+      )}
+      {m.extra === 'cap' && <path d="M16 24 Q32 8 48 24 L52 26 L12 26 Z" fill={m.hair} />}
+    </svg>
+  );
+}
+
+function AvatarView({ avatar, size = 42 }) {
+  const wrap = { width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#3d8a7e' };
+  if (avatar?.kind === 'photo' && avatar.photo) {
+    return <img src={avatar.photo} alt="" style={{ ...wrap, objectFit: 'cover', display: 'block' }} />;
+  }
+  if (avatar?.kind === 'mii' || avatar?.mii) {
+    return <div style={wrap}><MiiFace mii={avatar.mii || avatar} size={size} /></div>;
+  }
+  return (
+    <div style={{ ...wrap, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <svg width={size * 0.7} height={size * 0.7} viewBox="0 0 64 64">
+        <circle cx="32" cy="24" r="11" fill="#fff" />
+        <path d="M12 54c3.5-12 12-18 20-18s16.5 6 20 18" fill="#fff" />
+      </svg>
+    </div>
+  );
+}
+
+function cropPhotoToCircle(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 192;
+      canvas.height = 192;
+      const ctx = canvas.getContext('2d');
+      const side = Math.min(img.width, img.height);
+      const sx = (img.width - side) / 2;
+      const sy = (img.height - side) / 2;
+      ctx.beginPath();
+      ctx.arc(96, 96, 96, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, 192, 192);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
 function applyHouseTheme(user) {
   const pack = getHouseTheme(user?.themeKey || 'classic');
   const accent = pack.accent;
@@ -529,6 +621,9 @@ const [showMoney, setShowMoney] = useState(() => {
   const [totpSetupCode, setTotpSetupCode] = useState('');
   const [totpMsg, setTotpMsg] = useState('');
   const [totpOffPending, setTotpOffPending] = useState(false);
+  const [avatarTab, setAvatarTab] = useState('photo');
+  const [miiDraft, setMiiDraft] = useState({ ...DEFAULT_MII, ...(user?.avatar?.mii || {}) });
+  const [avatarMsg, setAvatarMsg] = useState('');
 const [holdingBets, setHoldingBets] = useState({}); // id -> { bet, message, until }
 const prevInProcessIds = useRef(new Set());
   const [noteModal, setNoteModal] = useState(null);
@@ -1396,11 +1491,7 @@ const submitLay = async (b) => {
             flexShrink: 0,
           }}
         >
-          <svg width="28" height="28" viewBox="0 0 64 64" aria-hidden="true">
-            <circle cx="32" cy="32" r="32" fill="#4e9d90" />
-            <circle cx="32" cy="24" r="11" fill="#ffffff" />
-            <path d="M12 54c3.5-12 12-18 20-18s16.5 6 20 18" fill="#ffffff" />
-          </svg>
+          <AvatarView avatar={user.avatar} size={42} />
         </button>
       </div>
       {showMoney && (
@@ -1729,9 +1820,10 @@ inputMode="decimal"
     onToggle={setLeaderboardOpen}
   >
     <div style={{
-      background: 'linear-gradient(145deg, #1a1a2e, #16213e)',
-      border: '1px solid #3a3a5c',
-      borderRadius: 12,
+      background: 'linear-gradient(160deg, #1b1140 0%, #12203a 45%, #0b1220 100%)',
+      border: '1px solid rgba(0,255,136,0.28)',
+      boxShadow: '0 0 24px rgba(0,198,255,0.12)',
+      borderRadius: 14,
       padding: '16px',
       overflow: 'hidden',
     }}>
@@ -1739,10 +1831,11 @@ inputMode="decimal"
         textAlign: 'center',
         marginBottom: 14,
         fontSize: 13,
-        color: '#00ff88',
-        letterSpacing: 1,
+        color: '#ffe566',
+        letterSpacing: 1.4,
         textTransform: 'uppercase',
-        fontWeight: 700,
+        fontWeight: 800,
+        textShadow: '0 0 12px rgba(255,229,102,0.35)',
       }}>
         Party Mode • Live Standings
       </div>
@@ -1769,10 +1862,14 @@ inputMode="decimal"
               padding: '10px 12px',
               marginBottom: 6,
               borderRadius: 10,
-              background: isTop3
-                ? 'linear-gradient(90deg, rgba(0,255,136,0.12), rgba(0,198,255,0.08))'
-                : 'rgba(255,255,255,0.03)',
-              border: isTop3 ? '1px solid rgba(0,255,136,0.25)' : '1px solid transparent',
+              background: row.rank === 1
+                ? 'linear-gradient(90deg, rgba(255,215,0,0.22), rgba(255,215,0,0.04))'
+                : row.rank === 2
+                ? 'linear-gradient(90deg, rgba(192,192,192,0.2), rgba(192,192,192,0.04))'
+                : row.rank === 3
+                ? 'linear-gradient(90deg, rgba(205,127,50,0.22), rgba(205,127,50,0.04))'
+                : 'rgba(255,255,255,0.04)',
+              border: isTop3 ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent',
             }}
           >
             <div style={{
@@ -1780,11 +1877,11 @@ inputMode="decimal"
               textAlign: 'center',
               fontWeight: 800,
               fontSize: isTop3 ? 18 : 15,
-              color: isTop3 ? '#00ff88' : '#c8c8d8',
+              color: row.rank === 1 ? '#ffd700' : row.rank === 2 ? '#e8e8e8' : row.rank === 3 ? '#cd7f32' : '#c8c8d8',
             }}>
               {medal || row.rank}
             </div>
-
+            <AvatarView avatar={row.avatar} size={36} />
             <div style={{ width: 18, textAlign: 'center', fontSize: 14 }}>
               {arrow}
             </div>
@@ -2425,16 +2522,96 @@ style={{
     <div onClick={e => e.stopPropagation()} style={{ background: theme.panel, padding: 20, borderRadius: 12, maxWidth: 360, width: '90%', border: '1px solid #3a3a5c', color: theme.panelText, position: 'relative' }}>
       <button type="button" onClick={() => setAccountOpen(false)} aria-label="Close" style={{ position: 'absolute', top: 8, right: 8, width: 32, height: 32, border: 'none', background: 'transparent', color: theme.text, fontSize: 22, lineHeight: '32px', cursor: 'pointer' }}>×</button>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingRight: 28 }}>
-        <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#3d8a7e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg width="32" height="32" viewBox="0 0 64 64" aria-hidden="true">
-            <circle cx="32" cy="32" r="32" fill="#4e9d90" />
-            <circle cx="32" cy="24" r="11" fill="#ffffff" />
-            <path d="M12 54c3.5-12 12-18 20-18s16.5 6 20 18" fill="#ffffff" />
-          </svg>
-        </div>
+        <AvatarView avatar={user.avatar} size={56} />
         <div>
           <div style={{ fontWeight: 800, fontSize: 18 }}>{user.name}</div>
         </div>
+      </div>
+      <div style={{ marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid #3a3a5c' }}>
+        <div style={{ fontWeight: 700, marginBottom: 8 }}>Avatar</div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <button type="button" onClick={() => setAvatarTab('photo')} style={{ flex: 1, padding: 8, borderRadius: 6, border: avatarTab === 'photo' ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer' }}>Photo</button>
+          <button type="button" onClick={() => setAvatarTab('mii')} style={{ flex: 1, padding: 8, borderRadius: 6, border: avatarTab === 'mii' ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer' }}>Designer</button>
+        </div>
+        {avatarTab === 'photo' ? (
+          <div>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={async (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+                try {
+                  const photo = await cropPhotoToCircle(file);
+                  const res = await fetch(`${API}/api/users/${user.id}/avatar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ actorId: user.id, kind: 'photo', photo }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Save failed');
+                  onUserUpdate({ ...user, avatar: data.avatar });
+                  setAvatarMsg('Photo saved');
+                } catch (err) {
+                  setAvatarMsg(err.message || 'Could not read photo');
+                }
+              }}
+              style={{ color: theme.text, width: '100%' }}
+            />
+            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>Square crop, shown as a circle on the board.</div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+              <MiiFace mii={miiDraft} size={88} />
+            </div>
+            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Skin</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+              {MII_SKIN.map(c => (
+                <button key={c} type="button" onClick={() => setMiiDraft(d => ({ ...d, skin: c }))} style={{ width: 22, height: 22, borderRadius: '50%', background: c, border: miiDraft.skin === c ? '2px solid #fff' : '1px solid #555', cursor: 'pointer' }} />
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Hair</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+              {MII_HAIR.map(c => (
+                <button key={c} type="button" onClick={() => setMiiDraft(d => ({ ...d, hair: c }))} style={{ width: 22, height: 22, borderRadius: '50%', background: c, border: miiDraft.hair === c ? '2px solid #fff' : '1px solid #555', cursor: 'pointer' }} />
+              ))}
+            </div>
+            {[
+              ['style', 'Style', ['short', 'spike', 'curl', 'bun', 'bald']],
+              ['eyes', 'Eyes', ['round', 'happy', 'wink']],
+              ['mouth', 'Mouth', ['smile', 'open', 'flat']],
+              ['extra', 'Extra', ['none', 'glasses', 'cap']],
+            ].map(([key, label, opts]) => (
+              <div key={key} style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{label}</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {opts.map(opt => (
+                    <button key={opt} type="button" onClick={() => setMiiDraft(d => ({ ...d, [key]: opt }))} style={{ padding: '4px 8px', borderRadius: 6, border: miiDraft[key] === opt ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer', fontSize: 12 }}>{opt}</button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={async () => {
+                const res = await fetch(`${API}/api/users/${user.id}/avatar`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ actorId: user.id, kind: 'mii', mii: miiDraft }),
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Save failed');
+                onUserUpdate({ ...user, avatar: data.avatar });
+                setAvatarMsg('Avatar saved');
+              }}
+              style={{ width: '100%', padding: 8, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
+            >
+              Save avatar
+            </button>
+          </div>
+        )}
+        {avatarMsg && <div style={{ marginTop: 8, fontSize: 13 }}>{avatarMsg}</div>}
       </div>
       <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
         <div style={{ color: '#00ff88', fontWeight: 700, marginBottom: 6 }}>Balance: £{Number(user.balance || 0).toFixed(2)}</div>
