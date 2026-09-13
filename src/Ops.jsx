@@ -13,29 +13,45 @@ const DEFAULT_BRAND = {
   buttonTextColor: '#0b1220',
 };
 
+function hexToRgba(hex, a) {
+  const h = String(hex || '').replace('#', '');
+  if (h.length !== 6) return 'rgba(16,24,38,' + a + ')';
+  const n = parseInt(h, 16);
+  return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+}
+
 function applyHouseTheme(user) {
   const accent = user?.accentColor || DEFAULT_BRAND.accentColor;
   const bg = user?.bgColor || DEFAULT_BRAND.bgColor;
+  const bgEnd = user?.bgColorEnd || '';
   const panel = user?.panelColor || DEFAULT_BRAND.panelColor;
   const text = user?.textColor || DEFAULT_BRAND.textColor;
   const panelText = user?.panelTextColor || DEFAULT_BRAND.panelTextColor;
   const btnBg = user?.buttonBgColor || DEFAULT_BRAND.buttonBgColor;
+  const btnEnd = user?.buttonBgColorEnd || '';
   const btnText = user?.buttonTextColor || DEFAULT_BRAND.buttonTextColor;
+  const shimmer = !!user?.shimmer;
   let tag = document.getElementById('btm-house-theme');
   if (!tag) {
     tag = document.createElement('style');
     tag.id = 'btm-house-theme';
     document.head.appendChild(tag);
   }
-  const bgCss = user?.bgColor
-    ? ('radial-gradient(1200px 600px at 50% -10%, ' + panel + ' 0%, ' + bg + ' 55%, #07060f 100%)')
-    : 'radial-gradient(1200px 600px at 50% -10%, #1a1440 0%, #0b0a1a 55%, #07060f 100%)';
-  const btnCss = 'linear-gradient(135deg, ' + btnBg + ', ' + (btnBg === accent ? '#00c6ff' : accent) + ')';
+  const bgCss = bgEnd
+    ? ('linear-gradient(180deg, ' + bg + ' 0%, ' + bgEnd + ' 100%)')
+    : (user?.bgColor
+      ? ('radial-gradient(1200px 600px at 50% -10%, ' + panel + ' 0%, ' + bg + ' 55%, #07060f 100%)')
+      : 'radial-gradient(1200px 600px at 50% -10%, #1a1440 0%, #0b0a1a 55%, #07060f 100%)');
+  const btnCss = 'linear-gradient(135deg, ' + btnBg + ', ' + (btnEnd || (btnBg === accent ? '#00c6ff' : accent)) + ')';
+  const shimmerCss = shimmer ? (
+    '@keyframes btm-shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } } ' +
+    '#root button[type="submit"] { background-size: 200% 200% !important; animation: btm-shimmer 2.4s linear infinite; }'
+  ) : '';
   tag.textContent = [
     'html, body, #root { background: ' + bgCss + ' !important; color: ' + text + ' !important; min-height: 100%; }',
-    '#root div, #root span, #root p, #root h2, #root h3, #root label, #root li { color: ' + text + ' !important; }',
-    '#root button { background: ' + btnCss + ' !important; color: ' + btnText + ' !important; }',
     '#root input, #root textarea, #root select { color: ' + panelText + ' !important; }',
+    '#root button[type="submit"] { background: ' + btnCss + ' !important; color: ' + btnText + ' !important; }',
+    shimmerCss,
   ].join(' ');
   document.body.style.background = bgCss;
   document.body.style.color = text;
@@ -255,6 +271,9 @@ const [brandText, setBrandText] = useState('#e8e8e8');
 const [brandPanelText, setBrandPanelText] = useState('#e8e8e8');
 const [brandBtnBg, setBrandBtnBg] = useState('#00ff88');
 const [brandBtnText, setBrandBtnText] = useState('#0b1220');
+const [brandBgEnd, setBrandBgEnd] = useState('');
+const [brandBtnEnd, setBrandBtnEnd] = useState('');
+const [brandShimmer, setBrandShimmer] = useState(false);
 const [brandLogo, setBrandLogo] = useState('');
 const [brandLogoScale, setBrandLogoScale] = useState(100);
 const [chatTabUnread, setChatTabUnread] = useState(0);
@@ -284,6 +303,9 @@ const [settings, setSettings] = useState({
       setBrandPanelText(currentUser.panelTextColor || DEFAULT_BRAND.panelTextColor);
       setBrandBtnBg(currentUser.buttonBgColor || DEFAULT_BRAND.buttonBgColor);
       setBrandBtnText(currentUser.buttonTextColor || DEFAULT_BRAND.buttonTextColor);
+      setBrandBgEnd(currentUser.bgColorEnd || '');
+      setBrandBtnEnd(currentUser.buttonBgColorEnd || '');
+      setBrandShimmer(!!currentUser.shimmer);
       setBrandLogo(currentUser.houseLogoUrl && currentUser.houseLogoUrl !== 'in-memory' ? currentUser.houseLogoUrl : '');
       setBrandLogoScale(Number(currentUser.logoScale || 100));
     }
@@ -311,6 +333,9 @@ const [settings, setSettings] = useState({
           buttonBgColor: h.buttonBgColor,
           buttonTextColor: h.buttonTextColor,
           logoScale: h.logoScale,
+          bgColorEnd: h.bgColorEnd || '',
+          buttonBgColorEnd: h.buttonBgColorEnd || '',
+          shimmer: !!h.shimmer,
           _brandingLoaded: true,
         }));
       })
@@ -2182,7 +2207,7 @@ const exposure = getExposure(b.stake, b.odds, {
 
     <CollapsibleSection title="Branding" defaultOpen={false}>
       <div style={{ background: theme.panel, border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
-        <p style={{ color: '#b0b0b0', fontSize: 13, marginTop: 0 }}>Logo and colours for this house. Punters see this after login.</p>
+        <p style={{ color: '#b0b0b0', fontSize: 13, marginTop: 0 }}>Logo and colours for this house. Add a second colour to make a gradient. Shimmer only runs on Submit.</p>
         <div style={{ marginBottom: 8, color: '#b0b0b0', fontSize: 13 }}>House name</div>
         <input value={brandName} onChange={e => setBrandName(e.target.value)} style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
         <div style={{ marginBottom: 8, color: '#b0b0b0', fontSize: 13 }}>Logo</div>
@@ -2208,10 +2233,12 @@ const exposure = getExposure(b.stake, b.odds, {
         {[
           ['Accent', brandAccent, setBrandAccent],
           ['Background', brandBg, setBrandBg],
+          ['Background end (gradient)', brandBgEnd || brandBg, setBrandBgEnd],
           ['Page text', brandText, setBrandText],
           ['Panels', brandPanel, setBrandPanel],
           ['Panel text', brandPanelText, setBrandPanelText],
           ['Button background', brandBtnBg, setBrandBtnBg],
+          ['Button end (gradient)', brandBtnEnd || brandBtnBg, setBrandBtnEnd],
           ['Button text', brandBtnText, setBrandBtnText],
         ].map(([label, value, setter]) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -2220,6 +2247,11 @@ const exposure = getExposure(b.stake, b.odds, {
             <input value={value} onChange={e => setter(e.target.value)} style={{ width: 90, padding: 6, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
           </div>
         ))}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 12px', color: '#b0b0b0', fontSize: 13, cursor: 'pointer' }}>
+          <input type="checkbox" checked={brandShimmer} onChange={e => setBrandShimmer(e.target.checked)} />
+          Shimmer on Submit button
+        </label>
+        <div style={{ height: 36, borderRadius: 8, marginBottom: 12, background: 'linear-gradient(135deg, ' + brandBtnBg + ', ' + (brandBtnEnd || brandBtnBg) + ')' }} />
         <button
           type="button"
           onClick={async () => {
@@ -2230,11 +2262,14 @@ const exposure = getExposure(b.stake, b.odds, {
               logoScale: brandLogoScale,
               accentColor: brandAccent,
               bgColor: brandBg,
+              bgColorEnd: brandBgEnd || '',
               panelColor: brandPanel,
               textColor: brandText,
               panelTextColor: brandPanelText,
               buttonBgColor: brandBtnBg,
+              buttonBgColorEnd: brandBtnEnd || '',
               buttonTextColor: brandBtnText,
+              shimmer: brandShimmer,
             };
             try {
               const res = await fetch(`${API}/api/houses/branding`, {
@@ -2257,6 +2292,9 @@ const exposure = getExposure(b.stake, b.odds, {
                 panelTextColor: data.house.panelTextColor,
                 buttonBgColor: data.house.buttonBgColor,
                 buttonTextColor: data.house.buttonTextColor,
+                bgColorEnd: data.house.bgColorEnd || '',
+                buttonBgColorEnd: data.house.buttonBgColorEnd || '',
+                shimmer: !!data.house.shimmer,
               };
               try {
                 const slim = { ...updated, houseLogoUrl: updated.houseLogoUrl ? 'in-memory' : '' };

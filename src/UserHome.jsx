@@ -14,29 +14,45 @@ const DEFAULT_BRAND = {
   buttonTextColor: '#0b1220',
 };
 
+function hexToRgba(hex, a) {
+  const h = String(hex || '').replace('#', '');
+  if (h.length !== 6) return 'rgba(16,24,38,' + a + ')';
+  const n = parseInt(h, 16);
+  return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+}
+
 function applyHouseTheme(user) {
   const accent = user?.accentColor || DEFAULT_BRAND.accentColor;
   const bg = user?.bgColor || DEFAULT_BRAND.bgColor;
+  const bgEnd = user?.bgColorEnd || '';
   const panel = user?.panelColor || DEFAULT_BRAND.panelColor;
   const text = user?.textColor || DEFAULT_BRAND.textColor;
   const panelText = user?.panelTextColor || DEFAULT_BRAND.panelTextColor;
   const btnBg = user?.buttonBgColor || DEFAULT_BRAND.buttonBgColor;
+  const btnEnd = user?.buttonBgColorEnd || '';
   const btnText = user?.buttonTextColor || DEFAULT_BRAND.buttonTextColor;
+  const shimmer = !!user?.shimmer;
   let tag = document.getElementById('btm-house-theme');
   if (!tag) {
     tag = document.createElement('style');
     tag.id = 'btm-house-theme';
     document.head.appendChild(tag);
   }
-  const bgCss = user?.bgColor
-    ? ('radial-gradient(1200px 600px at 50% -10%, ' + panel + ' 0%, ' + bg + ' 55%, #07060f 100%)')
-    : 'radial-gradient(1200px 600px at 50% -10%, #1a1440 0%, #0b0a1a 55%, #07060f 100%)';
-  const btnCss = 'linear-gradient(135deg, ' + btnBg + ', ' + (btnBg === accent ? '#00c6ff' : accent) + ')';
+  const bgCss = bgEnd
+    ? ('linear-gradient(180deg, ' + bg + ' 0%, ' + bgEnd + ' 100%)')
+    : (user?.bgColor
+      ? ('radial-gradient(1200px 600px at 50% -10%, ' + panel + ' 0%, ' + bg + ' 55%, #07060f 100%)')
+      : 'radial-gradient(1200px 600px at 50% -10%, #1a1440 0%, #0b0a1a 55%, #07060f 100%)');
+  const btnCss = 'linear-gradient(135deg, ' + btnBg + ', ' + (btnEnd || (btnBg === accent ? '#00c6ff' : accent)) + ')';
+  const shimmerCss = shimmer ? (
+    '@keyframes btm-shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } } ' +
+    '#root button[type="submit"] { background-size: 200% 200% !important; animation: btm-shimmer 2.4s linear infinite; }'
+  ) : '';
   tag.textContent = [
     'html, body, #root { background: ' + bgCss + ' !important; color: ' + text + ' !important; min-height: 100%; }',
-    '#root div, #root span, #root p, #root h2, #root h3, #root label, #root li { color: ' + text + ' !important; }',
-    '#root button { background: ' + btnCss + ' !important; color: ' + btnText + ' !important; }',
     '#root input, #root textarea, #root select { color: ' + panelText + ' !important; }',
+    '#root button[type="submit"] { background: ' + btnCss + ' !important; color: ' + btnText + ' !important; }',
+    shimmerCss,
   ].join(' ');
   document.body.style.background = bgCss;
   document.body.style.color = text;
@@ -256,6 +272,8 @@ export default function UserHome() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
+  const [needs2fa, setNeeds2fa] = useState(false);
+  const [totpCode, setTotpCode] = useState('');
 
   useEffect(() => {
     const raw = localStorage.getItem('btm_user');
@@ -309,14 +327,21 @@ export default function UserHome() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/auth/login`, {
+      const url = needs2fa ? `${API}/api/auth/2fa/login` : `${API}/api/auth/login`;
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, code: totpCode }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
         setError(data.error || 'Login failed');
+        setLoading(false);
+        return;
+      }
+      if (data.needs2fa) {
+        setNeeds2fa(true);
+        setError('');
         setLoading(false);
         return;
       }
@@ -359,6 +384,12 @@ if (data.user.role === 'admin' || data.user.role === 'house') {
         <input type="text" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
         <div style={{ marginTop: 14, marginBottom: 8, color: '#b0b0b0' }}>Password</div>
         <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} />
+        {needs2fa && (
+          <>
+            <div style={{ marginTop: 14, marginBottom: 8, color: '#b0b0b0' }}>Authenticator code</div>
+            <input type="text" inputMode="numeric" autoComplete="one-time-code" value={totpCode} onChange={e => setTotpCode(e.target.value)} placeholder="6-digit code" style={inputStyle} />
+          </>
+        )}
         {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
         <button
           type="button"
@@ -416,6 +447,9 @@ const [showMoney, setShowMoney] = useState(() => {
     return true;
   });
   const [accountOpen, setAccountOpen] = useState(false);
+  const [totpSecret, setTotpSecret] = useState('');
+  const [totpSetupCode, setTotpSetupCode] = useState('');
+  const [totpMsg, setTotpMsg] = useState('');
 const [holdingBets, setHoldingBets] = useState({}); // id -> { bet, message, until }
 const prevInProcessIds = useRef(new Set());
   const [noteModal, setNoteModal] = useState(null);
@@ -2348,6 +2382,47 @@ style={{
         />
         Show balance on home screen
       </label>
+      <div style={{ marginBottom: 12, paddingTop: 8, borderTop: '1px solid #3a3a5c' }}>
+        <div style={{ fontWeight: 700, marginBottom: 8 }}>Two-factor login</div>
+        {user.totpEnabled ? (
+          <>
+            <div style={{ color: '#00ff88', fontSize: 13, marginBottom: 8 }}>On — authenticator required at sign in</div>
+            <input value={totpSetupCode} onChange={e => setTotpSetupCode(e.target.value)} placeholder="Code to turn off" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
+            <button type="button" onClick={async () => {
+              const res = await fetch(`${API}/api/auth/2fa/disable`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: user.id, code: totpSetupCode }) });
+              const data = await res.json();
+              if (!res.ok || !data.success) return setTotpMsg(data.error || 'Failed');
+              setTotpMsg('2FA off');
+              setTotpSetupCode('');
+              onUserUpdate({ ...user, totpEnabled: false });
+            }} style={{ width: '100%', padding: 8, background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Turn off 2FA</button>
+          </>
+        ) : totpSecret ? (
+          <>
+            <div style={{ fontSize: 13, marginBottom: 6 }}>Add this key in Google Authenticator / Authy:</div>
+            <div style={{ fontFamily: 'monospace', wordBreak: 'break-all', marginBottom: 8 }}>{totpSecret}</div>
+            <input value={totpSetupCode} onChange={e => setTotpSetupCode(e.target.value)} placeholder="6-digit code" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
+            <button type="button" onClick={async () => {
+              const res = await fetch(`${API}/api/auth/2fa/enable`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: user.id, code: totpSetupCode }) });
+              const data = await res.json();
+              if (!res.ok || !data.success) return setTotpMsg(data.error || 'Failed');
+              setTotpMsg('2FA on');
+              setTotpSecret('');
+              setTotpSetupCode('');
+              onUserUpdate({ ...user, totpEnabled: true });
+            }} style={{ width: '100%', padding: 8, background: '#00ff88', color: '#0b1220', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Confirm and enable</button>
+          </>
+        ) : (
+          <button type="button" onClick={async () => {
+            const res = await fetch(`${API}/api/auth/2fa/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: user.id }) });
+            const data = await res.json();
+            if (!res.ok || !data.success) return setTotpMsg(data.error || 'Failed');
+            setTotpSecret(data.secret);
+            setTotpMsg('');
+          }} style={{ width: '100%', padding: 8, background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Set up 2FA</button>
+        )}
+        {totpMsg && <div style={{ marginTop: 8, fontSize: 13 }}>{totpMsg}</div>}
+      </div>
       {typeof Notification !== "undefined" && Notification.permission !== "granted" && (
         <button
           type="button"

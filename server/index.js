@@ -8,6 +8,54 @@ const { Server } = require("socket.io");
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 const webpush = require("web-push");
+const crypto = require("crypto");
+
+const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+function base32Encode(buf) {
+  let bits = 0, value = 0, out = "";
+  for (const byte of buf) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      out += BASE32[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) out += BASE32[(value << (5 - bits)) & 31];
+  return out;
+}
+function base32Decode(str) {
+  const clean = String(str || "").toUpperCase().replace(/=+$/g, "").replace(/[^A-Z2-7]/g, "");
+  let bits = 0, value = 0;
+  const out = [];
+  for (const c of clean) {
+    const idx = BASE32.indexOf(c);
+    if (idx < 0) continue;
+    value = (value << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      out.push((value >>> (bits - 8)) & 255);
+      bits -= 8;
+    }
+  }
+  return Buffer.from(out);
+}
+function totpCode(secret, step = Math.floor(Date.now() / 1000 / 30)) {
+  const key = base32Decode(secret);
+  const buf = Buffer.alloc(8);
+  buf.writeUInt32BE(0, 0);
+  buf.writeUInt32BE(step, 4);
+  const hmac = crypto.createHmac("sha1", key).update(buf).digest();
+  const offset = hmac[hmac.length - 1] & 0xf;
+  const bin = ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | (hmac[offset + 3] & 0xff);
+  return String(bin % 1000000).padStart(6, "0");
+}
+function totpValid(secret, code) {
+  const entered = String(code || "").replace(/\s/g, "");
+  if (!/^\d{6}$/.test(entered) || !secret) return false;
+  const now = Math.floor(Date.now() / 1000 / 30);
+  return [-1, 0, 1].some((w) => totpCode(secret, now + w) === entered);
+}
 
 const prisma = new PrismaClient();
 
@@ -52,6 +100,9 @@ async function shapeUser(user) {
   let buttonBgColor = null;
   let buttonTextColor = null;
   let logoScale = null;
+  let bgColorEnd = null;
+  let buttonBgColorEnd = null;
+  let shimmer = false;
   if (houseId) {
     const house = await prisma.house.findUnique({ where: { id: houseId } });
     if (house) {
@@ -66,6 +117,14 @@ async function shapeUser(user) {
       buttonBgColor = house.buttonBgColor || null;
       buttonTextColor = house.buttonTextColor || null;
       logoScale = house.logoScale != null ? Number(house.logoScale) : null;
+    }
+    const extras = await prisma.houseSetting.findMany({
+      where: { houseId, key: { in: ["bgColorEnd", "buttonBgColorEnd", "shimmer"] } },
+    });
+    for (const r of extras) {
+      if (r.key === "bgColorEnd") bgColorEnd = r.value || null;
+      if (r.key === "buttonBgColorEnd") buttonBgColorEnd = r.value || null;
+      if (r.key === "shimmer") shimmer = r.value === "true";
     }
   }
   const houseMasterId = houseId
@@ -93,8 +152,12 @@ async function shapeUser(user) {
     buttonBgColor,
     buttonTextColor,
     logoScale,
+    bgColorEnd,
+    buttonBgColorEnd,
+    shimmer,
     houseMasterId,
     isPlatformAdmin: (user.role || "") === "admin",
+    totpEnabled: !!user.totpEnabled,
   };
 }
 
@@ -870,7 +933,16 @@ app.get("/api/houses/branding", async (req, res) => {
     }
     const house = await prisma.house.findUnique({ where: { id: Number(actor.houseId) } });
     if (!house) return res.status(404).json({ success: false, error: "House not found" });
-    res.json({ success: true, house });
+    const extras = await prisma.houseSetting.findMany({
+      where: { houseId: Number(actor.houseId), key: { in: ["bgColorEnd", "buttonBgColorEnd", "shimmer"] } },
+    });
+    const extra = { bgColorEnd: null, buttonBgColorEnd: null, shimmer: false };
+    for (const r of extras) {
+      if (r.key === "bgColorEnd") extra.bgColorEnd = r.value || null;
+      if (r.key === "buttonBgColorEnd") extra.buttonBgColorEnd = r.value || null;
+      if (r.key === "shimmer") extra.shimmer = r.value === "true";
+    }
+    res.json({ success: true, house: { ...house, ...extra } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -945,13 +1017,40 @@ app.post("/api/houses/branding", async (req, res) => {
       data.panelTextColor = null;
       data.buttonBgColor = null;
       data.buttonTextColor = null;
+      await setSetting("bgColorEnd", "", houseId);
+      await setSetting("buttonBgColorEnd", "", houseId);
+      await setSetting("shimmer", "false", houseId);
+    }
+    if (req.body.bgColorEnd !== undefined) {
+      if (!validHexColor(req.body.bgColorEnd)) {
+        return res.status(400).json({ success: false, error: "Invalid background end colour" });
+      }
+      await setSetting("bgColorEnd", req.body.bgColorEnd || "", houseId);
+    }
+    if (req.body.buttonBgColorEnd !== undefined) {
+      if (!validHexColor(req.body.buttonBgColorEnd)) {
+        return res.status(400).json({ success: false, error: "Invalid button end colour" });
+      }
+      await setSetting("buttonBgColorEnd", req.body.buttonBgColorEnd || "", houseId);
+    }
+    if (req.body.shimmer !== undefined) {
+      await setSetting("shimmer", req.body.shimmer ? "true" : "false", houseId);
     }
     if (req.body.name !== undefined) {
       const name = String(req.body.name || "").trim();
       if (name) data.name = name;
     }
     const house = await prisma.house.update({ where: { id: houseId }, data });
-    res.json({ success: true, house });
+    const extras = await prisma.houseSetting.findMany({
+      where: { houseId, key: { in: ["bgColorEnd", "buttonBgColorEnd", "shimmer"] } },
+    });
+    const extra = { bgColorEnd: null, buttonBgColorEnd: null, shimmer: false };
+    for (const r of extras) {
+      if (r.key === "bgColorEnd") extra.bgColorEnd = r.value || null;
+      if (r.key === "buttonBgColorEnd") extra.buttonBgColorEnd = r.value || null;
+      if (r.key === "shimmer") extra.shimmer = r.value === "true";
+    }
+    res.json({ success: true, house: { ...house, ...extra } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
@@ -1316,7 +1415,7 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ success: false, error: "Email and password required" });
     }
     const rows = await prisma.$queryRaw`
-      SELECT id, name, email, "canLay", "canLayAllowed", balance, weight, role, "passwordHash", "mustChangePassword", "houseId"
+      SELECT id, name, email, "canLay", "canLayAllowed", balance, weight, role, "passwordHash", "mustChangePassword", "houseId", "totpEnabled", "totpSecret"
       FROM "User" WHERE lower(email) = ${email}
     `;
     const user = rows[0];
@@ -1327,12 +1426,79 @@ app.post("/api/auth/login", async (req, res) => {
     if (!ok) {
       return res.status(401).json({ success: false, error: "Invalid login" });
     }
+    if (user.totpEnabled) {
+      return res.json({ success: true, needs2fa: true, userId: user.id, email: user.email });
+    }
     res.json({
       success: true,
       user: await shapeUser(user),
     });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+app.post("/api/auth/2fa/login", async (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+    const code = String(req.body.code || "");
+    const rows = await prisma.$queryRaw`
+      SELECT id, name, email, "canLay", "canLayAllowed", balance, weight, role, "passwordHash", "mustChangePassword", "houseId", "totpEnabled", "totpSecret"
+      FROM "User" WHERE lower(email) = ${email}
+    `;
+    const user = rows[0];
+    if (!user || !user.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
+      return res.status(401).json({ success: false, error: "Invalid login" });
+    }
+    if (!user.totpEnabled || !totpValid(user.totpSecret, code)) {
+      return res.status(401).json({ success: false, error: "Invalid code" });
+    }
+    res.json({ success: true, user: await shapeUser(user) });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+app.post("/api/auth/2fa/setup", async (req, res) => {
+  try {
+    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    if (!actor) return res.status(403).json({ success: false, error: "Not allowed" });
+    const secret = base32Encode(crypto.randomBytes(20));
+    await prisma.$executeRaw`UPDATE "User" SET "totpSecret" = ${secret}, "totpEnabled" = false WHERE id = ${actor.id}`;
+    const label = encodeURIComponent("BetOrLay:" + (actor.email || actor.name));
+    const otpauth = `otpauth://totp/${label}?secret=${secret}&issuer=BetOrLay`;
+    res.json({ success: true, secret, otpauth });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+app.post("/api/auth/2fa/enable", async (req, res) => {
+  try {
+    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    if (!actor) return res.status(403).json({ success: false, error: "Not allowed" });
+    const rows = await prisma.$queryRaw`SELECT "totpSecret" FROM "User" WHERE id = ${actor.id}`;
+    const secret = rows[0] && rows[0].totpSecret;
+    if (!totpValid(secret, req.body.code)) {
+      return res.status(400).json({ success: false, error: "Invalid code" });
+    }
+    await prisma.$executeRaw`UPDATE "User" SET "totpEnabled" = true WHERE id = ${actor.id}`;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+app.post("/api/auth/2fa/disable", async (req, res) => {
+  try {
+    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    if (!actor) return res.status(403).json({ success: false, error: "Not allowed" });
+    const rows = await prisma.$queryRaw`SELECT "totpSecret", "totpEnabled" FROM "User" WHERE id = ${actor.id}`;
+    const row = rows[0];
+    if (!row || !row.totpEnabled || !totpValid(row.totpSecret, req.body.code)) {
+      return res.status(400).json({ success: false, error: "Invalid code" });
+    }
+    await prisma.$executeRaw`UPDATE "User" SET "totpEnabled" = false, "totpSecret" = NULL WHERE id = ${actor.id}`;
+    res.json({ success: true });
+  } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
