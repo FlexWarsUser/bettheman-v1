@@ -1367,8 +1367,10 @@ app.get("/api/users", async (req, res) => {
     const actorId = parseInt(req.query.actorId, 10);
     const actor = actorId ? await getUserRow(actorId) : null;
     const where = {};
-    if (actor && !isPlatformAdmin(actor) && actor.houseId) {
-      where.houseId = Number(actor.houseId);
+    const wantAll = isPlatformAdmin(actor) && String(req.query.all || "") === "1";
+    if (!wantAll) {
+      const hid = actor && actor.houseId != null ? Number(actor.houseId) : 1;
+      where.OR = hid === 1 ? [{ houseId: 1 }, { houseId: null }] : [{ houseId: hid }];
     }
     const users = await prisma.user.findMany({
       where,
