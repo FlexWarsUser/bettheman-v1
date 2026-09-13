@@ -984,10 +984,39 @@ const groupLedgerBets = (entries) => {
     else if (types.includes('house_accepted')) houseBit = `House ${money(houseAmt || bits.stake || 0)}`;
     else if (types.includes('house_partial')) houseBit = `House ${money(houseAmt || bits.amount || 0)}`;
     else if (types.includes('house_passed')) houseBit = 'House passed';
+    const signed = (n) => {
+      const v = Number(n) || 0;
+      const abs = money(Math.abs(v));
+      if (v > 0.004) return '+' + abs;
+      if (v < -0.004) return '-' + abs;
+      return money(0);
+    };
+    let pnl = bits.pnl || null;
+    if (!pnl && (types.includes('settled_won') || types.includes('settled_lost'))) {
+      const h = Number(houseAmt) || 0;
+      const lay = Number(bits.layersLaid) || 0;
+      const matched = h + lay || Number(bits.stake) || 0;
+      const od = String(bits.odds || '');
+      const frac = od.includes('/')
+        ? (() => { const [n, den] = od.split('/'); return (parseFloat(n) || 0) / (parseFloat(den) || 1); })()
+        : Math.max(0, parseFloat(od) - 1 || 0);
+      if (types.includes('settled_won')) {
+        pnl = { punterName: bits.punterName, punterDelta: matched + matched * frac, houseDelta: -(h * frac), layers: [] };
+      } else {
+        pnl = { punterName: bits.punterName, punterDelta: -matched, houseDelta: h, layers: [] };
+      }
+    }
     let settleBit = '';
-    if (types.includes('settled_won')) settleBit = 'WON';
-    else if (types.includes('settled_lost')) settleBit = 'LOST';
-    else if (types.includes('settled_manual')) settleBit = 'manual';
+    if (types.includes('settled_won') || types.includes('settled_lost') || types.includes('settled_manual') || types.includes('settled_placed')) {
+      const out = [];
+      if (pnl) {
+        out.push(`${pnl.punterName || 'Punter'} ${signed(pnl.punterDelta)}`);
+        if (Number(pnl.houseDelta)) out.push(`House ${signed(pnl.houseDelta)}`);
+        (pnl.layers || []).forEach(l => out.push(`${l.layerName || 'Layer'} ${signed(l.delta)}`));
+      }
+      const tag = types.includes('settled_won') ? 'WON' : types.includes('settled_lost') ? 'LOST' : types.includes('settled_placed') ? 'PLACED' : 'manual';
+      settleBit = out.length ? `${tag} ${out.join(', ')}` : tag;
+    }
     const slip = [bits.event, bits.selection].filter(Boolean).join(' – ') + (bits.odds ? ` @ ${bits.odds}` : '') + (bits.eachWay ? ' EW' : '');
     const parts = [
       `#${betId}`,

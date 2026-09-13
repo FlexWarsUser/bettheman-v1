@@ -620,10 +620,38 @@ async function settleBet(bet, result, notes = null, manualPayouts = null, placeF
       }
     }
   }
+  const layersLaidAmt = layers.reduce((s, l) => s + (parseFloat(l.actualLaid) || 0), 0);
+  const matchedStake = houseLaid + layersLaidAmt;
+  let settlePnl = { punterName: bet.punterName, punterDelta: 0, houseDelta: 0, layers: [] };
+  if (result === "won") {
+    const eachWay = !!bet.eachWay;
+    let frac = placeFraction;
+    if (!eachWay) frac = undefined;
+    const payout = eachWay ? calcReturn(matchedStake, bet.odds, true, frac) : calcReturn(matchedStake, bet.odds, false, undefined);
+    settlePnl.punterDelta = payout;
+    settlePnl.houseDelta = houseLaid > 0 ? -(eachWay ? calcExposure(houseLaid, bet.odds, true, frac) : calcExposure(houseLaid, bet.odds, false, undefined)) : 0;
+    settlePnl.layers = layers.filter(l => !l.rejected && (parseFloat(l.actualLaid) || 0) > 0).map(l => {
+      const amt = parseFloat(l.actualLaid) || 0;
+      const liab = eachWay ? calcExposure(amt, bet.odds, true, frac) : calcExposure(amt, bet.odds, false, undefined);
+      return { layerName: l.layerName, delta: -liab };
+    });
+  } else if (result === "lost") {
+    settlePnl.punterDelta = -matchedStake;
+    settlePnl.houseDelta = houseLaid;
+    settlePnl.layers = layers.filter(l => !l.rejected && (parseFloat(l.actualLaid) || 0) > 0).map(l => ({
+      layerName: l.layerName,
+      delta: parseFloat(l.actualLaid) || 0,
+    }));
+  } else if (result === "manual" && manualPayouts) {
+    settlePnl.punterDelta = Number(manualPayouts.punterDelta) || 0;
+    settlePnl.houseDelta = Number(manualPayouts.houseDelta) || 0;
+    settlePnl.layers = Array.isArray(manualPayouts.layers) ? manualPayouts.layers.map(l => ({ layerName: l.layerName, delta: Number(l.delta) || 0 })) : [];
+  }
 await writeLedger({
   betId: bet.id,
   eventType: result === "won" ? "settled_won"
             : result === "lost" ? "settled_lost"
+            : result === "placed" ? "settled_placed"
             : "settled_manual",
   actorId: null,
   actorName: "System",
@@ -631,6 +659,7 @@ await writeLedger({
   details: {
     result,
     notes: notes || null,
+    pnl: settlePnl,
   },
 });
   return { success: true, bet: updated };
