@@ -32,8 +32,9 @@ function applyHouseTheme(user) {
     + (panelPattern === 'grain' ? ', repeating-radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 0 1px, transparent 1px 3px)' : '');
   const text = user?.textColor || DEFAULT_BRAND.textColor;
   const panelText = user?.panelTextColor || DEFAULT_BRAND.panelTextColor;
-  const btnBg = user?.buttonBgColor || DEFAULT_BRAND.buttonBgColor;
-  const btnEnd = user?.buttonBgColorEnd || '';
+  const btnStart = user?.buttonBgColor || DEFAULT_BRAND.buttonBgColor;
+  const btnEnd = user?.buttonBgColorEnd || '#00c6ff';
+  const btnBg = 'linear-gradient(135deg, ' + btnStart + ', ' + btnEnd + ')';
   const btnText = user?.buttonTextColor || DEFAULT_BRAND.buttonTextColor;
   const shimmer = !!user?.shimmer;
   let tag = document.getElementById('btm-house-theme');
@@ -47,7 +48,7 @@ function applyHouseTheme(user) {
     : (user?.bgColor
       ? ('radial-gradient(1200px 600px at 50% -10%, ' + panelColor + ' 0%, ' + bg + ' 55%, #07060f 100%)')
       : 'radial-gradient(1200px 600px at 50% -10%, #1a1440 0%, #0b0a1a 55%, #07060f 100%)');
-  const btnCss = 'linear-gradient(135deg, ' + btnBg + ', ' + (btnEnd || (btnBg === accent ? '#00c6ff' : accent)) + ')';
+  const btnCss = btnBg;
   const shimmerCss = shimmer ? (
     '@keyframes btm-shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } } ' +
     '#root button[type="submit"] { background-size: 200% 200% !important; animation: btm-shimmer 2.4s linear infinite; }'
