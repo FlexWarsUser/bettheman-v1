@@ -105,6 +105,7 @@ async function shapeUser(user) {
   let shimmer = false;
   let panelColorEnd = null;
   let panelPattern = "";
+  let themeKey = "classic";
   if (houseId) {
     const house = await prisma.house.findUnique({ where: { id: houseId } });
     if (house) {
@@ -121,7 +122,7 @@ async function shapeUser(user) {
       logoScale = house.logoScale != null ? Number(house.logoScale) : null;
     }
     const extras = await prisma.houseSetting.findMany({
-      where: { houseId, key: { in: ["bgColorEnd", "buttonBgColorEnd", "shimmer", "panelColorEnd", "panelPattern"] } },
+      where: { houseId, key: { in: ["bgColorEnd", "buttonBgColorEnd", "shimmer", "panelColorEnd", "panelPattern", "themeKey"] } },
     });
     for (const r of extras) {
       if (r.key === "bgColorEnd") bgColorEnd = r.value || null;
@@ -129,6 +130,7 @@ async function shapeUser(user) {
       if (r.key === "shimmer") shimmer = r.value === "true";
       if (r.key === "panelColorEnd") panelColorEnd = r.value || null;
       if (r.key === "panelPattern") panelPattern = r.value || "";
+      if (r.key === "themeKey") themeKey = r.value || "classic";
     }
   }
   const houseMasterId = houseId
@@ -161,6 +163,7 @@ async function shapeUser(user) {
     shimmer,
     panelColorEnd,
     panelPattern,
+    themeKey,
     houseMasterId,
     isPlatformAdmin: (user.role || "") === "admin",
     totpEnabled: !!user.totpEnabled,
@@ -940,15 +943,16 @@ app.get("/api/houses/branding", async (req, res) => {
     const house = await prisma.house.findUnique({ where: { id: Number(actor.houseId) } });
     if (!house) return res.status(404).json({ success: false, error: "House not found" });
     const extras = await prisma.houseSetting.findMany({
-      where: { houseId: Number(actor.houseId), key: { in: ["bgColorEnd", "buttonBgColorEnd", "shimmer", "panelColorEnd", "panelPattern"] } },
+      where: { houseId: Number(actor.houseId), key: { in: ["bgColorEnd", "buttonBgColorEnd", "shimmer", "panelColorEnd", "panelPattern", "themeKey"] } },
     });
-    const extra = { bgColorEnd: null, buttonBgColorEnd: null, shimmer: false, panelColorEnd: null, panelPattern: "" };
+    const extra = { bgColorEnd: null, buttonBgColorEnd: null, shimmer: false, panelColorEnd: null, panelPattern: "", themeKey: "classic" };
     for (const r of extras) {
       if (r.key === "bgColorEnd") extra.bgColorEnd = r.value || null;
       if (r.key === "buttonBgColorEnd") extra.buttonBgColorEnd = r.value || null;
       if (r.key === "shimmer") extra.shimmer = r.value === "true";
       if (r.key === "panelColorEnd") extra.panelColorEnd = r.value || null;
       if (r.key === "panelPattern") extra.panelPattern = r.value || "";
+      if (r.key === "themeKey") extra.themeKey = r.value || "classic";
     }
     res.json({ success: true, house: { ...house, ...extra } });
   } catch (err) {
@@ -1030,6 +1034,7 @@ app.post("/api/houses/branding", async (req, res) => {
       await setSetting("shimmer", "false", houseId);
       await setSetting("panelColorEnd", "", houseId);
       await setSetting("panelPattern", "", houseId);
+      await setSetting("themeKey", "classic", houseId);
     }
     if (req.body.bgColorEnd !== undefined) {
       if (!validHexColor(req.body.bgColorEnd)) {
@@ -1056,21 +1061,27 @@ app.post("/api/houses/branding", async (req, res) => {
       const p = String(req.body.panelPattern || "");
       await setSetting("panelPattern", ["grain", "stripes"].includes(p) ? p : "", houseId);
     }
+    if (req.body.themeKey !== undefined) {
+      const allowed = ["classic","emerald","royal","ruby","amber","violet","ocean","slate","goldnight","carbon"];
+      const k = String(req.body.themeKey || "classic");
+      await setSetting("themeKey", allowed.includes(k) ? k : "classic", houseId);
+    }
     if (req.body.name !== undefined) {
       const name = String(req.body.name || "").trim();
       if (name) data.name = name;
     }
     const house = await prisma.house.update({ where: { id: houseId }, data });
     const extras = await prisma.houseSetting.findMany({
-      where: { houseId, key: { in: ["bgColorEnd", "buttonBgColorEnd", "shimmer", "panelColorEnd", "panelPattern"] } },
+      where: { houseId, key: { in: ["bgColorEnd", "buttonBgColorEnd", "shimmer", "panelColorEnd", "panelPattern", "themeKey"] } },
     });
-    const extra = { bgColorEnd: null, buttonBgColorEnd: null, shimmer: false, panelColorEnd: null, panelPattern: "" };
+    const extra = { bgColorEnd: null, buttonBgColorEnd: null, shimmer: false, panelColorEnd: null, panelPattern: "", themeKey: "classic" };
     for (const r of extras) {
       if (r.key === "bgColorEnd") extra.bgColorEnd = r.value || null;
       if (r.key === "buttonBgColorEnd") extra.buttonBgColorEnd = r.value || null;
       if (r.key === "shimmer") extra.shimmer = r.value === "true";
       if (r.key === "panelColorEnd") extra.panelColorEnd = r.value || null;
       if (r.key === "panelPattern") extra.panelPattern = r.value || "";
+      if (r.key === "themeKey") extra.themeKey = r.value || "classic";
     }
     res.json({ success: true, house: { ...house, ...extra } });
   } catch (err) {

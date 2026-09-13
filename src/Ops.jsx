@@ -3,61 +3,143 @@ import { io } from 'socket.io-client';
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
-const DEFAULT_BRAND = {
-  accentColor: '#00ff88',
-  bgColor: '#12122a',
-  panelColor: '#1a1a2e',
-  textColor: '#e8e8e8',
-  panelTextColor: '#e8e8e8',
-  buttonBgColor: '#00ff88',
-  buttonTextColor: '#0b1220',
-};
 
-function hexToRgba(hex, a) {
-  const h = String(hex || '').replace('#', '');
-  if (h.length !== 6) return 'rgba(16,24,38,' + a + ')';
-  const n = parseInt(h, 16);
-  return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+const HOUSE_THEMES = [
+  {
+    key: 'classic',
+    name: 'Classic',
+    text: '#e8e8e8',
+    panelText: '#e8e8e8',
+    btnText: '#0b1220',
+    accent: '#00ff88',
+    panel: '#1a1a2e',
+    btnBg: 'linear-gradient(135deg, #00ff88, #00c6ff)',
+    bgCss: 'radial-gradient(1200px 600px at 50% -10%, #1a1440 0%, #0b0a1a 55%, #07060f 100%)',
+  },
+  {
+    key: 'emerald',
+    name: 'Emerald',
+    text: '#e7f6ee',
+    panelText: '#e7f6ee',
+    btnText: '#062014',
+    accent: '#3dffb0',
+    panel: 'linear-gradient(180deg, #163528 0%, #0d241c 100%)',
+    btnBg: 'linear-gradient(135deg, #3dffb0, #1aa36a)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #1b4a36 0%, #07140f 58%, #040a08 100%)',
+  },
+  {
+    key: 'royal',
+    name: 'Royal',
+    text: '#eef2ff',
+    panelText: '#eef2ff',
+    btnText: '#16120a',
+    accent: '#f0c14b',
+    panel: 'linear-gradient(180deg, #1c2a55 0%, #121a36 100%)',
+    btnBg: 'linear-gradient(135deg, #f0c14b, #d4a017)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #24356e 0%, #0b1024 58%, #07080f 100%)',
+  },
+  {
+    key: 'ruby',
+    name: 'Ruby',
+    text: '#fdecee',
+    panelText: '#fdecee',
+    btnText: '#1a080c',
+    accent: '#ff6b81',
+    panel: 'linear-gradient(180deg, #3a1520 0%, #220d14 100%)',
+    btnBg: 'linear-gradient(135deg, #ff6b81, #c81e3a)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #5a1c2c 0%, #14080c 58%, #080406 100%)',
+  },
+  {
+    key: 'amber',
+    name: 'Amber',
+    text: '#fff4e5',
+    panelText: '#fff4e5',
+    btnText: '#1a1206',
+    accent: '#ffb347',
+    panel: 'linear-gradient(180deg, #3a2a14 0%, #24190c 100%), repeating-linear-gradient(135deg, rgba(255,180,70,0.07) 0 8px, transparent 8px 16px)',
+    btnBg: 'linear-gradient(135deg, #ffb347, #e07a00)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #5a3a12 0%, #140e06 58%, #080603 100%)',
+  },
+  {
+    key: 'violet',
+    name: 'Violet',
+    text: '#f3e9ff',
+    panelText: '#f3e9ff',
+    btnText: '#160e22',
+    accent: '#c084fc',
+    panel: 'linear-gradient(180deg, #2a1844 0%, #1a0f2c 100%)',
+    btnBg: 'linear-gradient(135deg, #c084fc, #7c3aed)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #4a2080 0%, #120816 58%, #07040c 100%)',
+  },
+  {
+    key: 'ocean',
+    name: 'Ocean',
+    text: '#e6f7ff',
+    panelText: '#e6f7ff',
+    btnText: '#062026',
+    accent: '#22d3ee',
+    panel: 'linear-gradient(180deg, #123844 0%, #0b242c 100%)',
+    btnBg: 'linear-gradient(135deg, #22d3ee, #0284c7)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #0e4a5a 0%, #07141a 58%, #04080c 100%)',
+  },
+  {
+    key: 'slate',
+    name: 'Slate',
+    text: '#e8edf3',
+    panelText: '#e8edf3',
+    btnText: '#111827',
+    accent: '#93c5fd',
+    panel: 'linear-gradient(180deg, #2a3340 0%, #1b212b 100%)',
+    btnBg: 'linear-gradient(135deg, #cbd5e1, #64748b)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #3a4454 0%, #10141a 58%, #080a0c 100%)',
+  },
+  {
+    key: 'goldnight',
+    name: 'Gold Night',
+    text: '#f5ecd4',
+    panelText: '#f5ecd4',
+    btnText: '#1a1408',
+    accent: '#e8c872',
+    panel: 'linear-gradient(180deg, #2c2618 0%, #1a160e 100%), repeating-radial-gradient(circle at 2px 2px, rgba(232,200,114,0.08) 0 1px, transparent 1px 4px)',
+    btnBg: 'linear-gradient(135deg, #e8c872, #b8860b)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #3d3420 0%, #0e0c08 58%, #060504 100%)',
+  },
+  {
+    key: 'carbon',
+    name: 'Carbon',
+    text: '#e5e7eb',
+    panelText: '#e5e7eb',
+    btnText: '#041016',
+    accent: '#2dd4bf',
+    panel: 'linear-gradient(180deg, #1f2933 0%, #111827 100%), repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 10px)',
+    btnBg: 'linear-gradient(135deg, #2dd4bf, #0f766e)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #1f2937 0%, #0b0f14 58%, #050608 100%)',
+  },
+];
+function getHouseTheme(key) {
+  return HOUSE_THEMES.find(t => t.key === key) || HOUSE_THEMES[0];
 }
 
 function applyHouseTheme(user) {
-  const accent = user?.accentColor || DEFAULT_BRAND.accentColor;
-  const bg = user?.bgColor || DEFAULT_BRAND.bgColor;
-  const bgEnd = user?.bgColorEnd || '';
-  const panelColor = user?.panelColor || DEFAULT_BRAND.panelColor;
-  const panelEnd = user?.panelColorEnd || '';
-  const panelPattern = user?.panelPattern || '';
-  const panel = (panelEnd ? ('linear-gradient(180deg, ' + panelColor + ' 0%, ' + panelEnd + ' 100%)') : panelColor)
-    + (panelPattern === 'stripes' ? ', repeating-linear-gradient(135deg, rgba(255,255,255,0.06) 0 6px, transparent 6px 12px)' : '')
-    + (panelPattern === 'grain' ? ', repeating-radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 0 1px, transparent 1px 3px)' : '');
-  const text = user?.textColor || DEFAULT_BRAND.textColor;
-  const panelText = user?.panelTextColor || DEFAULT_BRAND.panelTextColor;
-  const btnStart = user?.buttonBgColor || DEFAULT_BRAND.buttonBgColor;
-  const btnEnd = user?.buttonBgColorEnd || '#00c6ff';
-  const btnBg = 'linear-gradient(135deg, ' + btnStart + ', ' + btnEnd + ')';
-  const btnText = user?.buttonTextColor || DEFAULT_BRAND.buttonTextColor;
-  const shimmer = !!user?.shimmer;
+  const pack = getHouseTheme(user?.themeKey || 'classic');
+  const accent = pack.accent;
+  const bg = pack.bgCss;
+  const panel = pack.panel;
+  const text = pack.text;
+  const panelText = pack.panelText;
+  const btnBg = pack.btnBg;
+  const btnText = pack.btnText;
   let tag = document.getElementById('btm-house-theme');
   if (!tag) {
     tag = document.createElement('style');
     tag.id = 'btm-house-theme';
     document.head.appendChild(tag);
   }
-  const bgCss = bgEnd
-    ? ('linear-gradient(180deg, ' + bg + ' 0%, ' + bgEnd + ' 100%)')
-    : (user?.bgColor
-      ? ('radial-gradient(1200px 600px at 50% -10%, ' + panelColor + ' 0%, ' + bg + ' 55%, #07060f 100%)')
-      : 'radial-gradient(1200px 600px at 50% -10%, #1a1440 0%, #0b0a1a 55%, #07060f 100%)');
-  const btnCss = btnBg;
-  const shimmerCss = shimmer ? (
-    '@keyframes btm-shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } } ' +
-    '#root button[type="submit"] { background-size: 200% 200% !important; animation: btm-shimmer 2.4s linear infinite; }'
-  ) : '';
+  const bgCss = pack.bgCss;
   tag.textContent = [
     'html, body, #root { background: ' + bgCss + ' !important; color: ' + text + ' !important; min-height: 100%; }',
     '#root input, #root textarea, #root select { color: ' + panelText + ' !important; }',
-    '#root button[type="submit"] { background: ' + btnCss + ' !important; color: ' + btnText + ' !important; }',
-    shimmerCss,
+    '#root button[type="submit"] { background: ' + btnBg + ' !important; color: ' + btnText + ' !important; }',
   ].join(' ');
   document.body.style.background = bgCss;
   document.body.style.color = text;
@@ -270,18 +352,7 @@ const [houseMasterEmail, setHouseMasterEmail] = useState('');
 const [houseMasterPassword, setHouseMasterPassword] = useState('');
 const [houses, setHouses] = useState([]);
 const [brandName, setBrandName] = useState('');
-const [brandAccent, setBrandAccent] = useState('#00ff88');
-const [brandBg, setBrandBg] = useState('#12122a');
-const [brandPanel, setBrandPanel] = useState('#1a1a2e');
-const [brandText, setBrandText] = useState('#e8e8e8');
-const [brandPanelText, setBrandPanelText] = useState('#e8e8e8');
-const [brandBtnBg, setBrandBtnBg] = useState('#00ff88');
-const [brandBtnText, setBrandBtnText] = useState('#0b1220');
-const [brandBgEnd, setBrandBgEnd] = useState('');
-const [brandBtnEnd, setBrandBtnEnd] = useState('');
-const [brandShimmer, setBrandShimmer] = useState(false);
-const [brandPanelEnd, setBrandPanelEnd] = useState('');
-const [brandPanelPattern, setBrandPanelPattern] = useState('');
+const [brandThemeKey, setBrandThemeKey] = useState('classic');
 const [brandLogo, setBrandLogo] = useState('');
 const [brandLogoScale, setBrandLogoScale] = useState(100);
 const [chatTabUnread, setChatTabUnread] = useState(0);
@@ -304,18 +375,7 @@ const [settings, setSettings] = useState({
     applyHouseTheme(currentUser);
     if (currentUser) {
       setBrandName(currentUser.houseName || '');
-      setBrandAccent(currentUser.accentColor || DEFAULT_BRAND.accentColor);
-      setBrandBg(currentUser.bgColor || DEFAULT_BRAND.bgColor);
-      setBrandPanel(currentUser.panelColor || DEFAULT_BRAND.panelColor);
-      setBrandText(currentUser.textColor || DEFAULT_BRAND.textColor);
-      setBrandPanelText(currentUser.panelTextColor || DEFAULT_BRAND.panelTextColor);
-      setBrandBtnBg(currentUser.buttonBgColor || DEFAULT_BRAND.buttonBgColor);
-      setBrandBtnText(currentUser.buttonTextColor || DEFAULT_BRAND.buttonTextColor);
-      setBrandBgEnd(currentUser.bgColorEnd || '');
-      setBrandBtnEnd(currentUser.buttonBgColorEnd || '');
-      setBrandShimmer(!!currentUser.shimmer);
-      setBrandPanelEnd(currentUser.panelColorEnd || '');
-      setBrandPanelPattern(currentUser.panelPattern || '');
+      setBrandThemeKey(currentUser.themeKey || 'classic');
       setBrandLogo(currentUser.houseLogoUrl && currentUser.houseLogoUrl !== 'in-memory' ? currentUser.houseLogoUrl : '');
       setBrandLogoScale(Number(currentUser.logoScale || 100));
     }
@@ -343,11 +403,7 @@ const [settings, setSettings] = useState({
           buttonBgColor: h.buttonBgColor,
           buttonTextColor: h.buttonTextColor,
           logoScale: h.logoScale,
-          bgColorEnd: h.bgColorEnd || '',
-          buttonBgColorEnd: h.buttonBgColorEnd || '',
-          shimmer: !!h.shimmer,
-          panelColorEnd: h.panelColorEnd || '',
-          panelPattern: h.panelPattern || '',
+          themeKey: h.themeKey || 'classic',
           _brandingLoaded: true,
         }));
       })
@@ -2219,7 +2275,7 @@ const exposure = getExposure(b.stake, b.odds, {
 
     <CollapsibleSection title="Branding" defaultOpen={false}>
       <div style={{ background: theme.panel, border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
-        <p style={{ color: '#b0b0b0', fontSize: 13, marginTop: 0 }}>Logo and colours for this house. Add a second colour to make a gradient. Shimmer only runs on Submit.</p>
+        <p style={{ color: '#b0b0b0', fontSize: 13, marginTop: 0 }}>Your logo plus one of ten tested themes. Login page stays Classic until someone from this house signs in.</p>
         <div style={{ marginBottom: 8, color: '#b0b0b0', fontSize: 13 }}>House name</div>
         <input value={brandName} onChange={e => setBrandName(e.target.value)} style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
         <div style={{ marginBottom: 8, color: '#b0b0b0', fontSize: 13 }}>Logo</div>
@@ -2242,33 +2298,28 @@ const exposure = getExposure(b.stake, b.odds, {
           <div style={{ color: '#b0b0b0', fontSize: 13, marginBottom: 6 }}>Logo size {brandLogoScale}%</div>
           <input type="range" min="50" max="200" value={brandLogoScale} onChange={e => setBrandLogoScale(parseInt(e.target.value, 10))} style={{ width: '100%' }} />
         </div>
-        {[
-          ['Background', brandBg, setBrandBg],
-          ['Background end (gradient)', brandBgEnd || brandBg, setBrandBgEnd],
-          ['Page text', brandText, setBrandText],
-          ['Panels', brandPanel, setBrandPanel],
-          ['Panel end (gradient)', brandPanelEnd || brandPanel, setBrandPanelEnd],
-          ['Panel text', brandPanelText, setBrandPanelText],
-          ['Button background', brandBtnBg, setBrandBtnBg],
-          ['Button end (gradient)', brandBtnEnd || brandBtnBg, setBrandBtnEnd],
-          ['Button text', brandBtnText, setBrandBtnText],
-        ].map(([label, value, setter]) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <span style={{ flex: 1, color: '#b0b0b0', fontSize: 13 }}>{label}</span>
-            <input type="color" value={value} onChange={e => setter(e.target.value)} />
-            <input value={value} onChange={e => setter(e.target.value)} style={{ width: 90, padding: 6, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
-          </div>
-        ))}
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 12px', color: '#b0b0b0', fontSize: 13, cursor: 'pointer' }}>
-          <input type="checkbox" checked={brandShimmer} onChange={e => setBrandShimmer(e.target.checked)} />
-          Shimmer on Submit button
-        </label>
-        <div style={{ marginBottom: 12, color: '#b0b0b0', fontSize: 13 }}>Panel pattern</div>
-        <select value={brandPanelPattern} onChange={e => setBrandPanelPattern(e.target.value)} style={{ width: '100%', padding: 8, marginBottom: 12, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}>
-          <option value="">None</option>
-          <option value="grain">Grain</option>
-          <option value="stripes">Stripes</option>
-        </select>
+        <div style={{ margin: '8px 0 12px', color: '#b0b0b0', fontSize: 13 }}>Theme</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+          {HOUSE_THEMES.map(t => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setBrandThemeKey(t.key)}
+              style={{
+                textAlign: 'left',
+                padding: 10,
+                borderRadius: 8,
+                cursor: 'pointer',
+                border: brandThemeKey === t.key ? '2px solid #00ff88' : '1px solid #3a3a5c',
+                background: t.bgCss,
+                color: t.text,
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{t.name}</div>
+              <div style={{ height: 18, borderRadius: 4, background: t.btnBg }} />
+            </button>
+          ))}
+        </div>
         <button
           type="button"
           onClick={async () => {
@@ -2277,17 +2328,7 @@ const exposure = getExposure(b.stake, b.odds, {
               name: brandName,
               logoUrl: brandLogo || null,
               logoScale: brandLogoScale,
-              bgColor: brandBg,
-              bgColorEnd: brandBgEnd || '',
-              panelColor: brandPanel,
-              textColor: brandText,
-              panelTextColor: brandPanelText,
-              buttonBgColor: brandBtnBg,
-              buttonBgColorEnd: brandBtnEnd || '',
-              buttonTextColor: brandBtnText,
-              shimmer: brandShimmer,
-              panelColorEnd: brandPanelEnd || '',
-              panelPattern: brandPanelPattern,
+              themeKey: brandThemeKey,
             };
             try {
               const res = await fetch(`${API}/api/houses/branding`, {
@@ -2303,16 +2344,7 @@ const exposure = getExposure(b.stake, b.odds, {
                 houseLogoUrl: data.house.logoUrl,
                 logoScale: data.house.logoScale,
                 _brandingLoaded: true,
-                accentColor: data.house.accentColor,
-                bgColor: data.house.bgColor,
-                panelColor: data.house.panelColor,
-                textColor: data.house.textColor,
-                panelTextColor: data.house.panelTextColor,
-                buttonBgColor: data.house.buttonBgColor,
-                buttonTextColor: data.house.buttonTextColor,
-                bgColorEnd: data.house.bgColorEnd || '',
-                buttonBgColorEnd: data.house.buttonBgColorEnd || '',
-                shimmer: !!data.house.shimmer,
+                themeKey: data.house.themeKey || 'classic',
               };
               try {
                 const slim = { ...updated, houseLogoUrl: updated.houseLogoUrl ? 'in-memory' : '' };
@@ -2334,13 +2366,7 @@ const exposure = getExposure(b.stake, b.odds, {
         <button
           type="button"
           onClick={async () => {
-            setBrandAccent(DEFAULT_BRAND.accentColor);
-            setBrandBg(DEFAULT_BRAND.bgColor);
-            setBrandPanel(DEFAULT_BRAND.panelColor);
-            setBrandText(DEFAULT_BRAND.textColor);
-            setBrandPanelText(DEFAULT_BRAND.panelTextColor);
-            setBrandBtnBg(DEFAULT_BRAND.buttonBgColor);
-            setBrandBtnText(DEFAULT_BRAND.buttonTextColor);
+            setBrandThemeKey('classic');
             try {
               const res = await fetch(`${API}/api/houses/branding`, {
                 method: 'POST',
@@ -2349,6 +2375,7 @@ const exposure = getExposure(b.stake, b.odds, {
                   actorId: currentUser?.id,
                   name: brandName,
                   logoUrl: brandLogo || null,
+                  themeKey: 'classic',
                   resetColors: true,
                 }),
               });
@@ -2365,6 +2392,7 @@ const exposure = getExposure(b.stake, b.odds, {
                 panelTextColor: null,
                 buttonBgColor: null,
                 buttonTextColor: null,
+                themeKey: 'classic',
               };
               try {
                 const slim = { ...updated, houseLogoUrl: updated.houseLogoUrl ? 'in-memory' : '' };

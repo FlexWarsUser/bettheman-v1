@@ -4,61 +4,143 @@ import { io } from 'socket.io-client';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-const DEFAULT_BRAND = {
-  accentColor: '#00ff88',
-  bgColor: '#12122a',
-  panelColor: '#1a1a2e',
-  textColor: '#e8e8e8',
-  panelTextColor: '#e8e8e8',
-  buttonBgColor: '#00ff88',
-  buttonTextColor: '#0b1220',
-};
 
-function hexToRgba(hex, a) {
-  const h = String(hex || '').replace('#', '');
-  if (h.length !== 6) return 'rgba(16,24,38,' + a + ')';
-  const n = parseInt(h, 16);
-  return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+const HOUSE_THEMES = [
+  {
+    key: 'classic',
+    name: 'Classic',
+    text: '#e8e8e8',
+    panelText: '#e8e8e8',
+    btnText: '#0b1220',
+    accent: '#00ff88',
+    panel: '#1a1a2e',
+    btnBg: 'linear-gradient(135deg, #00ff88, #00c6ff)',
+    bgCss: 'radial-gradient(1200px 600px at 50% -10%, #1a1440 0%, #0b0a1a 55%, #07060f 100%)',
+  },
+  {
+    key: 'emerald',
+    name: 'Emerald',
+    text: '#e7f6ee',
+    panelText: '#e7f6ee',
+    btnText: '#062014',
+    accent: '#3dffb0',
+    panel: 'linear-gradient(180deg, #163528 0%, #0d241c 100%)',
+    btnBg: 'linear-gradient(135deg, #3dffb0, #1aa36a)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #1b4a36 0%, #07140f 58%, #040a08 100%)',
+  },
+  {
+    key: 'royal',
+    name: 'Royal',
+    text: '#eef2ff',
+    panelText: '#eef2ff',
+    btnText: '#16120a',
+    accent: '#f0c14b',
+    panel: 'linear-gradient(180deg, #1c2a55 0%, #121a36 100%)',
+    btnBg: 'linear-gradient(135deg, #f0c14b, #d4a017)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #24356e 0%, #0b1024 58%, #07080f 100%)',
+  },
+  {
+    key: 'ruby',
+    name: 'Ruby',
+    text: '#fdecee',
+    panelText: '#fdecee',
+    btnText: '#1a080c',
+    accent: '#ff6b81',
+    panel: 'linear-gradient(180deg, #3a1520 0%, #220d14 100%)',
+    btnBg: 'linear-gradient(135deg, #ff6b81, #c81e3a)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #5a1c2c 0%, #14080c 58%, #080406 100%)',
+  },
+  {
+    key: 'amber',
+    name: 'Amber',
+    text: '#fff4e5',
+    panelText: '#fff4e5',
+    btnText: '#1a1206',
+    accent: '#ffb347',
+    panel: 'linear-gradient(180deg, #3a2a14 0%, #24190c 100%), repeating-linear-gradient(135deg, rgba(255,180,70,0.07) 0 8px, transparent 8px 16px)',
+    btnBg: 'linear-gradient(135deg, #ffb347, #e07a00)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #5a3a12 0%, #140e06 58%, #080603 100%)',
+  },
+  {
+    key: 'violet',
+    name: 'Violet',
+    text: '#f3e9ff',
+    panelText: '#f3e9ff',
+    btnText: '#160e22',
+    accent: '#c084fc',
+    panel: 'linear-gradient(180deg, #2a1844 0%, #1a0f2c 100%)',
+    btnBg: 'linear-gradient(135deg, #c084fc, #7c3aed)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #4a2080 0%, #120816 58%, #07040c 100%)',
+  },
+  {
+    key: 'ocean',
+    name: 'Ocean',
+    text: '#e6f7ff',
+    panelText: '#e6f7ff',
+    btnText: '#062026',
+    accent: '#22d3ee',
+    panel: 'linear-gradient(180deg, #123844 0%, #0b242c 100%)',
+    btnBg: 'linear-gradient(135deg, #22d3ee, #0284c7)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #0e4a5a 0%, #07141a 58%, #04080c 100%)',
+  },
+  {
+    key: 'slate',
+    name: 'Slate',
+    text: '#e8edf3',
+    panelText: '#e8edf3',
+    btnText: '#111827',
+    accent: '#93c5fd',
+    panel: 'linear-gradient(180deg, #2a3340 0%, #1b212b 100%)',
+    btnBg: 'linear-gradient(135deg, #cbd5e1, #64748b)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #3a4454 0%, #10141a 58%, #080a0c 100%)',
+  },
+  {
+    key: 'goldnight',
+    name: 'Gold Night',
+    text: '#f5ecd4',
+    panelText: '#f5ecd4',
+    btnText: '#1a1408',
+    accent: '#e8c872',
+    panel: 'linear-gradient(180deg, #2c2618 0%, #1a160e 100%), repeating-radial-gradient(circle at 2px 2px, rgba(232,200,114,0.08) 0 1px, transparent 1px 4px)',
+    btnBg: 'linear-gradient(135deg, #e8c872, #b8860b)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #3d3420 0%, #0e0c08 58%, #060504 100%)',
+  },
+  {
+    key: 'carbon',
+    name: 'Carbon',
+    text: '#e5e7eb',
+    panelText: '#e5e7eb',
+    btnText: '#041016',
+    accent: '#2dd4bf',
+    panel: 'linear-gradient(180deg, #1f2933 0%, #111827 100%), repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 10px)',
+    btnBg: 'linear-gradient(135deg, #2dd4bf, #0f766e)',
+    bgCss: 'radial-gradient(900px 500px at 50% -10%, #1f2937 0%, #0b0f14 58%, #050608 100%)',
+  },
+];
+function getHouseTheme(key) {
+  return HOUSE_THEMES.find(t => t.key === key) || HOUSE_THEMES[0];
 }
 
 function applyHouseTheme(user) {
-  const accent = user?.accentColor || DEFAULT_BRAND.accentColor;
-  const bg = user?.bgColor || DEFAULT_BRAND.bgColor;
-  const bgEnd = user?.bgColorEnd || '';
-  const panelColor = user?.panelColor || DEFAULT_BRAND.panelColor;
-  const panelEnd = user?.panelColorEnd || '';
-  const panelPattern = user?.panelPattern || '';
-  const panel = (panelEnd ? ('linear-gradient(180deg, ' + panelColor + ' 0%, ' + panelEnd + ' 100%)') : panelColor)
-    + (panelPattern === 'stripes' ? ', repeating-linear-gradient(135deg, rgba(255,255,255,0.06) 0 6px, transparent 6px 12px)' : '')
-    + (panelPattern === 'grain' ? ', repeating-radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 0 1px, transparent 1px 3px)' : '');
-  const text = user?.textColor || DEFAULT_BRAND.textColor;
-  const panelText = user?.panelTextColor || DEFAULT_BRAND.panelTextColor;
-  const btnStart = user?.buttonBgColor || DEFAULT_BRAND.buttonBgColor;
-  const btnEnd = user?.buttonBgColorEnd || '#00c6ff';
-  const btnBg = 'linear-gradient(135deg, ' + btnStart + ', ' + btnEnd + ')';
-  const btnText = user?.buttonTextColor || DEFAULT_BRAND.buttonTextColor;
-  const shimmer = !!user?.shimmer;
+  const pack = getHouseTheme(user?.themeKey || 'classic');
+  const accent = pack.accent;
+  const bg = pack.bgCss;
+  const panel = pack.panel;
+  const text = pack.text;
+  const panelText = pack.panelText;
+  const btnBg = pack.btnBg;
+  const btnText = pack.btnText;
   let tag = document.getElementById('btm-house-theme');
   if (!tag) {
     tag = document.createElement('style');
     tag.id = 'btm-house-theme';
     document.head.appendChild(tag);
   }
-  const bgCss = bgEnd
-    ? ('linear-gradient(180deg, ' + bg + ' 0%, ' + bgEnd + ' 100%)')
-    : (user?.bgColor
-      ? ('radial-gradient(1200px 600px at 50% -10%, ' + panelColor + ' 0%, ' + bg + ' 55%, #07060f 100%)')
-      : 'radial-gradient(1200px 600px at 50% -10%, #1a1440 0%, #0b0a1a 55%, #07060f 100%)');
-  const btnCss = btnBg;
-  const shimmerCss = shimmer ? (
-    '@keyframes btm-shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } } ' +
-    '#root button[type="submit"] { background-size: 200% 200% !important; animation: btm-shimmer 2.4s linear infinite; }'
-  ) : '';
+  const bgCss = pack.bgCss;
   tag.textContent = [
     'html, body, #root { background: ' + bgCss + ' !important; color: ' + text + ' !important; min-height: 100%; }',
     '#root input, #root textarea, #root select { color: ' + panelText + ' !important; }',
-    '#root button[type="submit"] { background: ' + btnCss + ' !important; color: ' + btnText + ' !important; }',
-    shimmerCss,
+    '#root button[type="submit"] { background: ' + btnBg + ' !important; color: ' + btnText + ' !important; }',
   ].join(' ');
   document.body.style.background = bgCss;
   document.body.style.color = text;
@@ -83,18 +165,7 @@ function applyHouseTheme(user) {
 }
 
 function applyDefaultPublicTheme() {
-  const bg = DEFAULT_BRAND.bgColor;
-  const text = DEFAULT_BRAND.textColor;
-  let tag = document.getElementById('btm-house-theme');
-  if (!tag) {
-    tag = document.createElement('style');
-    tag.id = 'btm-house-theme';
-    document.head.appendChild(tag);
-  }
-  const bgCss = 'radial-gradient(1200px 600px at 50% -10%, #1a1440 0%, #0b0a1a 55%, #07060f 100%)';
-  tag.textContent = 'html, body, #root { background: ' + bgCss + ' !important; color: ' + text + ' !important; min-height: 100%; }';
-  document.body.style.background = bgCss;
-  document.body.style.color = text;
+  applyHouseTheme({ themeKey: 'classic' });
 }
 const ODDS_LIST = [
 "2/1","4/1","1/1","8/1","4/5","8/11","4/6","8/13","4/7","5/1","20/1","11/10",
@@ -317,6 +388,7 @@ export default function UserHome() {
               buttonBgColor: h.buttonBgColor,
               buttonTextColor: h.buttonTextColor,
               logoScale: h.logoScale,
+              themeKey: h.themeKey || 'classic',
               _brandingLoaded: true,
             };
             persistUser(next);
