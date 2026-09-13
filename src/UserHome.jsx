@@ -1855,6 +1855,16 @@ inputMode="decimal"
       padding: '16px 14px 14px',
       overflow: 'hidden',
     }}>
+      <style>{`
+        @keyframes bolPulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.22) drop-shadow(0 0 8px currentColor); } }
+        .bol-title, .bol-sub, .bol-shine, .bol-cash {
+          animation: bolPulse 2.6s ease-in-out infinite;
+          -webkit-text-stroke: 1.6px #0a0610;
+          paint-order: stroke fill;
+        }
+        .bol-title { -webkit-text-stroke: 2px #1a0030; }
+        .bol-cash { -webkit-text-stroke: 1.4px #061208; }
+      `}</style>
       <div style={{
         textAlign: 'center',
         marginBottom: 4,
@@ -1863,9 +1873,9 @@ inputMode="decimal"
         letterSpacing: 1,
         textTransform: 'uppercase',
         fontFamily: 'Bungee, "Luckiest Guy", Impact, sans-serif',
-        textShadow: '-2px -2px 0 #3b0066, 2px -2px 0 #3b0066, -2px 2px 0 #3b0066, 2px 2px 0 #3b0066, 0 0 14px #ff3de8',
+        textShadow: '0 0 14px #ff3de8',
         lineHeight: 1.1,
-      }} className="bol-shine">
+      }} className="bol-title">
         PARTY MODE
       </div>
       <div style={{
@@ -1877,7 +1887,7 @@ inputMode="decimal"
         textTransform: 'uppercase',
         fontFamily: 'Bungee, sans-serif',
         textShadow: '0 0 10px #18f0ff',
-      }} className="bol-shine">
+      }} className="bol-sub">
         LIVE STANDINGS
       </div>
 
@@ -1938,7 +1948,7 @@ inputMode="decimal"
               color: row.rank === 1 ? '#fff6b0' : row.rank === 2 ? '#ffffff' : row.rank === 3 ? '#ffe0c2' : '#7ef9ff',
               fontSize: isTop3 ? 20 : 17,
               lineHeight: 1.05,
-              textShadow: '-1px -1px 0 #1a0a00, 1px -1px 0 #1a0a00, -1px 1px 0 #1a0a00, 1px 1px 0 #1a0a00, 0 0 10px rgba(255,225,74,0.55)',
+              textShadow: '0 0 10px rgba(255,225,74,0.55)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -1951,7 +1961,7 @@ inputMode="decimal"
               color: '#b8ff4a',
               fontFamily: 'Bungee, sans-serif',
               fontSize: 20,
-              textShadow: '-1px -1px 0 #102010, 1px 1px 0 #102010, 0 0 8px #2aff6a',
+              textShadow: '0 0 8px #2aff6a',
               fontVariantNumeric: 'tabular-nums',
             }} className="bol-cash">
               £{row.net.toFixed(0)}
