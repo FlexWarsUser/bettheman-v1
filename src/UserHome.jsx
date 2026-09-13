@@ -121,51 +121,88 @@ function getHouseTheme(key) {
   return HOUSE_THEMES.find(t => t.key === key) || HOUSE_THEMES[0];
 }
 
-const MII_SKIN = ['#f2c7a0', '#e0a070', '#c68642', '#8d5524', '#f8d5c2', '#ffd5b0'];
-const MII_HAIR = ['#2b1b0e', '#6b3a1f', '#c4a35a', '#1a1a1a', '#d4542a', '#3d2b1f'];
-const DEFAULT_MII = { skin: '#f2c7a0', hair: '#2b1b0e', style: 'short', eyes: 'round', mouth: 'smile', extra: 'none' };
+const MII_SKIN = ['#f8d5c2', '#f2c7a0', '#e0a070', '#c68642', '#8d5524', '#5c3310'];
+const MII_HAIR = ['#1a1a1a', '#2b1b0e', '#6b3a1f', '#c4a35a', '#d4542a', '#6b2d5b', '#3a6ea5'];
+const MII_SHIRT = ['#1e3a5f', '#0f766e', '#7f1d1d', '#4c1d95', '#365314', '#0b1220'];
+const DEFAULT_MII = { sex: 'female', skin: '#f2c7a0', hair: '#2b1b0e', style: 'long', eyes: 'lash', mouth: 'smile', extra: 'none', shirt: '#1e3a5f' };
 
 function MiiFace({ mii, size = 64 }) {
   const m = { ...DEFAULT_MII, ...(mii || {}) };
-  const s = size;
+  const female = m.sex !== 'male';
+  const jaw = female ? 16 : 18;
   return (
-    <svg width={s} height={s} viewBox="0 0 64 64" style={{ display: 'block' }}>
-      <circle cx="32" cy="32" r="32" fill="#1b2433" />
-      <circle cx="32" cy="34" r="18" fill={m.skin} />
-      {m.style !== 'bald' && (
-        <path d={m.style === 'spike' ? 'M16 28 Q32 8 48 28 Q32 18 16 28' : m.style === 'curl' ? 'M14 30 Q18 10 32 16 Q46 10 50 30 Q32 22 14 30' : m.style === 'bun' ? 'M18 30 Q32 12 46 30 M32 10 a6 6 0 1 0 0.1 0' : 'M14 30 Q32 8 50 30 L48 24 Q32 12 16 24 Z'} fill={m.hair} />
+    <svg width={size} height={size} viewBox="0 0 64 64" style={{ display: 'block' }}>
+      <defs>
+        <radialGradient id="miiSky" cx="50%" cy="30%" r="70%">
+          <stop offset="0%" stopColor="#3a4a6a" />
+          <stop offset="100%" stopColor="#121826" />
+        </radialGradient>
+        <radialGradient id="miiSkin" cx="40%" cy="35%" r="70%">
+          <stop offset="0%" stopColor="#fff6" />
+          <stop offset="45%" stopColor={m.skin} />
+          <stop offset="100%" stopColor={m.skin} />
+        </radialGradient>
+      </defs>
+      <circle cx="32" cy="32" r="32" fill="url(#miiSky)" />
+      <ellipse cx="32" cy="58" rx="20" ry="10" fill={m.shirt || '#1e3a5f'} />
+      <ellipse cx="32" cy="36" rx={female ? 15 : 16.5} ry={jaw} fill="url(#miiSkin)" />
+      {m.style === 'long' && <path d="M14 36 Q12 52 18 58 Q32 50 46 58 Q52 52 50 36 Q48 22 32 18 Q16 22 14 36" fill={m.hair} />}
+      {m.style === 'bob' && <path d="M16 28 Q16 50 24 54 Q32 48 40 54 Q48 50 48 28 Q46 14 32 14 Q18 14 16 28" fill={m.hair} />}
+      {m.style === 'short' && <path d="M15 30 Q32 10 49 30 L47 24 Q32 12 17 24 Z" fill={m.hair} />}
+      {m.style === 'spike' && <path d="M16 30 L20 10 L26 28 L32 8 L38 28 L44 10 L48 30 Q32 16 16 30" fill={m.hair} />}
+      {m.style === 'bun' && (
+        <>
+          <path d="M16 30 Q32 12 48 30 Q32 18 16 30" fill={m.hair} />
+          <circle cx="32" cy="12" r="7" fill={m.hair} />
+        </>
       )}
+      {m.style === 'bald' && female && <path d="M20 26 Q32 16 44 26" fill={m.hair} />}
+      <ellipse cx="32" cy="34" rx="3.2" ry="4.2" fill={m.skin} stroke="#0002" />
       {m.eyes === 'happy' ? (
         <>
-          <path d="M22 32 q4 -4 8 0" stroke="#222" strokeWidth="2" fill="none" />
-          <path d="M34 32 q4 -4 8 0" stroke="#222" strokeWidth="2" fill="none" />
-        </>
-      ) : m.eyes === 'wink' ? (
-        <>
-          <circle cx="24" cy="33" r="2.2" fill="#222" />
-          <path d="M34 33 q4 -3 8 0" stroke="#222" strokeWidth="2" fill="none" />
+          <path d="M21 32 q5 -5 10 0" stroke="#222" strokeWidth="2" fill="none" />
+          <path d="M33 32 q5 -5 10 0" stroke="#222" strokeWidth="2" fill="none" />
         </>
       ) : (
         <>
-          <circle cx="24" cy="33" r="2.4" fill="#222" />
-          <circle cx="40" cy="33" r="2.4" fill="#222" />
+          <ellipse cx="24" cy="33" rx="3.1" ry="3.4" fill="#fff" />
+          <ellipse cx="40" cy="33" rx="3.1" ry="3.4" fill="#fff" />
+          <circle cx="24.4" cy="33.2" r="1.5" fill="#2a1a10" />
+          <circle cx="40.4" cy="33.2" r="1.5" fill="#2a1a10" />
+          <circle cx="25.2" cy="32.4" r="0.5" fill="#fff" />
+          <circle cx="41.2" cy="32.4" r="0.5" fill="#fff" />
+          {m.eyes === 'lash' && (
+            <>
+              <path d="M21 30 l2 -2 M24 29 l0 -2.2 M27 30 l-2 -2" stroke="#222" strokeWidth="1.1" />
+              <path d="M37 30 l2 -2 M40 29 l0 -2.2 M43 30 l-2 -2" stroke="#222" strokeWidth="1.1" />
+            </>
+          )}
         </>
       )}
+      {female && <ellipse cx="20" cy="40" rx="3.5" ry="2" fill="#f08" opacity="0.18" />}
+      {female && <ellipse cx="44" cy="40" rx="3.5" ry="2" fill="#f08" opacity="0.18" />}
       {m.mouth === 'open' ? (
-        <ellipse cx="32" cy="44" rx="4" ry="3" fill="#b23" />
+        <ellipse cx="32" cy="45" rx="4.2" ry="3.2" fill="#8b2040" />
       ) : m.mouth === 'flat' ? (
-        <path d="M26 44 h12" stroke="#222" strokeWidth="2" />
+        <path d="M26 45 h12" stroke="#5a3030" strokeWidth="1.8" />
       ) : (
-        <path d="M26 42 q6 6 12 0" stroke="#222" strokeWidth="2" fill="none" />
+        <path d="M25 43 q7 8 14 0" stroke={female ? '#c45' : '#5a3030'} strokeWidth="2" fill="none" />
       )}
+      {!female && m.extra === 'beard' && <path d="M20 42 Q32 56 44 42 Q32 48 20 42" fill={m.hair} opacity="0.85" />}
       {m.extra === 'glasses' && (
         <>
-          <rect x="18" y="29" width="12" height="8" rx="2" fill="none" stroke="#222" strokeWidth="1.6" />
-          <rect x="34" y="29" width="12" height="8" rx="2" fill="none" stroke="#222" strokeWidth="1.6" />
-          <path d="M30 33 h4" stroke="#222" strokeWidth="1.6" />
+          <rect x="17" y="29" width="13" height="9" rx="3" fill="#fff3" stroke="#222" />
+          <rect x="34" y="29" width="13" height="9" rx="3" fill="#fff3" stroke="#222" />
+          <path d="M30 33.5 h4" stroke="#222" />
         </>
       )}
-      {m.extra === 'cap' && <path d="M16 24 Q32 8 48 24 L52 26 L12 26 Z" fill={m.hair} />}
+      {m.extra === 'earrings' && (
+        <>
+          <circle cx="16" cy="40" r="1.6" fill="#e8c872" />
+          <circle cx="48" cy="40" r="1.6" fill="#e8c872" />
+        </>
+      )}
+      {m.extra === 'cap' && <path d="M14 24 Q32 8 50 24 L54 26 H10 Z" fill={m.hair} />}
     </svg>
   );
 }
@@ -188,28 +225,28 @@ function AvatarView({ avatar, size = 42 }) {
   );
 }
 
-function cropPhotoToCircle(file) {
+function cropPhotoInteractive(src, zoom, offX, offY) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    const url = URL.createObjectURL(file);
     img.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = 192;
       canvas.height = 192;
       const ctx = canvas.getContext('2d');
-      const side = Math.min(img.width, img.height);
-      const sx = (img.width - side) / 2;
-      const sy = (img.height - side) / 2;
+      const side = Math.min(img.width, img.height) / zoom;
+      const cx = img.width / 2 + (offX / 100) * img.width * 0.35;
+      const cy = img.height / 2 + (offY / 100) * img.height * 0.35;
+      const sx = Math.max(0, Math.min(img.width - side, cx - side / 2));
+      const sy = Math.max(0, Math.min(img.height - side, cy - side / 2));
       ctx.beginPath();
       ctx.arc(96, 96, 96, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
       ctx.drawImage(img, sx, sy, side, side, 0, 0, 192, 192);
-      URL.revokeObjectURL(url);
       resolve(canvas.toDataURL('image/jpeg', 0.72));
     };
     img.onerror = reject;
-    img.src = url;
+    img.src = src;
   });
 }
 
@@ -621,9 +658,13 @@ const [showMoney, setShowMoney] = useState(() => {
   const [totpSetupCode, setTotpSetupCode] = useState('');
   const [totpMsg, setTotpMsg] = useState('');
   const [totpOffPending, setTotpOffPending] = useState(false);
-  const [avatarTab, setAvatarTab] = useState('photo');
+  const [showDesigner, setShowDesigner] = useState(false);
   const [miiDraft, setMiiDraft] = useState({ ...DEFAULT_MII, ...(user?.avatar?.mii || {}) });
   const [avatarMsg, setAvatarMsg] = useState('');
+  const [cropSrc, setCropSrc] = useState('');
+  const [cropZoom, setCropZoom] = useState(1);
+  const [cropX, setCropX] = useState(0);
+  const [cropY, setCropY] = useState(0);
 const [holdingBets, setHoldingBets] = useState({}); // id -> { bet, message, until }
 const prevInProcessIds = useRef(new Set());
   const [noteModal, setNoteModal] = useState(null);
@@ -2519,7 +2560,7 @@ style={{
       )}
       {accountOpen && (
   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={() => setAccountOpen(false)}>
-    <div onClick={e => e.stopPropagation()} style={{ background: theme.panel, padding: 20, borderRadius: 12, maxWidth: 360, width: '90%', border: '1px solid #3a3a5c', color: theme.panelText, position: 'relative' }}>
+    <div onClick={e => e.stopPropagation()} style={{ background: theme.panel, padding: 20, borderRadius: 12, maxWidth: 360, width: '90%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #3a3a5c', color: theme.panelText, position: 'relative' }}>
       <button type="button" onClick={() => setAccountOpen(false)} aria-label="Close" style={{ position: 'absolute', top: 8, right: 8, width: 32, height: 32, border: 'none', background: 'transparent', color: theme.text, fontSize: 22, lineHeight: '32px', cursor: 'pointer' }}>×</button>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingRight: 28 }}>
         <AvatarView avatar={user.avatar} size={56} />
@@ -2527,22 +2568,39 @@ style={{
           <div style={{ fontWeight: 800, fontSize: 18 }}>{user.name}</div>
         </div>
       </div>
-      <div style={{ marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid #3a3a5c' }}>
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>Avatar</div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          <button type="button" onClick={() => setAvatarTab('photo')} style={{ flex: 1, padding: 8, borderRadius: 6, border: avatarTab === 'photo' ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer' }}>Photo</button>
-          <button type="button" onClick={() => setAvatarTab('mii')} style={{ flex: 1, padding: 8, borderRadius: 6, border: avatarTab === 'mii' ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer' }}>Designer</button>
-        </div>
-        {avatarTab === 'photo' ? (
-          <div>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={async (e) => {
-                const file = e.target.files && e.target.files[0];
-                if (!file) return;
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 6 }}>Change photo</div>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            setCropSrc(url);
+            setCropZoom(1);
+            setCropX(0);
+            setCropY(0);
+            setAvatarMsg('');
+          }}
+          style={{ color: theme.text, width: '100%' }}
+        />
+        {!!cropSrc && (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ width: 160, height: 160, borderRadius: '50%', overflow: 'hidden', margin: '0 auto 10px', border: '2px solid #5aa89a', position: 'relative', background: '#111' }}>
+              <img src={cropSrc} alt="" style={{ position: 'absolute', left: '50%', top: '50%', width: (160 * cropZoom) + 'px', height: 'auto', transform: 'translate(calc(-50% + ' + cropX + 'px), calc(-50% + ' + cropY + 'px))', maxWidth: 'none' }} />
+            </div>
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>Zoom</div>
+            <input type="range" min="1" max="3" step="0.05" value={cropZoom} onChange={e => setCropZoom(Number(e.target.value))} style={{ width: '100%' }} />
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>Left / right</div>
+            <input type="range" min="-80" max="80" value={cropX} onChange={e => setCropX(Number(e.target.value))} style={{ width: '100%' }} />
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>Up / down</div>
+            <input type="range" min="-80" max="80" value={cropY} onChange={e => setCropY(Number(e.target.value))} style={{ width: '100%' }} />
+            <button
+              type="button"
+              onClick={async () => {
                 try {
-                  const photo = await cropPhotoToCircle(file);
+                  const photo = await cropPhotoInteractive(cropSrc, cropZoom, cropX, cropY);
                   const res = await fetch(`${API}/api/users/${user.id}/avatar`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -2552,62 +2610,14 @@ style={{
                   if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Save failed');
                   onUserUpdate({ ...user, avatar: data.avatar });
                   setAvatarMsg('Photo saved');
+                  setCropSrc('');
                 } catch (err) {
-                  setAvatarMsg(err.message || 'Could not read photo');
+                  setAvatarMsg(err.message || 'Crop failed');
                 }
               }}
-              style={{ color: theme.text, width: '100%' }}
-            />
-            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>Square crop, shown as a circle on the board.</div>
-          </div>
-        ) : (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
-              <MiiFace mii={miiDraft} size={88} />
-            </div>
-            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Skin</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-              {MII_SKIN.map(c => (
-                <button key={c} type="button" onClick={() => setMiiDraft(d => ({ ...d, skin: c }))} style={{ width: 22, height: 22, borderRadius: '50%', background: c, border: miiDraft.skin === c ? '2px solid #fff' : '1px solid #555', cursor: 'pointer' }} />
-              ))}
-            </div>
-            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Hair</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-              {MII_HAIR.map(c => (
-                <button key={c} type="button" onClick={() => setMiiDraft(d => ({ ...d, hair: c }))} style={{ width: 22, height: 22, borderRadius: '50%', background: c, border: miiDraft.hair === c ? '2px solid #fff' : '1px solid #555', cursor: 'pointer' }} />
-              ))}
-            </div>
-            {[
-              ['style', 'Style', ['short', 'spike', 'curl', 'bun', 'bald']],
-              ['eyes', 'Eyes', ['round', 'happy', 'wink']],
-              ['mouth', 'Mouth', ['smile', 'open', 'flat']],
-              ['extra', 'Extra', ['none', 'glasses', 'cap']],
-            ].map(([key, label, opts]) => (
-              <div key={key} style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{label}</div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {opts.map(opt => (
-                    <button key={opt} type="button" onClick={() => setMiiDraft(d => ({ ...d, [key]: opt }))} style={{ padding: '4px 8px', borderRadius: 6, border: miiDraft[key] === opt ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer', fontSize: 12 }}>{opt}</button>
-                  ))}
-                </div>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={async () => {
-                const res = await fetch(`${API}/api/users/${user.id}/avatar`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ actorId: user.id, kind: 'mii', mii: miiDraft }),
-                });
-                const data = await res.json();
-                if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Save failed');
-                onUserUpdate({ ...user, avatar: data.avatar });
-                setAvatarMsg('Avatar saved');
-              }}
-              style={{ width: '100%', padding: 8, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
+              style={{ width: '100%', marginTop: 8, padding: 8, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
             >
-              Save avatar
+              Save cropped photo
             </button>
           </div>
         )}
@@ -2637,6 +2647,73 @@ style={{
         />
         Show balance on home screen
       </label>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, cursor: 'pointer' }}>
+        <input type="checkbox" checked={showDesigner} onChange={e => setShowDesigner(e.target.checked)} />
+        Avatar designer
+      </label>
+      {showDesigner && (
+        <div style={{ marginBottom: 14, padding: 12, border: '1px solid #3a3a5c', borderRadius: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
+            <MiiFace mii={miiDraft} size={110} />
+          </div>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Sex</div>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            {['female', 'male'].map(s => (
+              <button key={s} type="button" onClick={() => setMiiDraft(d => ({ ...d, sex: s, style: s === 'female' ? 'long' : 'short', extra: 'none' }))} style={{ flex: 1, padding: 6, borderRadius: 6, border: miiDraft.sex === s ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer' }}>{s}</button>
+            ))}
+          </div>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Skin</div>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+            {MII_SKIN.map(c => (
+              <button key={c} type="button" onClick={() => setMiiDraft(d => ({ ...d, skin: c }))} style={{ width: 22, height: 22, borderRadius: '50%', background: c, border: miiDraft.skin === c ? '2px solid #fff' : '1px solid #555', cursor: 'pointer' }} />
+            ))}
+          </div>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Hair colour</div>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+            {MII_HAIR.map(c => (
+              <button key={c} type="button" onClick={() => setMiiDraft(d => ({ ...d, hair: c }))} style={{ width: 22, height: 22, borderRadius: '50%', background: c, border: miiDraft.hair === c ? '2px solid #fff' : '1px solid #555', cursor: 'pointer' }} />
+            ))}
+          </div>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Shirt</div>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+            {MII_SHIRT.map(c => (
+              <button key={c} type="button" onClick={() => setMiiDraft(d => ({ ...d, shirt: c }))} style={{ width: 22, height: 22, borderRadius: 4, background: c, border: miiDraft.shirt === c ? '2px solid #fff' : '1px solid #555', cursor: 'pointer' }} />
+            ))}
+          </div>
+          {[
+            ['style', 'Hair', miiDraft.sex === 'male' ? ['short', 'spike', 'bald', 'bun'] : ['long', 'bob', 'bun', 'short']],
+            ['eyes', 'Eyes', ['lash', 'round', 'happy']],
+            ['mouth', 'Mouth', ['smile', 'open', 'flat']],
+            ['extra', 'Extra', miiDraft.sex === 'male' ? ['none', 'beard', 'glasses', 'cap'] : ['none', 'earrings', 'glasses', 'cap']],
+          ].map(([key, label, opts]) => (
+            <div key={key} style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{label}</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {opts.map(opt => (
+                  <button key={opt} type="button" onClick={() => setMiiDraft(d => ({ ...d, [key]: opt }))} style={{ padding: '4px 8px', borderRadius: 6, border: miiDraft[key] === opt ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer', fontSize: 12 }}>{opt}</button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={async () => {
+              const res = await fetch(`${API}/api/users/${user.id}/avatar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ actorId: user.id, kind: 'mii', mii: miiDraft }),
+              });
+              const data = await res.json();
+              if (!res.ok || !data.success) return setAvatarMsg(data.error || 'Save failed');
+              onUserUpdate({ ...user, avatar: data.avatar });
+              setAvatarMsg('Avatar saved');
+            }}
+            style={{ width: '100%', padding: 8, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
+          >
+            Save avatar
+          </button>
+        </div>
+      )}
       <div style={{ marginBottom: 12, paddingTop: 8, borderTop: '1px solid #3a3a5c' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, cursor: 'pointer' }}>
           <input
