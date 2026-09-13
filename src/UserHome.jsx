@@ -126,72 +126,36 @@ const MII_HAIR = ['#1a1a1a', '#2b1b0e', '#6b3a1f', '#c4a35a', '#d4542a', '#6b2d5
 const MII_SHIRT = ['#1e3a5f', '#0f766e', '#7f1d1d', '#4c1d95', '#365314', '#0b1220'];
 const DEFAULT_MII = { sex: 'female', skin: '#f2c7a0', hair: '#2b1b0e', style: 'long', eyes: 'lash', mouth: 'smile', extra: 'none', shirt: '#1e3a5f' };
 
-function MiiFace({ mii, size = 64 }) {
+function miiUrl(mii) {
   const m = { ...DEFAULT_MII, ...(mii || {}) };
   const female = m.sex !== 'male';
-  const uid = 'm' + String(m.skin + m.hair + (m.shirt || '') + size).replace(/[^a-zA-Z0-9]/g, '').slice(0, 18);
+  const hairMap = { long: 'long16', bob: 'long08', bun: 'long19', short: 'short14', spike: 'short08', bald: 'short01' };
+  const eyesMap = { lash: 'variant12', round: 'variant05', happy: 'variant16' };
+  const mouthMap = { smile: 'variant02', open: 'variant20', flat: 'variant10' };
+  const q = new URLSearchParams({
+    seed: [m.sex, m.style, m.skin, m.hair].join('-'),
+    radius: '50',
+    size: '160',
+    backgroundColor: '1b2230',
+    skinColor: String(m.skin || '').replace('#', ''),
+    hairColor: String(m.hair || '').replace('#', ''),
+    hair: hairMap[m.style] || (female ? 'long16' : 'short14'),
+    eyes: eyesMap[m.eyes] || 'variant05',
+    mouth: mouthMap[m.mouth] || 'variant02',
+    glassesProbability: m.extra === 'glasses' ? '100' : '0',
+    earringsProbability: m.extra === 'earrings' ? '100' : '0',
+  });
+  return 'https://api.dicebear.com/9.x/adventurer/svg?' + q.toString();
+}
+function MiiFace({ mii, size = 64 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 80 80" style={{ display: 'block' }}>
-      <defs>
-        <linearGradient id={uid + 'bg'} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#2a3144" />
-          <stop offset="100%" stopColor="#12161f" />
-        </linearGradient>
-        <clipPath id={uid + 'clip'}><circle cx="40" cy="40" r="40" /></clipPath>
-      </defs>
-      <g clipPath={'url(#' + uid + 'clip)'}>
-        <rect width="80" height="80" fill={'url(#' + uid + 'bg)'} />
-        <ellipse cx="40" cy="78" rx="28" ry="16" fill={m.shirt || '#1e3a5f'} />
-        {m.style === 'long' && <path d="M12 42 C10 62 22 74 40 70 C58 74 70 62 68 42 C66 22 54 14 40 14 C26 14 14 22 12 42" fill={m.hair} />}
-        {m.style === 'bob' && <path d="M16 36 C16 58 26 64 40 62 C54 64 64 58 64 36 C62 16 52 12 40 12 C28 12 18 16 16 36" fill={m.hair} />}
-        {m.style === 'short' && <path d="M18 34 C20 16 32 12 40 12 C48 12 60 16 62 34 C58 20 40 16 22 22 Z" fill={m.hair} />}
-        {m.style === 'spike' && <path d="M18 36 L22 12 L28 32 L34 10 L40 30 L46 10 L52 32 L58 12 L62 36 C52 22 28 22 18 36" fill={m.hair} />}
-        {m.style === 'bun' && (<><circle cx="40" cy="14" r="9" fill={m.hair} /><path d="M18 34 C22 16 58 16 62 34 C54 22 26 22 18 34" fill={m.hair} /></>)}
-        {m.style === 'bald' && <path d="M24 30 C32 22 48 22 56 30" fill="none" stroke={m.hair} strokeWidth="2" />}
-        <ellipse cx="40" cy="42" rx={female ? 16 : 17.5} ry={female ? 19 : 20.5} fill={m.skin} />
-        <ellipse cx="40" cy="46" rx="3.2" ry="4.4" fill={m.skin} stroke="rgba(0,0,0,0.08)" />
-        {m.eyes === 'happy' ? (
-          <>
-            <path d="M28 42 q5 -4 10 0" stroke="#2a2118" strokeWidth="1.6" fill="none" />
-            <path d="M42 42 q5 -4 10 0" stroke="#2a2118" strokeWidth="1.6" fill="none" />
-          </>
-        ) : (
-          <>
-            <ellipse cx="31" cy="41.5" rx="2.6" ry="2.8" fill="#f4efe8" />
-            <ellipse cx="49" cy="41.5" rx="2.6" ry="2.8" fill="#f4efe8" />
-            <ellipse cx="31.2" cy="41.7" rx="1.15" ry="1.3" fill="#3b2a1c" />
-            <ellipse cx="49.2" cy="41.7" rx="1.15" ry="1.3" fill="#3b2a1c" />
-            <path d="M28.2 39.4 q2.8 -1.2 5.6 0" stroke="#2a2118" strokeWidth="1.05" fill="none" />
-            <path d="M46.2 39.4 q2.8 -1.2 5.6 0" stroke="#2a2118" strokeWidth="1.05" fill="none" />
-            {m.eyes === 'lash' && (
-              <>
-                <path d="M28.4 38.6 l1.1 -1.3 M31 38 v-1.5 M33.6 38.6 l-1.1 -1.3" stroke="#2a2118" strokeWidth="0.8" />
-                <path d="M46.4 38.6 l1.1 -1.3 M49 38 v-1.5 M51.6 38.6 l-1.1 -1.3" stroke="#2a2118" strokeWidth="0.8" />
-              </>
-            )}
-          </>
-        )}
-        {female && <ellipse cx="27" cy="48" rx="4" ry="2.2" fill="#d9968a" opacity="0.16" />}
-        {female && <ellipse cx="53" cy="48" rx="4" ry="2.2" fill="#d9968a" opacity="0.16" />}
-        {m.mouth === 'open' ? (
-          <ellipse cx="40" cy="54" rx="3.2" ry="2" fill="#7a2a3a" />
-        ) : m.mouth === 'flat' ? (
-          <path d="M35 53.5 h10" stroke="#6a3a38" strokeWidth="1.4" strokeLinecap="round" />
-        ) : (
-          <path d="M35 52.5 q5 3.8 10 0" stroke="#8a4542" strokeWidth="1.45" fill="none" strokeLinecap="round" />
-        )}
-        {!female && m.extra === 'beard' && <path d="M26 52 C32 64 48 64 54 52 C46 58 34 58 26 52" fill={m.hair} opacity="0.8" />}
-        {m.extra === 'glasses' && (
-          <>
-            <rect x="25" y="38" width="13" height="8" rx="2" fill="none" stroke="#1a1a1a" strokeWidth="1.3" />
-            <rect x="42" y="38" width="13" height="8" rx="2" fill="none" stroke="#1a1a1a" strokeWidth="1.3" />
-            <path d="M38 42 h4" stroke="#1a1a1a" strokeWidth="1.2" />
-          </>
-        )}
-        {m.extra === 'earrings' && (<><circle cx="23" cy="50" r="1.5" fill="#c9a227" /><circle cx="57" cy="50" r="1.5" fill="#c9a227" /></>)}
-        {m.extra === 'cap' && <path d="M16 30 Q40 10 64 30 L68 33 H12 Z" fill={m.hair} />}
-      </g>
-    </svg>
+    <img
+      src={miiUrl(mii)}
+      alt=""
+      width={size}
+      height={size}
+      style={{ width: size, height: size, borderRadius: '50%', display: 'block', background: '#1b2230', objectFit: 'cover' }}
+    />
   );
 }
 
