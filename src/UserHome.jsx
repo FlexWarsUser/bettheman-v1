@@ -123,18 +123,20 @@ function getHouseTheme(key) {
 
 const MII_SKIN = ['#f2d3b1', '#ecad80', '#d08b5b', '#ae5d29', '#9e5622', '#763900'];
 const MII_HAIR = ['#0e0e0e', '#6a4e35', '#afafaf', '#b9a05f', '#77311d', '#85c2c6', '#3eac2c'];
-const MII_HAIR_F = ['long01','long04','long08','long10','long12','long16','long19','long20','long23','long26'];
-const MII_HAIR_M = ['short01','short04','short07','short10','short12','short14','short16','short19','short21','short24'];
-const MII_EYES = ['variant01','variant05','variant08','variant12','variant16','variant19','variant23','variant26'];
-const MII_MOUTH = ['variant01','variant02','variant06','variant10','variant15','variant20','variant25','variant30'];
-const MII_GLASSES = ['none','variant01','variant02','variant03','variant05'];
+const MII_HAIR_F = [['Long A','long01'],['Long B','long04'],['Long C','long08'],['Long D','long10'],['Long E','long16'],['Long F','long19'],['Long G','long20'],['Long H','long26']];
+const MII_HAIR_M = [['Crop A','short01'],['Crop B','short04'],['Crop C','short07'],['Crop D','short10'],['Crop E','short12'],['Crop F','short14'],['Crop G','short16'],['Crop H','short19']];
+const MII_EYES = [['Open','variant01'],['Soft','variant05'],['Keen','variant08'],['Calm','variant12'],['Bright','variant16'],['Sharp','variant19'],['Warm','variant23'],['Deep','variant26']];
+const MII_MOUTH = [['Smile','variant02'],['Grin','variant01'],['Soft','variant06'],['Neutral','variant10'],['Wide','variant15'],['Open','variant20'],['Small','variant25'],['Set','variant30']];
+const MII_GLASSES = [['None','none'],['Round','variant01'],['Square','variant02'],['Narrow','variant03'],['Thick','variant05']];
 const DEFAULT_MII = { sex: 'female', skin: '#f2d3b1', hair: '#0e0e0e', style: 'long16', eyes: 'variant12', mouth: 'variant02', glasses: 'none' };
 
 function miiUrl(mii) {
   const m = { ...DEFAULT_MII, ...(mii || {}) };
   const female = m.sex !== 'male';
   const hairMap = { long: 'long16', bob: 'long10', bun: 'long20', short: 'short16', spike: 'short07', bald: 'short01' };
-  const hair = hairMap[m.style] || m.style || (female ? 'long16' : 'short16');
+  const allowedHair = new Set(['long01','long04','long08','long10','long16','long19','long20','long26','short01','short04','short07','short10','short12','short14','short16','short19']);
+  const rawHair = hairMap[m.style] || m.style || (female ? 'long16' : 'short16');
+  const hair = allowedHair.has(rawHair) ? rawHair : (female ? 'long16' : 'short16');
   const eyes = ({ lash: 'variant12', round: 'variant05', happy: 'variant16' }[m.eyes] || m.eyes || 'variant12');
   const mouth = ({ smile: 'variant02', open: 'variant20', flat: 'variant10' }[m.mouth] || m.mouth || 'variant02');
   const glasses = m.glasses && m.glasses !== 'none' ? m.glasses : (m.extra === 'glasses' ? 'variant01' : '');
@@ -161,6 +163,7 @@ function MiiFace({ mii, size = 64 }) {
       width={size}
       height={size}
       style={{ width: size, height: size, borderRadius: '50%', display: 'block', background: '#1b2230', objectFit: 'cover' }}
+      onError={(e) => { e.currentTarget.style.opacity = '0.3'; }}
     />
   );
 }
@@ -2674,8 +2677,8 @@ style={{
             <div key={key} style={{ marginBottom: 8 }}>
               <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{label}</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {opts.map(opt => (
-                  <button key={opt} type="button" onClick={() => setMiiDraft(d => ({ ...d, [key]: opt }))} style={{ padding: '4px 8px', borderRadius: 6, border: miiDraft[key] === opt ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer', fontSize: 12 }}>{opt}</button>
+                {opts.map(([name, val]) => (
+                  <button key={val} type="button" onClick={() => setMiiDraft(d => ({ ...d, [key]: val }))} style={{ padding: '4px 8px', borderRadius: 6, border: miiDraft[key] === val ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer', fontSize: 12 }}>{name}</button>
                 ))}
               </div>
             </div>
