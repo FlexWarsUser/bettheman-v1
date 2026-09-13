@@ -25,7 +25,12 @@ function applyHouseTheme(user) {
   const accent = user?.accentColor || DEFAULT_BRAND.accentColor;
   const bg = user?.bgColor || DEFAULT_BRAND.bgColor;
   const bgEnd = user?.bgColorEnd || '';
-  const panel = user?.panelColor || DEFAULT_BRAND.panelColor;
+  const panelColor = user?.panelColor || DEFAULT_BRAND.panelColor;
+  const panelEnd = user?.panelColorEnd || '';
+  const panelPattern = user?.panelPattern || '';
+  const panel = (panelEnd ? ('linear-gradient(180deg, ' + panelColor + ' 0%, ' + panelEnd + ' 100%)') : panelColor)
+    + (panelPattern === 'stripes' ? ', repeating-linear-gradient(135deg, rgba(255,255,255,0.06) 0 6px, transparent 6px 12px)' : '')
+    + (panelPattern === 'grain' ? ', repeating-radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 0 1px, transparent 1px 3px)' : '');
   const text = user?.textColor || DEFAULT_BRAND.textColor;
   const panelText = user?.panelTextColor || DEFAULT_BRAND.panelTextColor;
   const btnBg = user?.buttonBgColor || DEFAULT_BRAND.buttonBgColor;
@@ -41,7 +46,7 @@ function applyHouseTheme(user) {
   const bgCss = bgEnd
     ? ('linear-gradient(180deg, ' + bg + ' 0%, ' + bgEnd + ' 100%)')
     : (user?.bgColor
-      ? ('radial-gradient(1200px 600px at 50% -10%, ' + panel + ' 0%, ' + bg + ' 55%, #07060f 100%)')
+      ? ('radial-gradient(1200px 600px at 50% -10%, ' + panelColor + ' 0%, ' + bg + ' 55%, #07060f 100%)')
       : 'radial-gradient(1200px 600px at 50% -10%, #1a1440 0%, #0b0a1a 55%, #07060f 100%)');
   const btnCss = 'linear-gradient(135deg, ' + btnBg + ', ' + (btnEnd || (btnBg === accent ? '#00c6ff' : accent)) + ')';
   const shimmerCss = shimmer ? (

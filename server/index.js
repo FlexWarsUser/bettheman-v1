@@ -103,6 +103,8 @@ async function shapeUser(user) {
   let bgColorEnd = null;
   let buttonBgColorEnd = null;
   let shimmer = false;
+  let panelColorEnd = null;
+  let panelPattern = "";
   if (houseId) {
     const house = await prisma.house.findUnique({ where: { id: houseId } });
     if (house) {
@@ -119,12 +121,14 @@ async function shapeUser(user) {
       logoScale = house.logoScale != null ? Number(house.logoScale) : null;
     }
     const extras = await prisma.houseSetting.findMany({
-      where: { houseId, key: { in: ["bgColorEnd", "buttonBgColorEnd", "shimmer"] } },
+      where: { houseId, key: { in: ["bgColorEnd", "buttonBgColorEnd", "shimmer", "panelColorEnd", "panelPattern"] } },
     });
     for (const r of extras) {
       if (r.key === "bgColorEnd") bgColorEnd = r.value || null;
       if (r.key === "buttonBgColorEnd") buttonBgColorEnd = r.value || null;
       if (r.key === "shimmer") shimmer = r.value === "true";
+      if (r.key === "panelColorEnd") panelColorEnd = r.value || null;
+      if (r.key === "panelPattern") panelPattern = r.value || "";
     }
   }
   const houseMasterId = houseId
@@ -155,6 +159,8 @@ async function shapeUser(user) {
     bgColorEnd,
     buttonBgColorEnd,
     shimmer,
+    panelColorEnd,
+    panelPattern,
     houseMasterId,
     isPlatformAdmin: (user.role || "") === "admin",
     totpEnabled: !!user.totpEnabled,
@@ -934,13 +940,15 @@ app.get("/api/houses/branding", async (req, res) => {
     const house = await prisma.house.findUnique({ where: { id: Number(actor.houseId) } });
     if (!house) return res.status(404).json({ success: false, error: "House not found" });
     const extras = await prisma.houseSetting.findMany({
-      where: { houseId: Number(actor.houseId), key: { in: ["bgColorEnd", "buttonBgColorEnd", "shimmer"] } },
+      where: { houseId: Number(actor.houseId), key: { in: ["bgColorEnd", "buttonBgColorEnd", "shimmer", "panelColorEnd", "panelPattern"] } },
     });
-    const extra = { bgColorEnd: null, buttonBgColorEnd: null, shimmer: false };
+    const extra = { bgColorEnd: null, buttonBgColorEnd: null, shimmer: false, panelColorEnd: null, panelPattern: "" };
     for (const r of extras) {
       if (r.key === "bgColorEnd") extra.bgColorEnd = r.value || null;
       if (r.key === "buttonBgColorEnd") extra.buttonBgColorEnd = r.value || null;
       if (r.key === "shimmer") extra.shimmer = r.value === "true";
+      if (r.key === "panelColorEnd") extra.panelColorEnd = r.value || null;
+      if (r.key === "panelPattern") extra.panelPattern = r.value || "";
     }
     res.json({ success: true, house: { ...house, ...extra } });
   } catch (err) {
@@ -1020,6 +1028,8 @@ app.post("/api/houses/branding", async (req, res) => {
       await setSetting("bgColorEnd", "", houseId);
       await setSetting("buttonBgColorEnd", "", houseId);
       await setSetting("shimmer", "false", houseId);
+      await setSetting("panelColorEnd", "", houseId);
+      await setSetting("panelPattern", "", houseId);
     }
     if (req.body.bgColorEnd !== undefined) {
       if (!validHexColor(req.body.bgColorEnd)) {
@@ -1036,19 +1046,31 @@ app.post("/api/houses/branding", async (req, res) => {
     if (req.body.shimmer !== undefined) {
       await setSetting("shimmer", req.body.shimmer ? "true" : "false", houseId);
     }
+    if (req.body.panelColorEnd !== undefined) {
+      if (!validHexColor(req.body.panelColorEnd)) {
+        return res.status(400).json({ success: false, error: "Invalid panel end colour" });
+      }
+      await setSetting("panelColorEnd", req.body.panelColorEnd || "", houseId);
+    }
+    if (req.body.panelPattern !== undefined) {
+      const p = String(req.body.panelPattern || "");
+      await setSetting("panelPattern", ["grain", "stripes"].includes(p) ? p : "", houseId);
+    }
     if (req.body.name !== undefined) {
       const name = String(req.body.name || "").trim();
       if (name) data.name = name;
     }
     const house = await prisma.house.update({ where: { id: houseId }, data });
     const extras = await prisma.houseSetting.findMany({
-      where: { houseId, key: { in: ["bgColorEnd", "buttonBgColorEnd", "shimmer"] } },
+      where: { houseId, key: { in: ["bgColorEnd", "buttonBgColorEnd", "shimmer", "panelColorEnd", "panelPattern"] } },
     });
-    const extra = { bgColorEnd: null, buttonBgColorEnd: null, shimmer: false };
+    const extra = { bgColorEnd: null, buttonBgColorEnd: null, shimmer: false, panelColorEnd: null, panelPattern: "" };
     for (const r of extras) {
       if (r.key === "bgColorEnd") extra.bgColorEnd = r.value || null;
       if (r.key === "buttonBgColorEnd") extra.buttonBgColorEnd = r.value || null;
       if (r.key === "shimmer") extra.shimmer = r.value === "true";
+      if (r.key === "panelColorEnd") extra.panelColorEnd = r.value || null;
+      if (r.key === "panelPattern") extra.panelPattern = r.value || "";
     }
     res.json({ success: true, house: { ...house, ...extra } });
   } catch (err) {
