@@ -223,6 +223,13 @@ function applyHouseTheme(user) {
   const btnBg = pack.btnBg;
   const btnText = pack.btnText;
   let tag = document.getElementById('btm-house-theme');
+  if (!document.getElementById('btm-board-font')) {
+    const font = document.createElement('link');
+    font.id = 'btm-board-font';
+    font.rel = 'stylesheet';
+    font.href = 'https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap';
+    document.head.appendChild(font);
+  }
   if (!tag) {
     tag = document.createElement('style');
     tag.id = 'btm-house-theme';
@@ -1849,7 +1856,8 @@ inputMode="decimal"
         color: '#ffe566',
         letterSpacing: 1.4,
         textTransform: 'uppercase',
-        fontWeight: 800,
+        fontWeight: 400,
+        fontFamily: '"Luckiest Guy", Impact, sans-serif',
         textShadow: '0 0 12px rgba(255,229,102,0.35)',
       }}>
         Party Mode • Live Standings
@@ -1903,9 +1911,16 @@ inputMode="decimal"
 
             <div style={{
               flex: 1,
-              fontWeight: isTop3 ? 700 : 500,
-              color: isTop3 ? '#fff' : '#e0e0e0',
-              fontSize: 15,
+              fontFamily: '"Luckiest Guy", "Titan One", Impact, sans-serif',
+              fontWeight: 400,
+              letterSpacing: 0.6,
+              color: row.rank === 1 ? '#ffd84a' : row.rank === 2 ? '#f2f2f2' : row.rank === 3 ? '#ffb070' : '#7ef0c0',
+              fontSize: isTop3 ? 20 : 17,
+              lineHeight: 1.05,
+              textShadow: row.rank === 1 ? '0 2px 0 #8a5a00, 0 0 12px rgba(255,216,74,0.45)' : '0 2px 0 rgba(0,0,0,0.45)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}>
               {row.name}
             </div>
