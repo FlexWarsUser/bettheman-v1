@@ -284,6 +284,23 @@ function applyHouseTheme(user) {
 function applyDefaultPublicTheme() {
   applyHouseTheme({ themeKey: 'classic' });
 }
+function eventKey(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/\b\d{1,2}[:.]?\d{2}\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function eventsMatch(a, b) {
+  if (!a || !b) return true;
+  const A = String(a).toLowerCase().trim();
+  const B = String(b).toLowerCase().trim();
+  if (A === B) return true;
+  if (A.includes(B) || B.includes(A)) return true;
+  const ka = eventKey(A);
+  const kb = eventKey(B);
+  return ka.length > 3 && ka === kb;
+}
 const ODDS_LIST = [
 "2/1","4/1","1/1","8/1","4/5","8/11","4/6","8/13","4/7","5/1","20/1","11/10",
 "1/2","6/5","5/4","11/8","6/4","7/4","15/8","2/5","9/4","12/5","5/2","11/4",
@@ -1137,8 +1154,8 @@ function footballSelectionsForEvent(eventName) {
     }
 
     try {
-      const params = new URLSearchParams({ q: query });
-      if (bet.event) params.set('eventName', bet.event);
+          const params = new URLSearchParams({ q: query });
+          if (bet.event) params.set('eventName', eventKey(bet.event));
       const res = await fetch(`${API}/api/runners?${params}`);
       const data = await res.json();
       const list = (data && data.runners) ? data.runners : [];
