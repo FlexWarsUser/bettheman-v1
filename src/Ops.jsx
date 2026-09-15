@@ -2583,7 +2583,6 @@ const exposure = getExposure(b.stake, b.odds, {
 
     <CollapsibleSection title="Branding" defaultOpen={false}>
       <div style={{ background: theme.panel, border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
-        <p style={{ color: '#b0b0b0', fontSize: 13, marginTop: 0 }}>Your logo plus one of ten tested themes. Login page stays Classic until someone from this house signs in.</p>
         <div style={{ marginBottom: 8, color: '#b0b0b0', fontSize: 13 }}>House name</div>
         <input value={brandName} onChange={e => setBrandName(e.target.value)} style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
         <div style={{ marginBottom: 8, color: '#b0b0b0', fontSize: 13 }}>Logo</div>
