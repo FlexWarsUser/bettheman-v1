@@ -1279,6 +1279,7 @@ const createNewUser = async () => {
         email: authEmail,
         password: authPassword,
         actorId: currentUser?.id,
+        canLay: true,
       }),
     });
     const data = await res.json();
@@ -2879,9 +2880,8 @@ const exposure = getExposure(b.stake, b.odds, {
     </CollapsibleSection>
     )}
 
-    <CollapsibleSection title="User rights" defaultOpen={false}>
+    <CollapsibleSection title="User Rights & Password" defaultOpen={false}>
       <div style={{ background: theme.panel, border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px', textAlign: 'left' }}>
-        <p style={{ color: '#b0b0b0', fontSize: 13 }}>Default is punter. Tick Can lay to allow laying.</p>
         {users.filter(u => {
           const myHouse = currentUser?.houseId != null ? Number(currentUser.houseId) : 1;
           const theirHouse = u.houseId != null ? Number(u.houseId) : 1;
