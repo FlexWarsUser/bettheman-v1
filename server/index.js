@@ -2733,6 +2733,16 @@ app.post("/api/push/subscribe", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+app.post("/api/push/unsubscribe", async (req, res) => {
+  try {
+    const userId = parseInt(req.body.userId, 10);
+    if (!userId) return res.status(400).json({ success: false, error: "Missing userId" });
+    await prisma.pushSubscription.deleteMany({ where: { userId } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 app.post("/api/settings", async (req, res) => {
   try {
 const { skipHouseFirstLook, skipHouseResidual, layerTimerSeconds, fcfsAllocation, partyMode, actorId } = req.body;

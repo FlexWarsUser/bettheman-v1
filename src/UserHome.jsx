@@ -664,6 +664,7 @@ const [showMoney, setShowMoney] = useState(() => {
     return true;
   });
   const [accountOpen, setAccountOpen] = useState(false);
+  const [pushOn, setPushOn] = useState(() => typeof Notification !== 'undefined' && Notification.permission === 'granted');
   const [totpSecret, setTotpSecret] = useState('');
   const [totpSetupCode, setTotpSetupCode] = useState('');
   const [totpMsg, setTotpMsg] = useState('');
@@ -2847,19 +2848,43 @@ style={{
         )}
         {totpMsg && <div style={{ marginTop: 8, fontSize: 13 }}>{totpMsg}</div>}
       </div>
-      {typeof Notification !== "undefined" && Notification.permission !== "granted" && (
+      {typeof Notification !== "undefined" && !pushOn && Notification.permission !== "granted" && (
         <button
           type="button"
-          onClick={() => {
+          onClick={async () => {
             if (typeof Notification === "undefined") {
               alert("On iPhone: tap Share → Add to Home Screen, then open BetOrLay from the home screen icon and try again.");
               return;
             }
-            subscribePush(user.id);
+            const ok = await subscribePush(user.id);
+            if (ok) setPushOn(true);
           }}
           style={{ width: '100%', padding: 10, marginBottom: 12, background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}
         >
           Enable notifications
+        </button>
+      )}
+      {pushOn && (
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              if ('serviceWorker' in navigator) {
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.getSubscription();
+                if (sub) await sub.unsubscribe();
+              }
+              await fetch(`${API}/api/push/unsubscribe`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: user.id }),
+              });
+            } catch (e) {}
+            setPushOn(false);
+          }}
+          style={{ width: '100%', padding: 10, marginBottom: 12, background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+        >
+          Disable notifications
         </button>
       )}
       <button type="button" onClick={() => { if (window.confirm('Log out of BetOrLay?')) onLogout(); }} style={{ width: '100%', padding: '7px 10px', marginTop: 4, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
