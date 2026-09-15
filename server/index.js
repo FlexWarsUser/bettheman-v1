@@ -1128,6 +1128,30 @@ app.post("/api/houses/:id/schedule", async (req, res) => {
   }
 });
 
+app.delete("/api/houses/:id", async (req, res) => {
+  try {
+    const actor = req.body?.actorId
+      ? await getUserRow(req.body.actorId)
+      : (req.query.actorId ? await getUserRow(parseInt(req.query.actorId, 10)) : null);
+    if (!isPlatformAdmin(actor)) {
+      return res.status(403).json({ success: false, error: "Platform admin only" });
+    }
+    const id = parseInt(req.params.id, 10);
+    if (!id || id === 1) return res.status(400).json({ success: false, error: "Cannot delete the main house" });
+    const house = await prisma.house.findUnique({ where: { id } });
+    if (!house) return res.status(404).json({ success: false, error: "House not found" });
+    await prisma.houseSetting.deleteMany({ where: { houseId: id } });
+    try { await prisma.bet.updateMany({ where: { houseId: id }, data: { houseId: null } }); } catch (_) {}
+    try { await prisma.ledgerEntry.updateMany({ where: { houseId: id }, data: { houseId: null } }); } catch (_) {}
+    await prisma.user.deleteMany({ where: { houseId: id } });
+    await prisma.house.delete({ where: { id } });
+    res.json({ success: true, deletedId: id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 function validHexColor(v) {
   if (v == null || v === "") return true;
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(String(v).trim());

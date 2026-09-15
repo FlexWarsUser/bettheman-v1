@@ -370,6 +370,7 @@ const [houseMasterPassword, setHouseMasterPassword] = useState('');
 const [houseActivate, setHouseActivate] = useState('');
 const [houseDeactivate, setHouseDeactivate] = useState('');
 const [houses, setHouses] = useState([]);
+const [deleteHouseId, setDeleteHouseId] = useState(null);
 const [brandName, setBrandName] = useState('');
 const [brandThemeKey, setBrandThemeKey] = useState('classic');
 const [brandLogo, setBrandLogo] = useState('');
@@ -2372,9 +2373,6 @@ const exposure = getExposure(b.stake, b.odds, {
     </CollapsibleSection>
 
     <CollapsibleSection title="Adjust Balances" defaultOpen={false}>
-      <p style={{ color: '#b0b0b0', marginBottom: '12px', fontSize: '13px' }}>
-        Offline payments only. Credit / debit / set balances here.
-      </p>
       <div style={{ background: theme.panel, border: '1px solid #3a3a5c', padding: '16px', borderRadius: '8px', maxWidth: '420px' }}>
         <select
           value={balanceUserId}
@@ -2795,7 +2793,7 @@ const exposure = getExposure(b.stake, b.odds, {
           }}
           style={{ width: '100%', padding: 10, background: '#00ff88', color: '#0b1220', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
         >
-          Create house + master
+          Create house
         </button>
         {houses.filter(h => Number(h.id) !== 1).map(h => (
           <div key={h.id} style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #2a2a40' }}>
@@ -2833,6 +2831,48 @@ const exposure = getExposure(b.stake, b.odds, {
               }}
               style={{ width: '100%', padding: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}
             />
+            <button
+              type="button"
+              onClick={() => setDeleteHouseId(h.id)}
+              style={{ marginTop: 8, width: '100%', padding: 8, background: 'transparent', color: '#ff6b6b', border: '1px solid #ff6b6b', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
+            >
+              Delete house
+            </button>
+            {deleteHouseId === h.id && (
+              <div style={{ marginTop: 10, padding: 12, background: '#1a1a2e', border: '1px solid #ff6b6b', borderRadius: 8 }}>
+                <div style={{ marginBottom: 10, fontSize: 13 }}>Delete {h.name}? This removes the house and every user in it. Cannot be undone.</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`${API}/api/houses/${h.id}?actorId=${currentUser.id}`, {
+                          method: 'DELETE',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ actorId: currentUser.id }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data.success) return alert(data.error || 'Delete failed');
+                        setHouses(list => list.filter(x => Number(x.id) !== Number(h.id)));
+                        setDeleteHouseId(null);
+                      } catch (e) {
+                        alert(e.message);
+                      }
+                    }}
+                    style={{ flex: 1, padding: 8, background: '#ff6b6b', color: '#0b1220', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
+                  >
+                    Yes, delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteHouseId(null)}
+                    style={{ flex: 1, padding: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6, cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
