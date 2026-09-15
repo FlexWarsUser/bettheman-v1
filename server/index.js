@@ -260,6 +260,8 @@ async function sendPushToUser(userId, title, body, tag) {
             title,
             body,
             tag: tag || "btm-" + Date.now(),
+            icon: "/app-icon.png",
+            badge: "/app-icon.png",
           })
         );
       } catch (err) {
