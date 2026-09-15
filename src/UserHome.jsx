@@ -1784,12 +1784,12 @@ inputMode="decimal"
   spellCheck={false}
   value={bet.odds}
                      onChange={e => {
-                      const value = e.target.value;
+                      const value = e.target.value.replace(/-/g, '/');
                       if (
                         value === '' ||
                         /^\d+$/.test(value) ||
                         /^\d+\.\d*$/.test(value) ||
-                        /^\d+[\/\-]\d*$/.test(value)
+                        /^\d+\/\d*$/.test(value)
                       ) {
                         setBet({ ...bet, odds: value });
                         if (value === '') {
