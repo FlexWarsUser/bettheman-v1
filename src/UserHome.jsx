@@ -2001,7 +2001,7 @@ inputMode="decimal"
 {(inProcess.length > 0 || Object.values(holdingBets).some(h => h.until > Date.now())) && (
   <div style={{ marginTop: 10 }}>
     <div style={{ color: '#ffb347', fontWeight: 600, marginBottom: 10 }}>
-In Process ({inProcess.length + Object.values(holdingBets).filter(h => h.until > Date.now()).length})
+In Process
     </div>
 {inProcess.map(b => (
   <div key={b.id} style={{ background: theme.panel, border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
@@ -2051,7 +2051,7 @@ In Process ({inProcess.length + Object.values(holdingBets).filter(h => h.until >
       {customerTab === 'bets' && (
         <>
   
-          <CollapsibleSection title={`Active Bets (${activeBets.length})`} defaultOpen={false}>
+          <CollapsibleSection title="Active Bets" defaultOpen={false}>
             {activeBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No active bets.</p>}
             {activeBets.map(b => {
               const matched = getMatched(b);
@@ -2088,7 +2088,7 @@ In Process ({inProcess.length + Object.values(holdingBets).filter(h => h.until >
             })}
           </CollapsibleSection>
 
-          <CollapsibleSection title={`Settled Bets (${settledBets.length})`} defaultOpen={false}>
+          <CollapsibleSection title="Settled Bets" defaultOpen={false}>
             {settledBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No settled bets.</p>}
             {settledBets.map(b => {
               const matched = getMatched(b);
@@ -2175,7 +2175,7 @@ const originalStake = b.eachWay
             })}
           </CollapsibleSection>
 
-          <CollapsibleSection title={`Not Accepted (${rejectedBets.length})`} defaultOpen={false}>
+          <CollapsibleSection title="Not Accepted" defaultOpen={false}>
             {rejectedBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No rejected bets.</p>}
             {rejectedBets.map(b => (
                 <div key={b.id} style={{ background: theme.panel, border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
@@ -2200,7 +2200,7 @@ const originalStake = b.eachWay
        {/* ===== TAB: My Lays ===== */}
       {customerTab === 'lays' && user.canLay && (
         <>
-          <CollapsibleSection title={`Open Lays (${openLays.length})`} defaultOpen={false}>
+          <CollapsibleSection title="Open Lays" defaultOpen={false}>
             {openLays.length === 0 && <p style={{ color: '#b0b0b0' }}>No open lays.</p>}
             {openLays.map(b => {
               const myBid = (b.layerBids || []).find(l => Number(l.layerId) === Number(user.id));
@@ -2250,7 +2250,7 @@ by{' '}
             })}
           </CollapsibleSection>
 
-          <CollapsibleSection title={`Settled Lays (${settledLays.length})`} defaultOpen={false}>
+          <CollapsibleSection title="Settled Lays" defaultOpen={false}>
             {settledLays.length === 0 && <p style={{ color: '#b0b0b0' }}>No settled lays yet.</p>}
             {settledLays.map(b => {
               const myBid = (b.layerBids || []).find(l => Number(l.layerId) === Number(user.id));
