@@ -2888,6 +2888,37 @@ app.delete("/api/events/:id", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+function raceClock(name) {
+  const m = String(name || "").match(/\b(\d{1,2})[:.]?(\d{2})\b/);
+  if (!m) return [];
+  const h = parseInt(m[1], 10);
+  const min = m[2];
+  const out = new Set();
+  const add = (hh) => {
+    out.add(`${hh}:${min}`);
+    out.add(`${hh}${min}`);
+  };
+  add(h);
+  if (h >= 1 && h <= 11) add(h + 12);
+  if (h >= 13 && h <= 23) add(h - 12);
+  return [...out];
+}
+function raceCourse(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/\b\d{1,2}[:.]?\d{2}\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function sameRace(a, b) {
+  if (!a || !b) return false;
+  if (String(a).toLowerCase().trim() === String(b).toLowerCase().trim()) return true;
+  if (raceCourse(a) !== raceCourse(b)) return false;
+  const ta = raceClock(a);
+  const tb = raceClock(b);
+  return ta.some((t) => tb.includes(t));
+}
+
 // GET /api/runners?q=rum&eventId=12  (or eventName=340 Doncaster)
 app.get("/api/runners", async (req, res) => {
   try {
@@ -2897,8 +2928,14 @@ app.get("/api/runners", async (req, res) => {
 
     const where = {};
     if (q) where.name = { contains: q, mode: "insensitive" };
-    if (eventId) where.eventId = eventId;
-    else if (eventName) where.event = { name: { equals: eventName, mode: "insensitive" } };
+    if (eventId) {
+      where.eventId = eventId;
+    } else if (eventName) {
+      const events = await prisma.event.findMany({ select: { id: true, name: true } });
+      const ids = events.filter((ev) => sameRace(ev.name, eventName)).map((ev) => ev.id);
+      if (!ids.length) return res.json({ success: true, runners: [] });
+      where.eventId = { in: ids };
+    }
 
     const runners = await prisma.runner.findMany({
       where,
