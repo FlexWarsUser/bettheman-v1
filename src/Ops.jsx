@@ -350,7 +350,7 @@ const [authName, setAuthName] = useState('');
   const [bidAmount, setBidAmount] = useState({});
   const [showBidConfirm, setShowBidConfirm] = useState(null);
     const [users, setUsers] = useState([]);
-  const [balanceUserId, setBalanceUserId] = useState(7);
+  const [balanceUserId, setBalanceUserId] = useState(null);
   const [balanceAmount, setBalanceAmount] = useState('');
   const [authEmail, setAuthEmail] = useState(''); 
   const [authPassword, setAuthPassword] = useState('');
@@ -1144,7 +1144,15 @@ useEffect(() => {
       if (res.ok) {
         const data = await res.json();
         console.log('USERS FROM API', data);
-        if (Array.isArray(data)) setUsers(data);
+        if (Array.isArray(data)) {
+          setUsers(data);
+          setBalanceUserId((prev) => {
+            if (prev && data.some((u) => Number(u.id) === Number(prev))) return prev;
+            const hid = currentUser?.houseId != null ? Number(currentUser.houseId) : 1;
+            const houseRow = data.find((u) => String(u.role || '').toLowerCase() === 'house' && Number(u.houseId || 1) === hid);
+            return houseRow ? houseRow.id : (data[0] ? data[0].id : null);
+          });
+        }
       }
     } catch (e) {
       console.log('USERS ERROR', e);
@@ -1206,10 +1214,11 @@ const resetUserPassword = async (userId) => {
   const adjustBalance = async (mode) => {
     if (!balanceAmount || parseFloat(balanceAmount) < 0) return alert('Enter a valid amount');
     try {
+      if (!balanceUserId) return alert('Pick an account');
       const res = await fetch(`${API}/api/users/${balanceUserId}/balance`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode, amount: parseFloat(balanceAmount) })
+        body: JSON.stringify({ mode, amount: parseFloat(balanceAmount), actorId: currentUser?.id })
       });
       if (!res.ok) {
         const t = await res.text();
@@ -2383,14 +2392,15 @@ const exposure = getExposure(b.stake, b.odds, {
 {users
   .filter(u => {
     const role = String(u.role || '').toLowerCase();
-    // Keep House; hide other admin accounts
-    if (Number(u.id) === 7) return true;
+    const myHouse = currentUser?.houseId != null ? Number(currentUser.houseId) : 1;
+    const theirHouse = u.houseId != null ? Number(u.houseId) : 1;
+    if (theirHouse !== myHouse) return false;
     if (role === 'admin') return false;
     return true;
   })
   .map(u => (
     <option key={u.id} value={u.id}>
-      {u.name} — £{Number(u.balance || 0).toFixed(2)}
+      {String(u.role || '').toLowerCase() === 'house' ? 'House' : u.name} — £{Number(u.balance || 0).toFixed(2)}
     </option>
   ))}
         </select>

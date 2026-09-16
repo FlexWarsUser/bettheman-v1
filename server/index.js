@@ -1623,10 +1623,19 @@ app.get("/api/users", async (req, res) => {
 app.post("/api/users/:id/balance", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { mode, amount } = req.body;
+    const { mode, amount, actorId } = req.body;
     const value = parseFloat(amount);
     if (isNaN(value) || value < 0) {
       return res.status(400).json({ error: "Invalid amount" });
+    }
+    const actor = actorId ? await getUserRow(actorId) : null;
+    if (actor && isHouseOps(actor) && !isPlatformAdmin(actor)) {
+      const target = await getUserRow(id);
+      const aHouse = actor.houseId != null ? Number(actor.houseId) : 1;
+      const tHouse = target && target.houseId != null ? Number(target.houseId) : 1;
+      if (!target || tHouse !== aHouse) {
+        return res.status(403).json({ error: "Wrong house" });
+      }
     }
 
     const rows = await prisma.$queryRaw`
