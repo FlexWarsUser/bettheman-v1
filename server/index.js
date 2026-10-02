@@ -1064,8 +1064,7 @@ app.get("/api/health", (req, res) => res.json({ ok: true, time: new Date().toISO
 
 app.get("/api/houses", async (req, res) => {
   try {
-    const actorId = parseInt(req.query.actorId, 10);
-    const actor = actorId ? await getUserRow(actorId) : null;
+    const actor = await actorFromRequest(req);
     if (!isPlatformAdmin(actor)) {
       if (actor && actor.houseId) {
         const house = await prisma.house.findUnique({ where: { id: Number(actor.houseId) } });
@@ -1633,8 +1632,8 @@ app.post("/api/users/:id/reset-password", async (req, res) => {
 });
 app.get("/api/users", async (req, res) => {
   try {
-    const actorId = parseInt(req.query.actorId, 10);
-    const actor = actorId ? await getUserRow(actorId) : null;
+    const actor = await actorFromRequest(req);
+    if (!actor) return res.status(401).json({ error: "Not signed in" });
     const where = {};
     const wantAll = isPlatformAdmin(actor) && String(req.query.all || "") === "1";
     if (!wantAll) {
@@ -1789,7 +1788,7 @@ app.post("/api/auth/2fa/login", async (req, res) => {
 });
 app.post("/api/auth/2fa/setup", async (req, res) => {
   try {
-    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    const actor = await actorFromRequest(req);
     if (!actor) return res.status(403).json({ success: false, error: "Not allowed" });
     const secret = base32Encode(crypto.randomBytes(20));
     await prisma.$executeRaw`UPDATE "User" SET "totpSecret" = ${secret}, "totpEnabled" = false WHERE id = ${actor.id}`;
@@ -1802,7 +1801,7 @@ app.post("/api/auth/2fa/setup", async (req, res) => {
 });
 app.post("/api/auth/2fa/enable", async (req, res) => {
   try {
-    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    const actor = await actorFromRequest(req);
     if (!actor) return res.status(403).json({ success: false, error: "Not allowed" });
     const rows = await prisma.$queryRaw`SELECT "totpSecret" FROM "User" WHERE id = ${actor.id}`;
     const secret = rows[0] && rows[0].totpSecret;
@@ -1817,7 +1816,7 @@ app.post("/api/auth/2fa/enable", async (req, res) => {
 });
 app.post("/api/auth/2fa/disable", async (req, res) => {
   try {
-    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    const actor = await actorFromRequest(req);
     if (!actor) return res.status(403).json({ success: false, error: "Not allowed" });
     const rows = await prisma.$queryRaw`SELECT "totpSecret", "totpEnabled" FROM "User" WHERE id = ${actor.id}`;
     const row = rows[0];
@@ -2806,8 +2805,9 @@ app.post("/api/push/unsubscribe", async (req, res) => {
 });
 app.post("/api/settings", async (req, res) => {
   try {
-const { skipHouseFirstLook, skipHouseResidual, layerTimerSeconds, fcfsAllocation, partyMode, actorId } = req.body;
-    const actor = actorId ? await getUserRow(actorId) : null;
+const { skipHouseFirstLook, skipHouseResidual, layerTimerSeconds, fcfsAllocation, partyMode } = req.body;
+    const actor = await actorFromRequest(req);
+    if (!isHouseOps(actor)) return res.status(403).json({ success: false, error: "House only" });
     const houseId = actor && actor.houseId ? Number(actor.houseId) : null;
     if (typeof skipHouseFirstLook === "boolean") {
       await setSetting("skipHouseFirstLook", skipHouseFirstLook, houseId);
@@ -3153,7 +3153,7 @@ io.on("connection", (socket) => {
     }).catch(() => {});
   }
   socket.on("chat:join", (userId) => {
-    if (userId) socket.join("user:" + String(userId));
+    if (tok && Number(userId) === Number(tok.id)) socket.join("user:" + String(tok.id));
   });
 });
 
