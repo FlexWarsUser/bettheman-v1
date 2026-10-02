@@ -2827,7 +2827,7 @@ style={{
             <div style={{ fontSize: 13, marginBottom: 6 }}>Add this key in Google Authenticator / Authy:</div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
               <div style={{ fontFamily: 'monospace', wordBreak: 'break-all', flex: 1 }}>{totpSecret}</div>
-              <button type="button" onClick={() => { navigator.clipboard.writeText(totpSecret).then(() => setTotpMsg('Copied')).catch(() => setTotpMsg('Copy failed')); }} style={{ padding: '6px 10px', border: 'none', borderRadius: 6, background: '#00ff88', color: '#0a0a0a', fontWeight: 700, cursor: 'pointer' }}>Copy</button>
+              <button type="button" title="Copy" aria-label="Copy" onClick={() => { navigator.clipboard.writeText(totpSecret).then(() => setTotpMsg('Copied')).catch(() => setTotpMsg('Copy failed')); }} style={{ background: 'transparent', border: 'none', color: '#cfcfe0', cursor: 'pointer', padding: 4, lineHeight: 0 }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="9" y="9" width="11" height="11" rx="1.5"/><path d="M5 15V5.5A1.5 1.5 0 0 1 6.5 4H15"/></svg></button>
             </div>
             <input value={totpSetupCode} onChange={e => setTotpSetupCode(e.target.value)} placeholder="6-digit code" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
             <button type="button" onClick={async () => {
