@@ -514,7 +514,7 @@ return () => {
   socket.off("bets:updated", refresh);
   socket.disconnect();
 };
-  }, []);
+  }, [currentUser?.id]);
   const addEvent = async () => {
     if (!eventForm.name || !eventForm.date) return alert('Name and date required');
     try {
