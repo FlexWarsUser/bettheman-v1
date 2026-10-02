@@ -11,6 +11,30 @@ const webpush = require("web-push");
 const crypto = require("crypto");
 
 const AUTH_SECRET = process.env.AUTH_SECRET || "";
+
+const loginFails = new Map();
+function loginKey(req, email) {
+  const ip = String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "").split(",")[0].trim();
+  return ip + "|" + String(email || "").toLowerCase();
+}
+function loginBlocked(req, email) {
+  const row = loginFails.get(loginKey(req, email));
+  if (!row) return null;
+  if (row.until && row.until > Date.now()) return "Too many attempts. Try again in 15 minutes.";
+  if (row.until && row.until <= Date.now()) loginFails.delete(loginKey(req, email));
+  return null;
+}
+function loginFail(req, email) {
+  const key = loginKey(req, email);
+  const row = loginFails.get(key) || { n: 0, until: 0 };
+  row.n += 1;
+  if (row.n >= 5) row.until = Date.now() + 15 * 60 * 1000;
+  loginFails.set(key, row);
+}
+function loginOk(req, email) {
+  loginFails.delete(loginKey(req, email));
+}
+
 function signToken(userId) {
   if (!AUTH_SECRET) return "";
   const exp = Date.now() + 7 * 24 * 60 * 60 * 1000;
@@ -1733,18 +1757,23 @@ app.post("/api/auth/login", async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ success: false, error: "Email and password required" });
     }
+    const blocked = loginBlocked(req, email);
+    if (blocked) return res.status(429).json({ success: false, error: blocked });
     const rows = await prisma.$queryRaw`
       SELECT id, name, email, "canLay", "canLayAllowed", balance, weight, role, "passwordHash", "mustChangePassword", "houseId", "totpEnabled", "totpSecret"
       FROM "User" WHERE lower(email) = ${email}
     `;
     const user = rows[0];
     if (!user || !user.passwordHash) {
+      loginFail(req, email);
       return res.status(401).json({ success: false, error: "Invalid login" });
     }
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) {
+      loginFail(req, email);
       return res.status(401).json({ success: false, error: "Invalid login" });
     }
+    loginOk(req, email);
     if (user.role !== "admin") {
       const live = await assertHouseLive(user.houseId);
       if (!live.ok) return res.status(403).json({ success: false, error: live.error });
@@ -1767,17 +1796,22 @@ app.post("/api/auth/2fa/login", async (req, res) => {
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
     const code = String(req.body.code || "");
+    const blocked = loginBlocked(req, email);
+    if (blocked) return res.status(429).json({ success: false, error: blocked });
     const rows = await prisma.$queryRaw`
       SELECT id, name, email, "canLay", "canLayAllowed", balance, weight, role, "passwordHash", "mustChangePassword", "houseId", "totpEnabled", "totpSecret"
       FROM "User" WHERE lower(email) = ${email}
     `;
     const user = rows[0];
     if (!user || !user.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
+      loginFail(req, email);
       return res.status(401).json({ success: false, error: "Invalid login" });
     }
     if (!user.totpEnabled || !totpValid(user.totpSecret, code)) {
+      loginFail(req, email);
       return res.status(401).json({ success: false, error: "Invalid code" });
     }
+    loginOk(req, email);
     if (user.role !== "admin") {
       const live = await assertHouseLive(user.houseId);
       if (!live.ok) return res.status(403).json({ success: false, error: live.error });
