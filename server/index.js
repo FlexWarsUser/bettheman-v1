@@ -11,6 +11,16 @@ const webpush = require("web-push");
 const crypto = require("crypto");
 
 const AUTH_SECRET = process.env.AUTH_SECRET || "";
+
+function passwordProblem(password) {
+  const p = String(password || "");
+  if (p.length < 8) return "Password must be at least 8 characters";
+  if (!/[a-z]/.test(p) || !/[A-Z]/.test(p) || !/[0-9]/.test(p)) {
+    return "Password needs an uppercase letter, a lowercase letter and a number";
+  }
+  return "";
+}
+
 function signToken(userId) {
   if (!AUTH_SECRET) return "";
   const exp = Date.now() + 7 * 24 * 60 * 60 * 1000;
@@ -1608,8 +1618,9 @@ app.post("/api/users/:id/reset-password", async (req, res) => {
     if (!isHouseOps(actor)) return res.status(403).json({ success: false, error: "House only" });
     const id = parseInt(req.params.id, 10);
     const { password } = req.body;
-    if (!id || !password || String(password).length < 8) {
-      return res.status(400).json({ success: false, error: "Password required (min 8 chars)" });
+    const pwErr = passwordProblem(password);
+    if (!id || pwErr) {
+      return res.status(400).json({ success: false, error: pwErr || "Password required" });
     }
     const target = await getUserRow(id);
     if (!target) return res.status(404).json({ success: false, error: "User not found" });
@@ -1841,9 +1852,8 @@ app.post("/api/auth/set-password", async (req, res) => {
     if (!userId || !email || !password) {
       return res.status(400).json({ success: false, error: "userId, email and password required" });
     }
-    if (password.length < 4) {
-      return res.status(400).json({ success: false, error: "Password too short" });
-    }
+    const pwErr = passwordProblem(password);
+    if (pwErr) return res.status(400).json({ success: false, error: pwErr });
     const hash = await bcrypt.hash(password, 10);
     await prisma.$executeRaw`
       UPDATE "User"
@@ -1889,6 +1899,8 @@ app.post('/api/auth/create-user', async (req, res) => {
     if (!name ||  !email || !password) {
       return res.status(400).json({ success: false, error: 'Name, email and password required' });
     }
+    const pwErr = passwordProblem(password);
+    if (pwErr) return res.status(400).json({ success: false, error: pwErr });
 
     const actor = await actorFromRequest(req);
     if (!isHouseOps(actor)) {
@@ -1931,9 +1943,8 @@ app.post("/api/auth/change-password", async (req, res) => {
     if (!userId || !currentPassword || !newPassword) {
       return res.status(400).json({ success: false, error: "All fields required" });
     }
-    if (newPassword.length < 4) {
-      return res.status(400).json({ success: false, error: "New password too short" });
-    }
+    const pwErr = passwordProblem(newPassword);
+    if (pwErr) return res.status(400).json({ success: false, error: pwErr });
     const rows = await prisma.$queryRaw`
       SELECT id, "passwordHash" FROM "User" WHERE id = ${userId}
     `;
@@ -1972,6 +1983,8 @@ app.post("/api/users", async (req, res) => {
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, error: "name, email and password required" });
     }
+    const pwErr = passwordProblem(password);
+    if (pwErr) return res.status(400).json({ success: false, error: pwErr });
     if (actor && !isHouseOps(actor)) {
       return res.status(403).json({ success: false, error: "House only" });
     }

@@ -1586,7 +1586,7 @@ const submitLay = async (b) => {
         <div style={{ background: theme.panel, border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginTop: 16, marginBottom: 16 }}>
           <div style={{ color: '#00ff88', fontWeight: 600, marginBottom: 8 }}>You must change your password</div>
           <input type="password" placeholder="Current password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} style={inputStyle} />
-          <input type="password" placeholder="New password" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={inputStyle} />
+          <input type="password" placeholder="New password (8+, upper, lower, number)" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={inputStyle} />
           <button type="button" onClick={changePassword} style={{ padding: '8px 14px', background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
             Update password
           </button>
@@ -2825,7 +2825,10 @@ style={{
         {!!totpSecret && !user.totpEnabled && (
           <>
             <div style={{ fontSize: 13, marginBottom: 6 }}>Add this key in Google Authenticator / Authy:</div>
-            <div style={{ fontFamily: 'monospace', wordBreak: 'break-all', marginBottom: 8 }}>{totpSecret}</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ fontFamily: 'monospace', wordBreak: 'break-all', flex: 1 }}>{totpSecret}</div>
+              <button type="button" onClick={() => { navigator.clipboard.writeText(totpSecret).then(() => setTotpMsg('Copied')).catch(() => setTotpMsg('Copy failed')); }} style={{ padding: '6px 10px', border: 'none', borderRadius: 6, background: '#00ff88', color: '#0a0a0a', fontWeight: 700, cursor: 'pointer' }}>Copy</button>
+            </div>
             <input value={totpSetupCode} onChange={e => setTotpSetupCode(e.target.value)} placeholder="6-digit code" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
             <button type="button" onClick={async () => {
               const res = await fetch(`${API}/api/auth/2fa/enable`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: user.id, code: totpSetupCode }) });

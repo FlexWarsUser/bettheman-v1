@@ -1161,7 +1161,7 @@ useEffect(() => {
 const resetUserPassword = async (userId) => {
   const password = (resetPw[userId] || '').trim();
   if (!password || password.length < 4) {
-    return alert('Enter a temporary password (min 4 characters)');
+    return alert('Password must be 8+ characters with an uppercase letter, a lowercase letter and a number');
   }
   if (!window.confirm(`Reset password for user #${userId}? They must change it on next login.`)) return;
   try {
@@ -2576,7 +2576,7 @@ const exposure = getExposure(b.stake, b.odds, {
         />
         <input
           type="text"
-          placeholder="Temporary password"
+          placeholder="Temp password (8+, upper, lower, number)"
           value={authPassword}
           onChange={e => setAuthPassword(e.target.value)}
           style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}
@@ -2760,7 +2760,7 @@ const exposure = getExposure(b.stake, b.odds, {
         />
         <input
           type="text"
-          placeholder="Temporary password"
+          placeholder="Temp password (8+, upper, lower, number)"
           value={houseMasterPassword}
           onChange={e => setHouseMasterPassword(e.target.value)}
           style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}
@@ -2922,7 +2922,7 @@ const exposure = getExposure(b.stake, b.odds, {
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input
                   type="text"
-                  placeholder="Temp password"
+                  placeholder="Temp password (8+, upper, lower, number)"
                   value={resetPw[u.id] || ''}
                   onChange={(e) => setResetPw((prev) => ({ ...prev, [u.id]: e.target.value }))}
                   style={{
