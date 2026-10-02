@@ -739,7 +739,7 @@ const enabled = sData.partyMode === true || sData.partyMode === 'true';
 
   load();
 
-  const socket = io(API, { transports: ['websocket', 'polling'] });
+  const socket = io(API, { transports: ["websocket", "polling"], auth: { token: localStorage.getItem("btm_token") } });
   const refresh = () => load();
   socket.on('betUpdated', refresh);
   socket.on('bets:updated', refresh);
@@ -758,7 +758,7 @@ const enabled = sData.partyMode === true || sData.partyMode === 'true';
 useEffect(() => {
   if (!user?.id) return;
 
-  const socket = io(API, { transports: ["websocket", "polling"] });
+  const socket = io(API, { transports: ["websocket", "polling"], auth: { token: localStorage.getItem("btm_token") } });
 
   const refresh = () => {
     fetchBets();
@@ -835,7 +835,7 @@ useEffect(() => {
   }, [user?.id]);
   useEffect(() => {
     if (!user?.id) return;
-    const socket = io(API, { transports: ['websocket', 'polling'] });
+    const socket = io(API, { transports: ["websocket", "polling"], auth: { token: localStorage.getItem("btm_token") } });
     socket.emit('chat:join', user.id);
     socket.on('chat:message', (msg) => {
       const involvesMe =

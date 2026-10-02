@@ -11,30 +11,6 @@ const webpush = require("web-push");
 const crypto = require("crypto");
 
 const AUTH_SECRET = process.env.AUTH_SECRET || "";
-
-const loginFails = new Map();
-function loginKey(req, email) {
-  const ip = String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "").split(",")[0].trim();
-  return ip + "|" + String(email || "").toLowerCase();
-}
-function loginBlocked(req, email) {
-  const row = loginFails.get(loginKey(req, email));
-  if (!row) return null;
-  if (row.until && row.until > Date.now()) return "Too many attempts. Try again in 15 minutes.";
-  if (row.until && row.until <= Date.now()) loginFails.delete(loginKey(req, email));
-  return null;
-}
-function loginFail(req, email) {
-  const key = loginKey(req, email);
-  const row = loginFails.get(key) || { n: 0, until: 0 };
-  row.n += 1;
-  if (row.n >= 5) row.until = Date.now() + 15 * 60 * 1000;
-  loginFails.set(key, row);
-}
-function loginOk(req, email) {
-  loginFails.delete(loginKey(req, email));
-}
-
 function signToken(userId) {
   if (!AUTH_SECRET) return "";
   const exp = Date.now() + 7 * 24 * 60 * 60 * 1000;
@@ -292,7 +268,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "*";
 const io = new Server(server, {
   cors: { origin: FRONTEND_URL === "*" ? "*" : FRONTEND_URL, methods: ["GET", "POST", "DELETE"] }
 });
-function emitBetsUpdated() {
+function emitBetsUpdatedLegacy() {
   try {
     io.emit("bets:updated");
   } catch (e) {}
@@ -930,7 +906,7 @@ async function processExpiredTimers() {
       details: { reason: "house_timer" },
     });
     const serialized = serializeBet(updated);
-    io.emit("betUpdated", serialized);
+    emitBetUpdated(serialized);
     await emitBetNotify({
       phase: "layer_bidding",
       betId: updated.id,
@@ -1078,7 +1054,7 @@ const { bids, totalLaid } = await applyProRata(currentBids, remainingForLayers, 
 
 if (changed) {
   emitBetsUpdated();
-  io.emit("betUpdated", { type: "bulk" });
+  emitBetUpdated({ type: "bulk" });
 }
 }
 
@@ -1580,7 +1556,7 @@ app.post("/api/bets/clear", async (req, res) => {
   const actor = await actorFromRequest(req);
   if (!isPlatformAdmin(actor)) return res.status(403).json({ success: false, error: "Platform admin only" });
   await prisma.bet.deleteMany({});
-  io.emit("betUpdated", { type: "bulk", bets: [] });
+  emitBetUpdated({ type: "bulk", bets: [] });
   res.json({ success: true });
 });
 
@@ -1589,7 +1565,7 @@ app.delete("/api/bets", async (req, res) => {
     const actor = await actorFromRequest(req);
     if (!isPlatformAdmin(actor)) return res.status(403).json({ success: false, error: "Platform admin only" });
     await prisma.bet.deleteMany({});
-    io.emit("betUpdated", { type: "bulk", bets: [] });
+    emitBetUpdated({ type: "bulk", bets: [] });
     console.log("🗑 All bets cleared");
     res.json({ success: true });
   } catch (err) {
@@ -1618,7 +1594,7 @@ app.post("/api/bets/:id/extend-house-timer", async (req, res) => {
 
     const serialized = typeof serializeBet === "function" ? serializeBet(updated) : updated;
     if (typeof io !== "undefined") {
-      io.emit("betUpdated", { type: "update", bet: serialized });
+      emitBetUpdated({ type: "update", bet: serialized });
     }
 
     res.json({ success: true, bet: serialized });
@@ -1757,23 +1733,18 @@ app.post("/api/auth/login", async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ success: false, error: "Email and password required" });
     }
-    const blocked = loginBlocked(req, email);
-    if (blocked) return res.status(429).json({ success: false, error: blocked });
     const rows = await prisma.$queryRaw`
       SELECT id, name, email, "canLay", "canLayAllowed", balance, weight, role, "passwordHash", "mustChangePassword", "houseId", "totpEnabled", "totpSecret"
       FROM "User" WHERE lower(email) = ${email}
     `;
     const user = rows[0];
     if (!user || !user.passwordHash) {
-      loginFail(req, email);
       return res.status(401).json({ success: false, error: "Invalid login" });
     }
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) {
-      loginFail(req, email);
       return res.status(401).json({ success: false, error: "Invalid login" });
     }
-    loginOk(req, email);
     if (user.role !== "admin") {
       const live = await assertHouseLive(user.houseId);
       if (!live.ok) return res.status(403).json({ success: false, error: live.error });
@@ -1796,22 +1767,17 @@ app.post("/api/auth/2fa/login", async (req, res) => {
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
     const code = String(req.body.code || "");
-    const blocked = loginBlocked(req, email);
-    if (blocked) return res.status(429).json({ success: false, error: blocked });
     const rows = await prisma.$queryRaw`
       SELECT id, name, email, "canLay", "canLayAllowed", balance, weight, role, "passwordHash", "mustChangePassword", "houseId", "totpEnabled", "totpSecret"
       FROM "User" WHERE lower(email) = ${email}
     `;
     const user = rows[0];
     if (!user || !user.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
-      loginFail(req, email);
       return res.status(401).json({ success: false, error: "Invalid login" });
     }
     if (!user.totpEnabled || !totpValid(user.totpSecret, code)) {
-      loginFail(req, email);
       return res.status(401).json({ success: false, error: "Invalid code" });
     }
-    loginOk(req, email);
     if (user.role !== "admin") {
       const live = await assertHouseLive(user.houseId);
       if (!live.ok) return res.status(403).json({ success: false, error: live.error });
@@ -2115,7 +2081,7 @@ status: "pending",
       bet,
     });
     console.log("🆕 New Bet:", serialized.id, serialized.event);
-    io.emit("betUpdated", serialized);
+    emitBetUpdated(serialized);
     await emitBetNotify({
       phase: bet.phase,
       betId: bet.id,
@@ -2278,7 +2244,7 @@ console.log("UPDATE DATA", data);
         });
       }
     console.log(`🏠 House ${action} bet ${id} - HouseAmount: £${serialized.houseAmount}`);
-    io.emit("betUpdated", serialized);
+    emitBetUpdated(serialized);
     if (updated.phase === "layer_bidding" || updated.phase === "house_residual") {
       await emitBetNotify({
         phase: updated.phase,
@@ -2561,7 +2527,7 @@ if (action !== "reject") {
     }
 
     const serialized = serializeBet(updated);
-io.emit("betUpdated", serialized);
+emitBetUpdated(serialized);
 res.json({ success: true, bet: serialized });
   } catch (err) {
     console.error(err);
@@ -2586,7 +2552,7 @@ app.post("/api/bets/:id/settle", async (req, res) => {
     if (outcome.error) return res.status(400).json({ success: false, error: outcome.error });
 
     const serialized = serializeBet(outcome.bet);
-    io.emit("betUpdated", serialized);
+    emitBetUpdated(serialized);
     res.json({ success: true, bet: serialized });
   } catch (err) {
     console.error(err);
@@ -3169,8 +3135,23 @@ app.post("/api/notes", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+function emitBetUpdated(payload) {
+  const houseId = payload && (payload.houseId || (payload.bet && payload.bet.houseId));
+  if (houseId) io.to("house:" + Number(houseId)).emit("betUpdated", payload);
+  else io.emit("betUpdated", payload);
+}
+function emitBetsUpdated(houseId) {
+  if (houseId) io.to("house:" + Number(houseId)).emit("bets:updated");
+  else io.emit("bets:updated");
+}
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
+  const tok = readToken({ headers: { authorization: socket.handshake.auth && socket.handshake.auth.token } });
+  if (tok && tok.id) {
+    getUserRow(tok.id).then((user) => {
+      if (user && user.houseId) socket.join("house:" + Number(user.houseId));
+    }).catch(() => {});
+  }
   socket.on("chat:join", (userId) => {
     if (userId) socket.join("user:" + String(userId));
   });

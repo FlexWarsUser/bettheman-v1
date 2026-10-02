@@ -479,7 +479,7 @@ const fetchEvents = async () => {
     }
   }, []);
   useEffect(() => {
-    const socket = io(API, { transports: ["websocket", "polling"] });
+    const socket = io(API, { transports: ["websocket", "polling"], auth: { token: localStorage.getItem("btm_token") } });
 
     socket.on("bet:notify", (payload) => {
       if (payload.houseId != null && currentUser?.houseId != null && Number(payload.houseId) !== Number(currentUser.houseId)) return;
@@ -569,7 +569,7 @@ return () => {
   }, [activeTab, chatOtherId]);
 
   useEffect(() => {
-const socket = io(API, { transports: ['websocket', 'polling'] });
+const socket = io(API, { transports: ["websocket", "polling"], auth: { token: localStorage.getItem("btm_token") } });
 socket.emit('chat:join', HOUSE_ID);
     socket.on('chat:message', (msg) => {
   if (Number(msg.fromUserId) !== HOUSE_ID && Number(msg.toUserId) !== HOUSE_ID) return;
