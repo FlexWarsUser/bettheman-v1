@@ -1392,7 +1392,8 @@ async function houseCanManageThread(me, other) {
 // GET history with the other user
 app.get("/api/chat/:otherUserId", async (req, res) => {
   try {
-    const me = parseInt(req.query.userId, 10);
+    const actor = await actorFromRequest(req);
+    const me = actor ? Number(actor.id) : 0;
     const other = parseInt(req.params.otherUserId, 10);
     if (!me || !other) {
       return res.status(400).json({ success: false, error: "userId required" });
@@ -1420,8 +1421,8 @@ app.get("/api/chat/:otherUserId", async (req, res) => {
 // House: list conversations (latest message per punter)
 app.get("/api/chat", async (req, res) => {
   try {
-    const me = parseInt(req.query.userId, 10);
-    const actor = await getUserRow(me);
+    const actor = await actorFromRequest(req);
+    const me = actor ? Number(actor.id) : 0;
     if (!isHouseOps(actor)) {
       return res.status(403).json({ success: false, error: "House only" });
     }
@@ -1478,8 +1479,9 @@ app.get("/api/chat", async (req, res) => {
 // Send message (text and/or image)
 app.post("/api/chat", async (req, res) => {
   try {
-    const { fromUserId, fromName, toUserId, body, imageData } = req.body;
-    const from = parseInt(fromUserId, 10);
+    const actor = await actorFromRequest(req);
+    const { fromName, toUserId, body, imageData } = req.body;
+    const from = actor ? Number(actor.id) : 0;
     const to = parseInt(toUserId, 10);
     const text = String(body || "").trim();
     const img = imageData ? String(imageData) : null;
@@ -2133,10 +2135,10 @@ status: "pending",
 
 app.get("/api/bets", async (req, res) => {
   try {
-    const actorId = parseInt(req.query.actorId || req.query.userId, 10);
-    const actor = actorId ? await getUserRow(actorId) : null;
+    const actor = await actorFromRequest(req);
+    if (!actor) return res.status(401).json({ success: false, error: "Not signed in" });
     const where = {};
-    if (actor && actor.houseId && !(isPlatformAdmin(actor) && req.query.all === "1")) {
+    if (actor.houseId && !(isPlatformAdmin(actor) && req.query.all === "1")) {
       where.houseId = Number(actor.houseId);
     }
     const bets = await prisma.bet.findMany({ where, orderBy: { createdAt: "desc" } });
@@ -2575,9 +2577,9 @@ app.get("/api/ledger", async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 200, 500);
     const betId = req.query.betId ? parseInt(req.query.betId) : null;
-    const actorId = parseInt(req.query.actorId, 10);
-    const actor = actorId ? await getUserRow(actorId) : null;
-    const hid = actor && actor.houseId != null ? Number(actor.houseId) : 1;
+    const actor = await actorFromRequest(req);
+    if (!isHouseOps(actor)) return res.status(401).json({ error: "Not signed in" });
+    const hid = actor.houseId != null ? Number(actor.houseId) : 1;
     const houseWhere = hid === 1 ? { OR: [{ houseId: 1 }, { houseId: null }] } : { houseId: hid };
     const houseBets = await prisma.bet.findMany({
       where: houseWhere,
