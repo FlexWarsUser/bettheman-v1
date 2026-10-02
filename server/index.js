@@ -1939,7 +1939,8 @@ app.post('/api/auth/create-user', async (req, res) => {
 });
 app.post("/api/auth/change-password", async (req, res) => {
   try {
-    const userId = parseInt(req.body.userId);
+    const actor = await actorFromRequest(req);
+    const userId = actor ? Number(actor.id) : 0;
     const currentPassword = String(req.body.currentPassword || "");
     const newPassword = String(req.body.newPassword || "");
     if (!userId || !currentPassword || !newPassword) {

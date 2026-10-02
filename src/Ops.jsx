@@ -334,6 +334,9 @@ function CollapsibleSection({ title, children, defaultOpen = false }) {
 
 function Ops() {
   const [activeTab, setActiveTab] = useState('house');   // was 'punter'
+const [pwCurrent, setPwCurrent] = useState("");
+const [pwNext, setPwNext] = useState("");
+const [pwMsg, setPwMsg] = useState("");
 const [currentUser, setCurrentUser] = useState(() => {
   try {
     return JSON.parse(localStorage.getItem('btm_user'));
@@ -1161,7 +1164,7 @@ useEffect(() => {
 const resetUserPassword = async (userId) => {
   const password = (resetPw[userId] || '').trim();
   if (!password || password.length < 4) {
-    return alert('Password must be 8+ characters with an uppercase letter, a lowercase letter and a number');
+    return alert('Enter a temporary password (min 4 characters)');
   }
   if (!window.confirm(`Reset password for user #${userId}? They must change it on next login.`)) return;
   try {
@@ -1843,6 +1846,20 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
                 </>
               )}
               {totpMsg && <div style={{ marginTop: 8, fontSize: 13 }}>{totpMsg}</div>}
+            </div>
+
+            <div style={{ marginBottom: 12, paddingTop: 8, borderTop: '1px solid #3a3a5c' }}>
+              <div style={{ fontSize: 13, marginBottom: 8 }}>Change password</div>
+              <input type="password" value={pwCurrent} onChange={e => setPwCurrent(e.target.value)} placeholder="Current password" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
+              <input type="password" value={pwNext} onChange={e => setPwNext(e.target.value)} placeholder="New password (8+, upper, lower, number)" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
+              <button type="button" onClick={async () => {
+                setPwMsg('');
+                const res = await fetch(`${API}/api/auth/change-password`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNext }) });
+                const data = await res.json();
+                if (!res.ok || !data.success) return setPwMsg(data.error || 'Failed');
+                setPwCurrent(''); setPwNext(''); setPwMsg('Password updated');
+              }} style={{ width: '100%', padding: 8, background: 'transparent', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6, cursor: 'pointer' }}>Change password</button>
+              {pwMsg && <div style={{ marginTop: 8, fontSize: 13 }}>{pwMsg}</div>}
             </div>
             <button type="button" onClick={() => {
               if (!window.confirm('Log out of BetOrLay?')) return;
@@ -2576,7 +2593,7 @@ const exposure = getExposure(b.stake, b.odds, {
         />
         <input
           type="text"
-          placeholder="Temp password (8+, upper, lower, number)"
+          placeholder="Temporary password"
           value={authPassword}
           onChange={e => setAuthPassword(e.target.value)}
           style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}
@@ -2760,7 +2777,7 @@ const exposure = getExposure(b.stake, b.odds, {
         />
         <input
           type="text"
-          placeholder="Temp password (8+, upper, lower, number)"
+          placeholder="Temporary password"
           value={houseMasterPassword}
           onChange={e => setHouseMasterPassword(e.target.value)}
           style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }}
@@ -2922,7 +2939,7 @@ const exposure = getExposure(b.stake, b.odds, {
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input
                   type="text"
-                  placeholder="Temp password (8+, upper, lower, number)"
+                  placeholder="Temp password"
                   value={resetPw[u.id] || ''}
                   onChange={(e) => setResetPw((prev) => ({ ...prev, [u.id]: e.target.value }))}
                   style={{
