@@ -562,8 +562,9 @@ export default function UserHome() {
         setLoading(false);
         return;
       }
-      persistUser(data.user);
-      setUser({ ...data.user, _brandingLoaded: true });
+persistUser(data.user);
+if (data.token) localStorage.setItem('btm_token', data.token);
+setUser({ ...data.user, _brandingLoaded: true });
 if (data.user.role === 'admin' || data.user.role === 'house') {
   window.location.href = '/ops';
   return;
@@ -577,16 +578,16 @@ if (data.user.role === 'admin' || data.user.role === 'house') {
   const logout = () => {
     localStorage.removeItem('btm_user');
     localStorage.removeItem('btm_theme');
+    localStorage.removeItem('btm_token');
     applyDefaultPublicTheme();
     setUser(null);
-      useEffect(() => {
-    if (!user) return;
-    if (user.role === 'admin' || user.role === 'house') {
-      window.location.href = '/ops';
-    }
-  }, [user]);
-  };
-
+     };
+useEffect(() => {
+  if (!user) return;
+  if (user.role === 'admin' || user.role === 'house') {
+    window.location.href = '/ops';
+  }
+}, [user]);
   if (user) {
     return <UserDashboard user={user} onLogout={logout} onUserUpdate={setUser} />;
   }

@@ -10,6 +10,42 @@ const bcrypt = require("bcryptjs");
 const webpush = require("web-push");
 const crypto = require("crypto");
 
+const AUTH_SECRET = process.env.AUTH_SECRET || "";
+function signToken(userId) {
+  if (!AUTH_SECRET) return "";
+  const exp = Date.now() + 7 * 24 * 60 * 60 * 1000;
+  const body = Buffer.from(JSON.stringify({ id: Number(userId), exp })).toString("base64url");
+  const sig = crypto.createHmac("sha256", AUTH_SECRET).update(body).digest("base64url");
+  return body + "." + sig;
+}
+function readToken(req) {
+  const raw = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+  if (!raw || !AUTH_SECRET || !raw.includes(".")) return null;
+  const [body, sig] = raw.split(".");
+  const expect = crypto.createHmac("sha256", AUTH_SECRET).update(body).digest("base64url");
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expect);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  try {
+    const data = JSON.parse(Buffer.from(body, "base64url").toString());
+    if (!data.exp || data.exp < Date.now() || !data.id) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+async function actorFromRequest(req) {
+  const tok = readToken(req);
+  if (!tok) return null;
+  return getUserRow(tok.id);
+}
+function sameHouse(actor, target) {
+  const a = actor && actor.houseId != null ? Number(actor.houseId) : 1;
+  const t = target && target.houseId != null ? Number(target.houseId) : 1;
+  return a === t;
+}
+
+
 const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 function base32Encode(buf) {
   let bits = 0, value = 0, out = "";
@@ -1051,7 +1087,7 @@ app.get("/api/houses", async (req, res) => {
 
 app.post("/api/houses", async (req, res) => {
   try {
-    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    const actor = await actorFromRequest(req);
     if (!isPlatformAdmin(actor)) {
       return res.status(403).json({ success: false, error: "Platform admin only" });
     }
@@ -1109,7 +1145,7 @@ app.post("/api/houses", async (req, res) => {
 
 app.post("/api/houses/:id/schedule", async (req, res) => {
   try {
-    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    const actor = await actorFromRequest(req);
     if (!isPlatformAdmin(actor)) {
       return res.status(403).json({ success: false, error: "Platform admin only" });
     }
@@ -1132,9 +1168,7 @@ app.post("/api/houses/:id/schedule", async (req, res) => {
 
 app.delete("/api/houses/:id", async (req, res) => {
   try {
-    const actor = req.body?.actorId
-      ? await getUserRow(req.body.actorId)
-      : (req.query.actorId ? await getUserRow(parseInt(req.query.actorId, 10)) : null);
+    const actor = await actorFromRequest(req);
     if (!isPlatformAdmin(actor)) {
       return res.status(403).json({ success: false, error: "Platform admin only" });
     }
@@ -1519,6 +1553,8 @@ io.to("user:" + String(other)).emit("chat:ended", { userA: me, userB: other });
   }
 });
 app.post("/api/bets/clear", async (req, res) => {
+  const actor = await actorFromRequest(req);
+  if (!isPlatformAdmin(actor)) return res.status(403).json({ success: false, error: "Platform admin only" });
   await prisma.bet.deleteMany({});
   io.emit("betUpdated", { type: "bulk", bets: [] });
   res.json({ success: true });
@@ -1526,6 +1562,8 @@ app.post("/api/bets/clear", async (req, res) => {
 
 app.delete("/api/bets", async (req, res) => {
   try {
+    const actor = await actorFromRequest(req);
+    if (!isPlatformAdmin(actor)) return res.status(403).json({ success: false, error: "Platform admin only" });
     await prisma.bet.deleteMany({});
     io.emit("betUpdated", { type: "bulk", bets: [] });
     console.log("🗑 All bets cleared");
@@ -1567,10 +1605,17 @@ app.post("/api/bets/:id/extend-house-timer", async (req, res) => {
 });
 app.post("/api/users/:id/reset-password", async (req, res) => {
   try {
+    const actor = await actorFromRequest(req);
+    if (!isHouseOps(actor)) return res.status(403).json({ success: false, error: "House only" });
     const id = parseInt(req.params.id, 10);
     const { password } = req.body;
-    if (!id || !password || String(password).length < 4) {
-      return res.status(400).json({ success: false, error: "Password required (min 4 chars)" });
+    if (!id || !password || String(password).length < 8) {
+      return res.status(400).json({ success: false, error: "Password required (min 8 chars)" });
+    }
+    const target = await getUserRow(id);
+    if (!target) return res.status(404).json({ success: false, error: "User not found" });
+    if (!isPlatformAdmin(actor) && !sameHouse(actor, target)) {
+      return res.status(403).json({ success: false, error: "Wrong house" });
     }
     const hash = await bcrypt.hash(String(password), 10);
     await prisma.user.update({
@@ -1623,19 +1668,17 @@ app.get("/api/users", async (req, res) => {
 app.post("/api/users/:id/balance", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { mode, amount, actorId } = req.body;
+    const { mode, amount } = req.body;
     const value = parseFloat(amount);
     if (isNaN(value) || value < 0) {
       return res.status(400).json({ error: "Invalid amount" });
     }
-    const actor = actorId ? await getUserRow(actorId) : null;
-    if (actor && isHouseOps(actor) && !isPlatformAdmin(actor)) {
-      const target = await getUserRow(id);
-      const aHouse = actor.houseId != null ? Number(actor.houseId) : 1;
-      const tHouse = target && target.houseId != null ? Number(target.houseId) : 1;
-      if (!target || tHouse !== aHouse) {
-        return res.status(403).json({ error: "Wrong house" });
-      }
+    const actor = await actorFromRequest(req);
+    if (!isHouseOps(actor)) return res.status(401).json({ error: "Not signed in" });
+    const target = await getUserRow(id);
+    if (!target) return res.status(404).json({ error: "User not found" });
+    if (!isPlatformAdmin(actor) && !sameHouse(actor, target)) {
+      return res.status(403).json({ error: "Wrong house" });
     }
 
     const rows = await prisma.$queryRaw`
@@ -1664,7 +1707,14 @@ app.post("/api/users/:id/balance", async (req, res) => {
 });
 app.post("/api/users/:id/weight", async (req, res) => {
   try {
+    const actor = await actorFromRequest(req);
+    if (!isHouseOps(actor)) return res.status(401).json({ error: "Not signed in" });
     const id = parseInt(req.params.id);
+    const target = await getUserRow(id);
+    if (!target) return res.status(404).json({ error: "User not found" });
+    if (!isPlatformAdmin(actor) && !sameHouse(actor, target)) {
+      return res.status(403).json({ error: "Wrong house" });
+    }
     let w = parseFloat(req.body.weight);
     if (isNaN(w)) return res.status(400).json({ error: "Invalid weight" });
     w = Math.min(2, Math.max(1, Math.round(w * 10) / 10));
@@ -1704,6 +1754,7 @@ app.post("/api/auth/login", async (req, res) => {
     }
     res.json({
       success: true,
+      token: signToken(user.id),
       user: await shapeUser(user),
     });
   } catch (err) {
@@ -1731,7 +1782,7 @@ app.post("/api/auth/2fa/login", async (req, res) => {
       const live = await assertHouseLive(user.houseId);
       if (!live.ok) return res.status(403).json({ success: false, error: live.error });
     }
-    res.json({ success: true, user: await shapeUser(user) });
+    res.json({ success: true, token: signToken(user.id), user: await shapeUser(user) });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -1835,13 +1886,13 @@ app.get('/api/users/:id', async (req, res) => {
 });
 app.post('/api/auth/create-user', async (req, res) => {
   try {
-    const { name, email, password, actorId, canLay } = req.body;
+    const { name, email, password, canLay } = req.body;
     if (!name ||  !email || !password) {
       return res.status(400).json({ success: false, error: 'Name, email and password required' });
     }
 
-    const actor = actorId ? await getUserRow(actorId) : null;
-    if (actor && !isHouseOps(actor)) {
+    const actor = await actorFromRequest(req);
+    if (!isHouseOps(actor)) {
       return res.status(403).json({ success: false, error: "House only" });
     }
     const houseId = actor && actor.houseId ? Number(actor.houseId) : 1;
@@ -1911,8 +1962,9 @@ app.post("/api/users", async (req, res) => {
     const name = String(req.body.name || "").trim();
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
-    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
-    if (actor && actor.role !== "admin") {
+    const actor = await actorFromRequest(req);
+    if (!isHouseOps(actor)) return res.status(403).json({ success: false, error: "House only" });
+    if (actor.role !== "admin") {
       const live = await assertHouseLive(actor.houseId);
       if (!live.ok) return res.status(403).json({ success: false, error: live.error });
     }
