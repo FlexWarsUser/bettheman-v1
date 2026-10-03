@@ -334,6 +334,7 @@ function CollapsibleSection({ title, children, defaultOpen = false }) {
 
 function Ops() {
   const [activeTab, setActiveTab] = useState('house');   // was 'punter'
+const [showPassword, setShowPassword] = useState(false);
 const [pwCurrent, setPwCurrent] = useState("");
 const [pwNext, setPwNext] = useState("");
 const [pwMsg, setPwMsg] = useState("");
@@ -1848,8 +1849,12 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
               {totpMsg && <div style={{ marginTop: 8, fontSize: 13 }}>{totpMsg}</div>}
             </div>
 
-            <div style={{ marginBottom: 12, paddingTop: 8, borderTop: '1px solid #3a3a5c' }}>
-              <div style={{ fontSize: 13, marginBottom: 8 }}>Change password</div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0', cursor: 'pointer' }}>
+              <input type="checkbox" checked={showPassword} onChange={e => setShowPassword(e.target.checked)} />
+              Change password
+            </label>
+            {showPassword && (
+            <div style={{ marginBottom: 12 }}>
               <input type="password" value={pwCurrent} onChange={e => setPwCurrent(e.target.value)} placeholder="Current password" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
               <input type="password" value={pwNext} onChange={e => setPwNext(e.target.value)} placeholder="New password (8+, upper, lower, number)" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
               <button type="button" onClick={async () => {
@@ -1861,6 +1866,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
               }} style={{ width: '100%', padding: 8, background: 'transparent', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6, cursor: 'pointer' }}>Change password</button>
               {pwMsg && <div style={{ marginTop: 8, fontSize: 13 }}>{pwMsg}</div>}
             </div>
+            )}
             <button type="button" onClick={() => {
               if (!window.confirm('Log out of BetOrLay?')) return;
               localStorage.removeItem('btm_user');

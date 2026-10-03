@@ -671,6 +671,7 @@ const [showMoney, setShowMoney] = useState(() => {
   const [totpMsg, setTotpMsg] = useState('');
   const [totpOffPending, setTotpOffPending] = useState(false);
   const [showDesigner, setShowDesigner] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [miiDraft, setMiiDraft] = useState({ ...DEFAULT_MII, ...(user?.avatar?.mii || {}) });
   const [avatarMsg, setAvatarMsg] = useState('');
   const [cropSrc, setCropSrc] = useState('');
@@ -2898,13 +2899,18 @@ style={{
         </button>
       )}
 
-      <div style={{ marginBottom: 12, paddingTop: 8, borderTop: '1px solid #3a3a5c' }}>
-        <div style={{ fontSize: 13, marginBottom: 8 }}>Change password</div>
-        <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Current password" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
-        <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="New password (8+, upper, lower, number)" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
-        <button type="button" onClick={changePassword} style={{ width: '100%', padding: 8, background: 'transparent', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6, cursor: 'pointer' }}>Change password</button>
-        {pwMessage && <div style={{ marginTop: 8, fontSize: 13 }}>{pwMessage}</div>}
-      </div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, cursor: 'pointer' }}>
+        <input type="checkbox" checked={showPassword} onChange={e => setShowPassword(e.target.checked)} />
+        Change password
+      </label>
+      {showPassword && (
+        <div style={{ marginBottom: 12 }}>
+          <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Current password" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
+          <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="New password (8+, upper, lower, number)" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
+          <button type="button" onClick={changePassword} style={{ width: '100%', padding: 8, background: 'transparent', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6, cursor: 'pointer' }}>Change password</button>
+          {pwMessage && <div style={{ marginTop: 8, fontSize: 13 }}>{pwMessage}</div>}
+        </div>
+      )}
       <button type="button" onClick={() => { if (window.confirm('Log out of BetOrLay?')) onLogout(); }} style={{ width: '100%', padding: '7px 10px', marginTop: 4, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
         Log out
       </button>
