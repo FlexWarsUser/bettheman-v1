@@ -2366,11 +2366,13 @@ const liability = currentBid > 0
             return (
               <div key={b.id} style={{ background: theme.panel, border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
                 <div style={{ fontWeight: 600 }}>
-                  {b.event} – {b.selection} @ {b.odds} — £
-                  {b.eachWay ? (remaining / 2).toFixed(2) : remaining.toFixed(2)}
+                  {b.event} – {b.selection} @ {b.odds}
+                </div>
+                <div style={{ fontWeight: 600, marginTop: 12 }}>
+                  £{b.eachWay ? (remaining / 2).toFixed(2) : remaining.toFixed(2)}
                   {b.eachWay ? ' each way' : ' Win'}
                 </div>
-                <div style={{ color: '#999', fontSize: 13, marginTop: 2 }}>
+                <div style={{ color: '#999', fontSize: 13, marginTop: 12 }}>
 by{' '}
 <span
   onClick={() => openPunterNote(b.punterId, b.punterName)}
