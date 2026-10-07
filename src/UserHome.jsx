@@ -1391,8 +1391,8 @@ setSlipOpen(false);
     return getLayable(b) > 0.01;
   });
 
-const submitLay = async (b) => {
-  let amount = parseFloat(bidAmount[b.id]);
+const submitLay = async (b, preset) => {
+  let amount = preset != null ? parseFloat(preset) : parseFloat(bidAmount[b.id]);
   if (!amount || amount <= 0) {
     setLayerMessage('Enter an amount');
     return;
@@ -2388,10 +2388,10 @@ by{' '}
                   </div>
                 )}
                 <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (displayRemaining * 0.1).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '8px 14px', fontSize: 14, border: 'none', borderRadius: 5, cursor: 'pointer' }}>10%</button>
-                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (displayRemaining * 0.25).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '8px 14px', fontSize: 14, border: 'none', borderRadius: 5, cursor: 'pointer' }}>25%</button>
-                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: (displayRemaining * 0.5).toFixed(2) }))} style={{ background: '#3a3a5c', color: 'white', padding: '8px 14px', fontSize: 14, border: 'none', borderRadius: 5, cursor: 'pointer' }}>50%</button>
-                  <button type="button" onClick={() => setBidAmount(prev => ({ ...prev, [b.id]: displayRemaining.toFixed(2) }))} style={{ background: '#2d6a4f', color: 'white', padding: '8px 14px', fontSize: 14, border: 'none', borderRadius: 5, cursor: 'pointer' }}>Full</button>
+                  <button type="button" onClick={() => submitLay(b, (displayRemaining * 0.1).toFixed(2))} style={{ background: '#3a3a5c', color: 'white', padding: '8px 14px', fontSize: 14, border: 'none', borderRadius: 5, cursor: 'pointer' }}>10%</button>
+                  <button type="button" onClick={() => submitLay(b, (displayRemaining * 0.25).toFixed(2))} style={{ background: '#3a3a5c', color: 'white', padding: '8px 14px', fontSize: 14, border: 'none', borderRadius: 5, cursor: 'pointer' }}>25%</button>
+                  <button type="button" onClick={() => submitLay(b, (displayRemaining * 0.5).toFixed(2))} style={{ background: '#3a3a5c', color: 'white', padding: '8px 14px', fontSize: 14, border: 'none', borderRadius: 5, cursor: 'pointer' }}>50%</button>
+                  <button type="button" onClick={() => submitLay(b, displayRemaining.toFixed(2))} style={{ background: '#2d6a4f', color: 'white', padding: '8px 14px', fontSize: 14, border: 'none', borderRadius: 5, cursor: 'pointer' }}>Full</button>
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <input type="number" placeholder="Your lay amount" value={bidAmount[b.id] || ''} onChange={e => setBidAmount(prev => ({ ...prev, [b.id]: e.target.value }))} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
