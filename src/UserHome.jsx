@@ -570,7 +570,7 @@ if (data.user.role === 'admin' || data.user.role === 'house') {
   return;
 }
     } catch (err) {
-      setError(err.message);
+      setError(err.message === 'Failed to fetch' ? 'Please contact your host for login details' : (err.message || 'Please contact your host for login details'));
     }
     setLoading(false);
   };
@@ -633,6 +633,34 @@ useEffect(() => {
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
       </div>
+      <a
+        href="https://t.me/BetOrLayBot"
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Contact us on Telegram"
+        style={{
+          position: 'fixed',
+          left: '50%',
+          bottom: 18,
+          transform: 'translateX(-50%)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '6px 10px',
+          textDecoration: 'none',
+          color: '#d7e3ee',
+          background: 'rgba(10,10,20,0.72)',
+          border: '1px solid #3a3a5c',
+          borderRadius: 999,
+          fontSize: 12,
+          fontWeight: 600,
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#2AABEE" aria-hidden="true">
+          <path d="M9.04 15.32 8.9 19.1c.4 0 .58-.17.79-.38l1.9-1.82 3.94 2.89c.72.4 1.24.19 1.44-.67l2.61-12.3c.24-1.1-.4-1.53-1.1-1.26L3.4 10.1c-1.06.41-1.04.99-.18 1.26l4.3 1.34 9.98-6.29c.47-.3.9-.14.55.19L9.04 15.32z"/>
+        </svg>
+        Telegram
+      </a>
     </div>
   );
 }
