@@ -2241,9 +2241,10 @@ const exposure = getExposure(b.stake, b.odds, {
             <div key={b.id} style={cardYellow}>
               <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
 <div style={muted}>
-  {b.selection} @ {b.odds} — £
-  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
-  {b.eachWay ? ' each way' : ''}
+  {b.selection} @ {b.odds}
+  {b.eachWay
+    ? ` — £${(matched / 2).toFixed(2)} each way laid, total stake £${matched.toFixed(2)}`
+    : ` — £${matched.toFixed(2)} laid`}
 </div>
               <div style={{ marginTop: '6px', fontSize: '13px' }}>
                 Matched: £{matched.toFixed(2)} (House £{houseLaid.toFixed(2)} + Layers £{layersLaid.toFixed(2)})
