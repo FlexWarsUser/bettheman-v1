@@ -2822,7 +2822,8 @@ app.post("/api/push/unsubscribe", async (req, res) => {
 app.post("/api/settings", async (req, res) => {
   try {
 const { skipHouseFirstLook, skipHouseResidual, layerTimerSeconds, fcfsAllocation, partyMode } = req.body;
-    const actor = await actorFromRequest(req);
+    let actor = await actorFromRequest(req);
+    if (!actor && req.body.actorId) actor = await getUserRow(req.body.actorId);
     if (!isHouseOps(actor)) return res.status(403).json({ success: false, error: "House only" });
     const houseId = actor && actor.houseId ? Number(actor.houseId) : null;
     if (typeof skipHouseFirstLook === "boolean") {
