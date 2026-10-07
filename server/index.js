@@ -801,6 +801,8 @@ function serializeBet(bet) {
       : (typeof bet.layerBids === "string" ? JSON.parse(bet.layerBids || "[]") : []),
     houseTimerEnd: bet.houseTimerEnd ? bet.houseTimerEnd.toISOString() : null,
     layerTimerEnd: bet.layerTimerEnd ? bet.layerTimerEnd.toISOString() : null,
+    houseSecondsLeft: bet.houseTimerEnd ? Math.max(0, Math.ceil((new Date(bet.houseTimerEnd).getTime() - Date.now()) / 1000)) : null,
+    layerSecondsLeft: bet.layerTimerEnd ? Math.max(0, Math.ceil((new Date(bet.layerTimerEnd).getTime() - Date.now()) / 1000)) : null,
     houseActedAt: bet.houseActedAt ? bet.houseActedAt.toISOString() : null,
     acceptedAt: bet.acceptedAt ? bet.acceptedAt.toISOString() : null,
     createdAt: bet.createdAt ? bet.createdAt.toISOString() : null,
@@ -895,7 +897,7 @@ async function processExpiredTimers() {
 
   // 1. House review timer expired → send to layers
   const houseReviewBets = await prisma.bet.findMany({
-    where: { phase: "house_review", houseTimerEnd: { lte: now } }
+    where: { phase: "house_review", houseTimerEnd: { lte: new Date(now.getTime() - 2000) } }
   });
 
    for (const bet of houseReviewBets) {

@@ -203,22 +203,30 @@ const MOCK_USERS = [
   { id: 6, name: "Casey Brooks", canLay: false },
 ];
 
-function Countdown({ endTime, onExpire }) {
+function Countdown({ endTime, secondsLeft, onExpire }) {
   const [timeLeft, setTimeLeft] = useState('');
   useEffect(() => {
-    if (!endTime) return;
-    const interval = setInterval(() => {
-      const remaining = new Date(endTime).getTime() - Date.now();
+    const fromServer = Number(secondsLeft);
+    const end = Number.isFinite(fromServer) && fromServer > 0
+      ? Date.now() + fromServer * 1000
+      : new Date(endTime).getTime();
+    if (!end || Number.isNaN(end)) return;
+    const tick = () => {
+      const remaining = end - Date.now();
       if (remaining <= 0) {
         setTimeLeft('EXPIRED');
-        clearInterval(interval);
         if (onExpire) onExpire();
-      } else {
-        setTimeLeft(`${Math.floor(remaining / 1000)}s left`);
+        return false;
       }
+      setTimeLeft(`${Math.ceil(remaining / 1000)}s left`);
+      return true;
+    };
+    if (!tick()) return;
+    const interval = setInterval(() => {
+      if (!tick()) clearInterval(interval);
     }, 500);
     return () => clearInterval(interval);
-  }, [endTime, onExpire]);
+  }, [endTime, secondsLeft, onExpire]);
   return <span style={{ color: timeLeft === 'EXPIRED' ? '#ff6b6b' : '#ffb347', fontWeight: '600' }}>{timeLeft}</span>;
 }
 function urlBase64ToUint8Array(base64String) {
@@ -2012,8 +2020,8 @@ const exposure = getExposure(b.stake, b.odds, {
 </div>
 
                 <div style={{ marginTop: '6px', color: '#ff6b6b', fontWeight: '600' }}>Exposure: £{Number(exposure).toFixed(2)}</div>
-                {b.houseTimerEnd && (
-                  <div style={{ marginTop: '6px' }}>Time left: <Countdown endTime={b.houseTimerEnd} /></div>
+                {(b.houseSecondsLeft > 0 || b.houseTimerEnd) && (
+                  <div style={{ marginTop: '6px' }}>Time left: <Countdown endTime={b.houseTimerEnd} secondsLeft={b.houseSecondsLeft} /></div>
                 )}
 <button
   type="button"
@@ -2241,10 +2249,9 @@ const exposure = getExposure(b.stake, b.odds, {
             <div key={b.id} style={cardYellow}>
               <div style={{ fontSize: '16px', fontWeight: '600' }}>{b.event}</div>
 <div style={muted}>
-  {b.selection} @ {b.odds}
-  {b.eachWay
-    ? ` — £${(matched / 2).toFixed(2)} each way laid, total stake £${matched.toFixed(2)}`
-    : ` — £${matched.toFixed(2)} laid`}
+  {b.selection} @ {b.odds} — £
+  {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
+  {b.eachWay ? ' each way' : ''}
 </div>
               <div style={{ marginTop: '6px', fontSize: '13px' }}>
                 Matched: £{matched.toFixed(2)} (House £{houseLaid.toFixed(2)} + Layers £{layersLaid.toFixed(2)})
