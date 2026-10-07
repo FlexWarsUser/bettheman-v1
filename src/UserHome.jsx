@@ -593,11 +593,13 @@ useEffect(() => {
   }
 
   return (
-    <div style={{ maxWidth: 400, margin: '60px auto', padding: 20, color: '#e8e8e8' }}>
-      <h1 style={{ textAlign: 'center', margin: 0 }}>
-        <img src="/logo-login.png" alt="BetOrLay" style={{ maxWidth: '280px', height: 'auto' }} />
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '28px 16px 72px', color: '#e8e8e8', background: 'radial-gradient(900px 420px at 50% -10%, rgba(0,198,255,0.18), transparent 60%), radial-gradient(700px 380px at 80% 110%, rgba(0,255,136,0.12), transparent 55%), #0b1020' }}>
+      <div style={{ width: '100%', maxWidth: 380 }}>
+      <h1 style={{ textAlign: 'center', margin: '0 0 18px' }}>
+        <img src="/logo-login.png" alt="BetOrLay" style={{ maxWidth: '220px', height: 'auto', filter: 'drop-shadow(0 8px 24px rgba(0,198,255,0.25))' }} />
       </h1>
-      <div style={{ marginTop: 12 }}>
+      <div style={{ marginTop: 0, padding: '22px 18px 18px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(22,28,48,0.92), rgba(12,16,32,0.92))', border: '1px solid rgba(120,160,200,0.22)', boxShadow: '0 18px 50px rgba(0,0,0,0.35)' }}>
+        <div style={{ textAlign: 'center', fontSize: 13, letterSpacing: '0.4px', color: '#9fb0c3', marginBottom: 16 }}>Your house. Your people.</div>
         <div style={{  marginBottom: 8, color: '#b0b0b0' }}>Email</div>
         <input type="text" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
         <div style={{ marginTop: 14, marginBottom: 8, color: '#b0b0b0' }}>Password</div>
@@ -609,29 +611,33 @@ useEffect(() => {
           </>
         )}
         {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
+        <div style={{ textAlign: 'center' }}>
         <button
           type="button"
           onClick={login}
           disabled={loading}
           style={{
-  width: '100%',
-  padding: '14px 16px',
-  marginTop: 8,
+  width: 'auto',
+  minWidth: 148,
+  padding: '9px 22px',
+  marginTop: 16,
   background: loading
     ? '#2a2a40'
     : 'linear-gradient(135deg, #00ff88, #00c6ff)',
   color: loading ? '#888' : '#0a0a14',
   border: 'none',
-  borderRadius: 10,
+  borderRadius: 999,
   fontWeight: 800,
-  fontSize: 16,
+  fontSize: 14,
   cursor: loading ? 'default' : 'pointer',
-  boxShadow: loading ? 'none' : '0 6px 20px rgba(0, 255, 136, 0.3)',
+  boxShadow: loading ? 'none' : '0 6px 18px rgba(0, 198, 255, 0.28)',
   letterSpacing: '0.3px',
 }}
         >
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
+        </div>
+      </div>
       </div>
       <a
         href="https://t.me/BetOrLayBot"
