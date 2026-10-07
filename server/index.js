@@ -1646,7 +1646,8 @@ app.post("/api/users/:id/reset-password", async (req, res) => {
 });
 app.get("/api/users", async (req, res) => {
   try {
-    const actor = await actorFromRequest(req);
+    let actor = await actorFromRequest(req);
+    if (!actor && req.query.actorId) actor = await getUserRow(req.query.actorId);
     if (!actor) return res.status(401).json({ error: "Not signed in" });
     const where = {};
     const wantAll = isPlatformAdmin(actor) && String(req.query.all || "") === "1";
@@ -1976,7 +1977,8 @@ app.post("/api/users", async (req, res) => {
     const name = String(req.body.name || "").trim();
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
-    const actor = await actorFromRequest(req);
+    let actor = await actorFromRequest(req);
+    if (!actor && req.body.actorId) actor = await getUserRow(req.body.actorId);
     if (!isHouseOps(actor)) return res.status(403).json({ success: false, error: "House only" });
     if (actor.role !== "admin") {
       const live = await assertHouseLive(actor.houseId);
