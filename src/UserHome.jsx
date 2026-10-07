@@ -2355,11 +2355,13 @@ by{' '}
         <>
           <h2 style={{ color: '#00ff88', marginTop: 24, fontSize: 16 }}>Available to lay</h2>
           {layConfirm && (
-  <div style={{ position: 'fixed', left: 12, right: 12, bottom: 18, zIndex: 1000, background: '#1c2433', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 10, padding: 12 }}>
-    <div style={{ fontSize: 14, marginBottom: 10 }}>{layConfirm.text}</div>
-    <div style={{ display: 'flex', gap: 8 }}>
-      <button type="button" onClick={() => setLayConfirm(null)} style={{ flex: 1, padding: '8px 10px', background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6 }}>Cancel</button>
-      <button type="button" onClick={sendLay} style={{ flex: 1, padding: '8px 10px', background: '#0066cc', color: 'white', border: 'none', borderRadius: 6 }}>OK</button>
+  <div style={{ position: 'fixed', left: 0, right: 0, bottom: 120, zIndex: 1000, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+    <div style={{ pointerEvents: 'auto', width: 'min(340px, calc(100% - 32px))', background: '#f4f6f8', color: '#1a1a1a', borderRadius: 16, padding: '16px 16px 12px', boxShadow: '0 10px 30px rgba(0,0,0,0.35)' }}>
+      <div style={{ fontSize: 15, marginBottom: 14 }}>{layConfirm.text}</div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16 }}>
+        <button type="button" onClick={() => setLayConfirm(null)} style={{ background: 'none', border: 'none', color: '#1a73b8', fontSize: 15, padding: 6 }}>Cancel</button>
+        <button type="button" onClick={sendLay} style={{ background: 'none', border: 'none', color: '#1a73b8', fontSize: 15, fontWeight: 700, padding: 6 }}>OK</button>
+      </div>
     </div>
   </div>
 )}
