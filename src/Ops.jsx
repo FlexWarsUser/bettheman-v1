@@ -1970,7 +1970,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
           )}
           {b.houseTimerEnd && (
             <div style={{ marginTop: '8px', color: '#ffb347' }}>
-              Time left for residual: <Countdown endTime={b.houseTimerEnd} />
+              Time left for residual: <Countdown endTime={b.houseTimerEnd} secondsLeft={b.houseSecondsLeft} />
             </div>
           )}
           <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>

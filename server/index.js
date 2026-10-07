@@ -1030,7 +1030,7 @@ const { bids, totalLaid } = await applyProRata(currentBids, remainingForLayers, 
 
   // 3. Residual house timer expired
   const residualBets = await prisma.bet.findMany({
-    where: { phase: "house_residual", houseTimerEnd: { lte: now } }
+    where: { phase: "house_residual", houseTimerEnd: { lte: new Date(now.getTime() - 2000) } }
   });
 
   for (const bet of residualBets) {
