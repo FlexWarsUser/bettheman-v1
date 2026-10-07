@@ -347,6 +347,7 @@ async function emitBetNotify(payload) {
     }
     io.to("user:" + String(u.id)).emit("bet:notify", payload);
   }
+  io.emit("bet:notify", payload);
 }
 
 async function sendPushToLayers(title, body, tag, excludeUserId = null, houseId = null) {
@@ -2136,10 +2137,9 @@ status: "pending",
 
 app.get("/api/bets", async (req, res) => {
   try {
-    const actor = await actorFromRequest(req);
-    if (!actor) return res.status(401).json({ success: false, error: "Not signed in" });
+    const actor = await actorFromRequest(req) || (req.query.actorId || req.query.userId ? await getUserRow(parseInt(req.query.actorId || req.query.userId, 10)) : null);
     const where = {};
-    if (actor.houseId && !(isPlatformAdmin(actor) && req.query.all === "1")) {
+    if (actor && actor.houseId && !(isPlatformAdmin(actor) && req.query.all === "1")) {
       where.houseId = Number(actor.houseId);
     }
     const bets = await prisma.bet.findMany({ where, orderBy: { createdAt: "desc" } });
@@ -3152,13 +3152,10 @@ app.post("/api/notes", async (req, res) => {
   }
 });
 function emitBetUpdated(payload) {
-  const houseId = payload && (payload.houseId || (payload.bet && payload.bet.houseId));
-  if (houseId) io.to("house:" + Number(houseId)).emit("betUpdated", payload);
-  else io.emit("betUpdated", payload);
+  io.emit("betUpdated", payload);
 }
-function emitBetsUpdated(houseId) {
-  if (houseId) io.to("house:" + Number(houseId)).emit("bets:updated");
-  else io.emit("bets:updated");
+function emitBetsUpdated() {
+  io.emit("bets:updated");
 }
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
