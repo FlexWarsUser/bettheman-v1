@@ -673,6 +673,7 @@ const [bet, setBet] = useState({ event: '', selection: '', odds: '', stake: '', 
   const [placing, setPlacing] = useState(false);
   const [bidAmount, setBidAmount] = useState({});
   const [layerMessage, setLayerMessage] = useState('');
+  const [layConfirm, setLayConfirm] = useState(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [pwMessage, setPwMessage] = useState('');
@@ -1397,14 +1398,17 @@ const submitLay = async (b, preset) => {
     setLayerMessage('Enter an amount');
     return;
   }
-
-  if (b.eachWay) {
-    if (!window.confirm(`Confirm lay £${amount.toFixed(2)} each way. Total stake £${(amount * 2).toFixed(2)}`)) return;
-    amount = amount * 2;
-  } else if (!window.confirm(`Confirm lay £${amount.toFixed(2)}`)) {
-    return;
-  }
-
+  const text = b.eachWay
+    ? `Confirm lay £${amount.toFixed(2)} each way. Total stake £${(amount * 2).toFixed(2)}`
+    : `Confirm lay £${amount.toFixed(2)}`;
+  setLayConfirm({ bet: b, amount: b.eachWay ? amount * 2 : amount, text });
+  return;
+};
+const sendLay = async () => {
+  if (!layConfirm) return;
+  const b = layConfirm.bet;
+  const amount = layConfirm.amount;
+  setLayConfirm(null);
   setLayerMessage('');
   try {
     const res = await fetch(`${API}/api/bets/${b.id}/layer-bid`, {
@@ -2350,7 +2354,16 @@ by{' '}
       {user.canLay && availableToLay.length > 0 && (
         <>
           <h2 style={{ color: '#00ff88', marginTop: 24, fontSize: 16 }}>Available to lay</h2>
-          {layerMessage && <p style={{ color: '#00ff88' }}>{layerMessage}</p>}
+          {layConfirm && (
+  <div style={{ position: 'fixed', left: 12, right: 12, bottom: 18, zIndex: 1000, background: '#1c2433', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 10, padding: 12 }}>
+    <div style={{ fontSize: 14, marginBottom: 10 }}>{layConfirm.text}</div>
+    <div style={{ display: 'flex', gap: 8 }}>
+      <button type="button" onClick={() => setLayConfirm(null)} style={{ flex: 1, padding: '8px 10px', background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6 }}>Cancel</button>
+      <button type="button" onClick={sendLay} style={{ flex: 1, padding: '8px 10px', background: '#0066cc', color: 'white', border: 'none', borderRadius: 6 }}>OK</button>
+    </div>
+  </div>
+)}
+{layerMessage && <p style={{ color: '#00ff88' }}>{layerMessage}</p>}
           {availableToLay.map(b => {
             const remaining = getLayable(b);
             const displayRemaining = b.eachWay ? remaining / 2 : remaining;
