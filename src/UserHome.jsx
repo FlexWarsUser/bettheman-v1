@@ -1398,9 +1398,11 @@ const submitLay = async (b) => {
     return;
   }
 
-  // Each-way: the number the layer typed is the single stake, so double it for the backend
   if (b.eachWay) {
+    if (!window.confirm(`Confirm lay £${amount.toFixed(2)} each way. Total stake £${(amount * 2).toFixed(2)}`)) return;
     amount = amount * 2;
+  } else if (!window.confirm(`Confirm lay £${amount.toFixed(2)}`)) {
+    return;
   }
 
   setLayerMessage('');
