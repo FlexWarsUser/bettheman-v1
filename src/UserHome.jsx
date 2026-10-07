@@ -593,46 +593,40 @@ useEffect(() => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '28px 16px 72px', color: '#e8e8e8', background: 'radial-gradient(900px 420px at 50% -10%, rgba(0,198,255,0.18), transparent 60%), radial-gradient(700px 380px at 80% 110%, rgba(0,255,136,0.12), transparent 55%), #0b1020' }}>
-      <div style={{ width: '100%', maxWidth: 380 }}>
-      <h1 style={{ textAlign: 'center', margin: '0 0 18px' }}>
-        <img src="/logo-login.png" alt="BetOrLay" style={{ maxWidth: '220px', height: 'auto', filter: 'drop-shadow(0 8px 24px rgba(0,198,255,0.25))' }} />
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '28px 18px 78px', color: '#e8e8e8', backgroundColor: '#10141c', backgroundImage: 'radial-gradient(circle at 20% 10%, rgba(255,255,255,0.05) 0 1px, transparent 1.5px), radial-gradient(circle at 80% 30%, rgba(255,255,255,0.04) 0 1px, transparent 1.6px), linear-gradient(165deg, #1a2433 0%, #121820 42%, #0c1218 100%)', backgroundSize: '18px 18px, 22px 22px, auto' }}>
+      <div style={{ width: '100%', maxWidth: 360 }}>
+      <h1 style={{ textAlign: 'center', margin: '0 0 22px' }}>
+        <img src="/logo-login.png" alt="BetOrLay" style={{ maxWidth: '210px', height: 'auto' }} />
       </h1>
-      <div style={{ marginTop: 0, padding: '22px 18px 18px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(22,28,48,0.92), rgba(12,16,32,0.92))', border: '1px solid rgba(120,160,200,0.22)', boxShadow: '0 18px 50px rgba(0,0,0,0.35)' }}>
-        <div style={{ textAlign: 'center', fontSize: 13, letterSpacing: '0.4px', color: '#9fb0c3', marginBottom: 16 }}>Your house. Your people.</div>
-        <div style={{  marginBottom: 8, color: '#b0b0b0' }}>Email</div>
+      <div>
+        <div style={{ marginBottom: 8, color: '#b7c0cc', fontSize: 13 }}>Email</div>
         <input type="text" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
-        <div style={{ marginTop: 14, marginBottom: 8, color: '#b0b0b0' }}>Password</div>
+        <div style={{ marginTop: 14, marginBottom: 8, color: '#b7c0cc', fontSize: 13 }}>Password</div>
         <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} />
         {needs2fa && (
           <>
-            <div style={{ marginTop: 14, marginBottom: 8, color: '#b0b0b0' }}>Authenticator code</div>
+            <div style={{ marginTop: 14, marginBottom: 8, color: '#b7c0cc', fontSize: 13 }}>Authenticator code</div>
             <input type="text" inputMode="numeric" autoComplete="one-time-code" value={totpCode} onChange={e => setTotpCode(e.target.value)} placeholder="6-digit code" style={inputStyle} />
           </>
         )}
-        {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
+        {error && <p style={{ color: '#ff8d8d', fontSize: 14 }}>{error}</p>}
         <div style={{ textAlign: 'center' }}>
         <button
           type="button"
           onClick={login}
           disabled={loading}
           style={{
-  width: 'auto',
-  minWidth: 148,
-  padding: '9px 22px',
-  marginTop: 16,
-  background: loading
-    ? '#2a2a40'
-    : 'linear-gradient(135deg, #00ff88, #00c6ff)',
-  color: loading ? '#888' : '#0a0a14',
-  border: 'none',
-  borderRadius: 999,
-  fontWeight: 800,
-  fontSize: 14,
-  cursor: loading ? 'default' : 'pointer',
-  boxShadow: loading ? 'none' : '0 6px 18px rgba(0, 198, 255, 0.28)',
-  letterSpacing: '0.3px',
-}}
+            minWidth: 132,
+            padding: '8px 22px',
+            marginTop: 18,
+            background: loading ? '#2a3140' : '#e7edf3',
+            color: loading ? '#8b93a0' : '#1a212b',
+            border: '1px solid rgba(255,255,255,0.35)',
+            borderRadius: 8,
+            fontWeight: 650,
+            fontSize: 14,
+            cursor: loading ? 'default' : 'pointer',
+          }}
         >
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
@@ -655,8 +649,8 @@ useEffect(() => {
           padding: '6px 10px',
           textDecoration: 'none',
           color: '#d7e3ee',
-          background: 'rgba(10,10,20,0.72)',
-          border: '1px solid #3a3a5c',
+          background: 'rgba(10,10,20,0.55)',
+          border: '1px solid rgba(255,255,255,0.16)',
           borderRadius: 999,
           fontSize: 12,
           fontWeight: 600,
