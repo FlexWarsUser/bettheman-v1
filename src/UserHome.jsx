@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 
-const API = (typeof window !== 'undefined' && /betorlay\.uk$/.test(window.location.hostname)) ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:3001');
+const API = (typeof window !== 'undefined' && /betorlay\.uk$/.test(window.location.hostname)) ? '' : 'http://localhost:3001';
 
 
 const HOUSE_THEMES = [
@@ -563,7 +563,6 @@ export default function UserHome() {
         return;
       }
 persistUser(data.user);
-if (data.token) localStorage.setItem('btm_token', data.token);
 setUser({ ...data.user, _brandingLoaded: true });
 if (data.user.role === 'admin' || data.user.role === 'house') {
   window.location.href = '/ops';
@@ -578,7 +577,7 @@ if (data.user.role === 'admin' || data.user.role === 'house') {
   const logout = () => {
     localStorage.removeItem('btm_user');
     localStorage.removeItem('btm_theme');
-    localStorage.removeItem('btm_token');
+    fetch(API + '/api/auth/logout', { method: 'POST' }).catch(() => {});
     applyDefaultPublicTheme();
     setUser(null);
      };
@@ -769,7 +768,7 @@ const enabled = sData.partyMode === true || sData.partyMode === 'true';
 
   load();
 
-  const socket = io(API, { transports: ["websocket", "polling"], auth: { token: localStorage.getItem("btm_token") } });
+  const socket = io(API, { transports: ["websocket", "polling"], withCredentials: true });
   const refresh = () => load();
   socket.on('betUpdated', refresh);
   socket.on('bets:updated', refresh);
@@ -788,7 +787,7 @@ const enabled = sData.partyMode === true || sData.partyMode === 'true';
 useEffect(() => {
   if (!user?.id) return;
 
-  const socket = io(API, { transports: ["websocket", "polling"], auth: { token: localStorage.getItem("btm_token") } });
+  const socket = io(API, { transports: ["websocket", "polling"], withCredentials: true });
 
   const refresh = () => {
     fetchBets();
@@ -865,7 +864,7 @@ useEffect(() => {
   }, [user?.id]);
   useEffect(() => {
     if (!user?.id) return;
-    const socket = io(API, { transports: ["websocket", "polling"], auth: { token: localStorage.getItem("btm_token") } });
+    const socket = io(API, { transports: ["websocket", "polling"], withCredentials: true });
     socket.emit('chat:join', user.id);
     socket.on('chat:message', (msg) => {
       const involvesMe =

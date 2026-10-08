@@ -7,15 +7,8 @@ import { Analytics } from '@vercel/analytics/react'
 
 const _fetch = window.fetch.bind(window);
 window.fetch = (url, opts = {}) => {
-  try {
-    const token = localStorage.getItem('btm_token');
-    if (token && String(url).includes('/api/')) {
-      const headers = new Headers(opts.headers || {});
-      if (!headers.has('Authorization')) headers.set('Authorization', 'Bearer ' + token);
-      opts = { ...opts, headers };
-    }
-  } catch (e) {}
-  return _fetch(url, opts);
+  const next = { ...opts, credentials: opts.credentials || 'include' };
+  return _fetch(url, next);
 };
 
 createRoot(document.getElementById('root')).render(

@@ -18,7 +18,7 @@ import {
   cropPhotoInteractive,
 } from './UserHome';
 
-const API = (typeof window !== 'undefined' && /betorlay\.uk$/.test(window.location.hostname)) ? '' : (import.meta.env.VITE_API_URL || "http://localhost:3001");
+const API = (typeof window !== 'undefined' && /betorlay\.uk$/.test(window.location.hostname)) ? '' : 'http://localhost:3001';
 
 
 const HOUSE_THEMES = [
@@ -491,7 +491,7 @@ const fetchEvents = async () => {
     }
   }, []);
   useEffect(() => {
-    const socket = io(API, { transports: ["websocket", "polling"], auth: { token: localStorage.getItem("btm_token") } });
+    const socket = io(API, { transports: ["websocket", "polling"], withCredentials: true });
 
     socket.on("bet:notify", (payload) => {
       if (payload.houseId != null && currentUser?.houseId != null && Number(payload.houseId) !== Number(currentUser.houseId)) return;
@@ -581,7 +581,7 @@ return () => {
   }, [activeTab, chatOtherId]);
 
   useEffect(() => {
-const socket = io(API, { transports: ["websocket", "polling"], auth: { token: localStorage.getItem("btm_token") } });
+const socket = io(API, { transports: ["websocket", "polling"], withCredentials: true });
 socket.emit('chat:join', HOUSE_ID);
     socket.on('chat:message', (msg) => {
   if (Number(msg.fromUserId) !== HOUSE_ID && Number(msg.toUserId) !== HOUSE_ID) return;
@@ -1878,7 +1878,7 @@ const muted = { color: '#94a3b8', fontSize: '12px' };
             <button type="button" onClick={() => {
               if (!window.confirm('Log out of BetOrLay?')) return;
               localStorage.removeItem('btm_user');
-              localStorage.removeItem('btm_token');
+              fetch(API + '/api/auth/logout', { method: 'POST' }).catch(() => {});
               localStorage.removeItem('btm_theme');
               window.location.href = '/';
             }} style={{ width: '100%', padding: '7px 10px', background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Log out</button>

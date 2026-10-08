@@ -29,7 +29,9 @@ function signToken(userId) {
   return body + "." + sig;
 }
 function readToken(req) {
-  const raw = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+  const cookie = String(req.headers.cookie || "");
+  const fromCookie = (cookie.match(/(?:^|;\s*)btm_token=([^;]+)/) || [])[1] || "";
+  const raw = String(req.headers.authorization || fromCookie).replace(/^Bearer\s+/i, "");
   if (!raw || !AUTH_SECRET || !raw.includes(".")) return null;
   const [body, sig] = raw.split(".");
   const expect = crypto.createHmac("sha256", AUTH_SECRET).update(body).digest("base64url");
@@ -43,6 +45,13 @@ function readToken(req) {
   } catch {
     return null;
   }
+}
+
+function setAuthCookie(res, token) {
+  res.setHeader("Set-Cookie", "btm_token=" + token + "; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800");
+}
+function clearAuthCookie(res) {
+  res.setHeader("Set-Cookie", "btm_token=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0");
 }
 async function actorFromRequest(req) {
   const tok = readToken(req);
@@ -1762,6 +1771,11 @@ app.post("/api/users/:id/weight", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+app.post("/api/auth/logout", (req, res) => {
+  clearAuthCookie(res);
+  res.json({ success: true });
+});
 app.post("/api/auth/login", async (req, res) => {
   try {
     const email = String(req.body.email || "").trim().toLowerCase();
@@ -1793,11 +1807,9 @@ app.post("/api/auth/login", async (req, res) => {
     if (user.totpEnabled) {
       return res.json({ success: true, needs2fa: true, userId: user.id, email: user.email });
     }
-    res.json({
-      success: true,
-      token: signToken(user.id),
-      user: await shapeUser(user),
-    });
+    const token = signToken(user.id);
+    setAuthCookie(res, token);
+    res.json({ success: true, user: await shapeUser(user) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
@@ -1823,7 +1835,9 @@ app.post("/api/auth/2fa/login", async (req, res) => {
       const live = await assertHouseLive(user.houseId);
       if (!live.ok) return res.status(403).json({ success: false, error: live.error });
     }
-    res.json({ success: true, token: signToken(user.id), user: await shapeUser(user) });
+    const token = signToken(user.id);
+    setAuthCookie(res, token);
+    res.json({ success: true, user: await shapeUser(user) });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -3200,7 +3214,7 @@ function emitBetsUpdated() {
 }
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
-  const tok = readToken({ headers: { authorization: socket.handshake.auth && socket.handshake.auth.token } });
+  const tok = readToken({ headers: { authorization: socket.handshake.auth && socket.handshake.auth.token, cookie: socket.handshake.headers && socket.handshake.headers.cookie } });
   if (tok && tok.id) {
     getUserRow(tok.id).then((user) => {
       if (user && user.houseId) socket.join("house:" + Number(user.houseId));
