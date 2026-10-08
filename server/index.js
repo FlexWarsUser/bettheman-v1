@@ -272,6 +272,20 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   );
 }
 const app = express();
+app.disable("x-powered-by");
+const loginFails = new Map();
+function loginBlocked(email) {
+  const row = loginFails.get(email);
+  return !!(row && row.until > Date.now());
+}
+function noteLoginFail(email) {
+  const row = loginFails.get(email) || { n: 0, until: 0 };
+  row.n += 1;
+  if (row.n >= 8) { row.until = Date.now() + 15 * 60 * 1000; row.n = 0; }
+  loginFails.set(email, row);
+}
+function noteLoginOk(email) { loginFails.delete(email); }
+
 const server = http.createServer(app);
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "*";
@@ -1749,6 +1763,9 @@ app.post("/api/auth/login", async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ success: false, error: "Email and password required" });
     }
+    if (loginBlocked(email)) {
+      return res.status(429).json({ success: false, error: "Too many attempts. Try again in 15 minutes." });
+    }
     const rows = await prisma.$queryRaw`
       SELECT id, name, email, "canLay", "canLayAllowed", balance, weight, role, "passwordHash", "mustChangePassword", "houseId", "totpEnabled", "totpSecret"
       FROM "User" WHERE lower(email) = ${email}
@@ -1759,8 +1776,10 @@ app.post("/api/auth/login", async (req, res) => {
     }
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) {
+      noteLoginFail(email);
       return res.status(401).json({ success: false, error: "Invalid login" });
     }
+    noteLoginOk(email);
     if (user.role !== "admin") {
       const live = await assertHouseLive(user.houseId);
       if (!live.ok) return res.status(403).json({ success: false, error: live.error });
@@ -2142,9 +2161,10 @@ status: "pending",
 app.get("/api/bets", async (req, res) => {
   try {
     const actor = await actorFromRequest(req) || (req.query.actorId || req.query.userId ? await getUserRow(parseInt(req.query.actorId || req.query.userId, 10)) : null);
+    if (!actor) return res.status(401).json({ error: "Not signed in" });
     const where = {};
-    if (actor && actor.houseId && !(isPlatformAdmin(actor) && req.query.all === "1")) {
-      where.houseId = Number(actor.houseId);
+    if (!(isPlatformAdmin(actor) && req.query.all === "1")) {
+      where.houseId = actor.houseId != null ? Number(actor.houseId) : 1;
     }
     const bets = await prisma.bet.findMany({ where, orderBy: { createdAt: "desc" } });
     res.json(bets.map(serializeBet));
@@ -2621,8 +2641,14 @@ app.get("/api/ledger", async (req, res) => {
 });
 app.get("/api/settings", async (req, res) => {
   try {
-    const actorId = parseInt(req.query.actorId || req.query.userId, 10);
-    const actor = actorId ? await getUserRow(actorId) : null;
+    let actor = await actorFromRequest(req);
+    if (!actor) {
+      const actorId = parseInt(req.query.actorId || req.query.userId, 10);
+      if (actorId) actor = await getUserRow(actorId);
+    }
+    if (!actor) {
+      return res.json({ skipHouseFirstLook: false, skipHouseResidual: false, layerTimerSeconds: 30, fcfsAllocation: false, partyMode: false });
+    }
     const settings = await getSettings(actor && actor.houseId ? actor.houseId : null);
     res.json(settings);
   } catch (err) {
