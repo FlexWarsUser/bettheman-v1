@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API = (typeof window !== 'undefined' && /betorlay\.uk$/.test(window.location.hostname)) ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:3001');
 
 
 const HOUSE_THEMES = [

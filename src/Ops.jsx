@@ -18,7 +18,7 @@ import {
   cropPhotoInteractive,
 } from './UserHome';
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API = (typeof window !== 'undefined' && /betorlay\.uk$/.test(window.location.hostname)) ? '' : (import.meta.env.VITE_API_URL || "http://localhost:3001");
 
 
 const HOUSE_THEMES = [
@@ -1191,7 +1191,7 @@ const resetUserPassword = async (userId) => {
   }
 };
   const openPunterNote = async (aboutUserId, name) => {
-    const authorId = currentUser?.id || 7;
+    const authorId = currentUser?.id;
     try {
       const res = await fetch(`${API}/api/notes/${aboutUserId}?authorId=${authorId}`);
       const data = await res.json();
@@ -1205,7 +1205,7 @@ const resetUserPassword = async (userId) => {
 
   const savePunterNote = async () => {
     if (!noteModal) return;
-    const authorId = currentUser?.id || 7;
+    const authorId = currentUser?.id;
     try {
       const res = await fetch(`${API}/api/notes`, {
         method: 'POST',

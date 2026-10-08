@@ -298,7 +298,14 @@ function emitBetsUpdatedLegacy() {
   } catch (e) {}
 }
 
-app.use(cors({ origin: FRONTEND_URL === "*" ? true : FRONTEND_URL }));
+app.use(cors({ origin: FRONTEND_URL === "*" ? ["https://betorlay.uk", "https://www.betorlay.uk"] : FRONTEND_URL }));
+app.use((req, res, next) => {
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Content-Security-Policy", "frame-ancestors 'none'");
+  next();
+});
 app.use(express.json({ limit: "8mb" }));
 app.use(express.urlencoded({ extended: true, limit: "8mb" }));
 
@@ -1662,8 +1669,7 @@ app.post("/api/users/:id/reset-password", async (req, res) => {
 });
 app.get("/api/users", async (req, res) => {
   try {
-    let actor = await actorFromRequest(req);
-    if (!actor && req.query.actorId) actor = await getUserRow(req.query.actorId);
+    const actor = await actorFromRequest(req);
     if (!actor) return res.status(401).json({ error: "Not signed in" });
     const where = {};
     const wantAll = isPlatformAdmin(actor) && String(req.query.all || "") === "1";
@@ -3146,7 +3152,9 @@ app.post("/api/users/:id/can-lay", async (req, res) => {
 app.get("/api/notes/:aboutUserId", async (req, res) => {
   try {
     const aboutUserId = parseInt(req.params.aboutUserId, 10);
-    const authorId = parseInt(req.query.authorId, 10);
+    const actor = await actorFromRequest(req);
+    if (!actor) return res.status(401).json({ success: false, error: "Not signed in" });
+    const authorId = Number(actor.id);
     if (!aboutUserId || !authorId) {
       return res.status(400).json({ success: false, error: "authorId and aboutUserId required" });
     }
@@ -3164,7 +3172,9 @@ app.get("/api/notes/:aboutUserId", async (req, res) => {
 // Save / update note
 app.post("/api/notes", async (req, res) => {
   try {
-    const authorId = parseInt(req.body.authorId, 10);
+    const actor = await actorFromRequest(req);
+    if (!actor) return res.status(401).json({ success: false, error: "Not signed in" });
+    const authorId = Number(actor.id);
     const aboutUserId = parseInt(req.body.aboutUserId, 10);
     const note = String(req.body.note ?? "");
     if (!authorId || !aboutUserId) {
