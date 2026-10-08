@@ -2932,7 +2932,7 @@ const exposure = getExposure(b.stake, b.odds, {
         }).map(u => (
                      <div key={u.id} style={{ marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid #2a2a40' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <span style={{ flex: 1 }}>{u.name}</span>
+                <span style={{ flex: 1 }}>{u.name}{u.email ? ` — ${u.email}` : ''}</span>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#e8e8e8', fontSize: 13 }}>
                   <input
                     type="checkbox"
