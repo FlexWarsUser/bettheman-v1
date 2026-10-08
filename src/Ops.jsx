@@ -413,7 +413,7 @@ const [settings, setSettings] = useState({
   const [totpSetupCode, setTotpSetupCode] = useState('');
   const [totpOffPending, setTotpOffPending] = useState(false);
   const [totpMsg, setTotpMsg] = useState('');
-  const HOUSE_ID = Number(currentUser?.houseMasterId || currentUser?.id || 7);
+  const HOUSE_ID = Number(currentUser?.houseMasterId || currentUser?.id || 0);
   const theme = applyHouseTheme(currentUser);
   useEffect(() => {
     applyHouseTheme(currentUser);

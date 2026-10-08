@@ -720,7 +720,7 @@ const prevInProcessIds = useRef(new Set());
   const [partyMode, setPartyMode] = useState(false);
 const [leaderboard, setLeaderboard] = useState([]);
 const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-  const HOUSE_ID = Number(user?.houseMasterId || 7);
+  const HOUSE_ID = Number(user?.houseMasterId || user?.id || 0);
   const toggleLayerProfile = async (e) => {
   const next = e.target.checked;
   try {

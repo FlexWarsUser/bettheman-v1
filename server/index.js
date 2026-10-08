@@ -2908,6 +2908,8 @@ if (typeof partyMode === "boolean") {
 // GET /api/events?q=don&from=2026-08-01
 app.get("/api/events", async (req, res) => {
   try {
+    const actor = await actorFromRequest(req);
+    if (!actor) return res.status(401).json({ success: false, error: "Not signed in" });
     const q = (req.query.q || "").trim();
 
     const from = new Date();
