@@ -1172,8 +1172,8 @@ useEffect(() => {
   };
 const resetUserPassword = async (userId) => {
   const password = (resetPw[userId] || '').trim();
-  if (!password || password.length < 4) {
-    return alert('Enter a temporary password (min 4 characters)');
+  if (!password || password.length < 8 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+    return alert('Temporary password must be at least 8 characters and include an uppercase letter, a lowercase letter and a number');
   }
   if (!window.confirm(`Reset password for user #${userId}? They must change it on next login.`)) return;
   try {
