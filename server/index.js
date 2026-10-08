@@ -1915,7 +1915,12 @@ app.post("/api/auth/set-password", async (req, res) => {
 });
 app.get('/api/users/:id', async (req, res) => {
   try {
+    const actor = await actorFromRequest(req);
+    if (!actor) return res.status(401).json({ error: 'Not signed in' });
     const id = parseInt(req.params.id);
+    if (Number(actor.id) !== id && !isHouseOps(actor)) {
+      return res.status(403).json({ error: 'Not allowed' });
+    }
     const user = await prisma.user.findUnique({
       where: { id },
       select: {
@@ -1932,6 +1937,9 @@ app.get('/api/users/:id', async (req, res) => {
       },
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!sameHouse(actor, user) && !isPlatformAdmin(actor)) {
+      return res.status(403).json({ error: 'Not allowed' });
+    }
     res.json(await shapeUser(user));
   } catch (err) {
     console.error(err);
@@ -2745,9 +2753,9 @@ app.post("/api/users/:id/avatar", async (req, res) => {
 // GET /api/leaderboard
 app.get('/api/leaderboard', async (req, res) => {
   try {
-    const actorId = parseInt(req.query.actorId || req.query.userId, 10);
-    const actor = actorId ? await getUserRow(actorId) : null;
-    const houseId = actor && actor.houseId ? Number(actor.houseId) : null;
+    const actor = await actorFromRequest(req);
+    if (!actor) return res.status(401).json({ success: false, error: 'Not signed in' });
+    const houseId = actor.houseId != null ? Number(actor.houseId) : 1;
     const settings = await getSettings(houseId);
     if (!settings.partyMode) {
       return res.json({ success: true, partyMode: false, leaderboard: [] });
