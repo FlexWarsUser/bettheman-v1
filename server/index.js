@@ -2669,14 +2669,8 @@ app.get("/api/ledger", async (req, res) => {
 });
 app.get("/api/settings", async (req, res) => {
   try {
-    let actor = await actorFromRequest(req);
-    if (!actor) {
-      const actorId = parseInt(req.query.actorId || req.query.userId, 10);
-      if (actorId) actor = await getUserRow(actorId);
-    }
-    if (!actor) {
-      return res.json({ skipHouseFirstLook: false, skipHouseResidual: false, layerTimerSeconds: 30, fcfsAllocation: false, partyMode: false });
-    }
+    const actor = await actorFromRequest(req);
+    if (!actor) return res.status(401).json({ error: "Not signed in" });
     const settings = await getSettings(actor && actor.houseId ? actor.houseId : null);
     res.json(settings);
   } catch (err) {
@@ -2915,14 +2909,23 @@ app.get("/api/events", async (req, res) => {
     const from = new Date();
     from.setHours(0, 0, 0, 0);
 
-    const to = new Date(from);
-    to.setDate(to.getDate() + 25);
-    to.setHours(23, 59, 59, 999);
+    const footballTo = new Date(from);
+    footballTo.setDate(footballTo.getDate() + 7);
+    footballTo.setHours(23, 59, 59, 999);
+
+    const racingTo = new Date(from);
+    racingTo.setDate(racingTo.getDate() + 25);
+    racingTo.setHours(23, 59, 59, 999);
 
     const where = {
       active: true,
-      date: { gte: from, lte: to },
-      OR: [{ houseId: 1 }, { houseId: null }],
+      AND: [
+        { OR: [{ houseId: 1 }, { houseId: null }] },
+        { OR: [
+          { type: "football", date: { gte: from, lte: footballTo } },
+          { NOT: { type: "football" }, date: { gte: from, lte: racingTo } },
+        ] },
+      ],
     };
     if (q) {
       where.name = { contains: q, mode: "insensitive" };
@@ -3060,6 +3063,8 @@ function sameRace(a, b) {
 // GET /api/runners?q=rum&eventId=12  (or eventName=340 Doncaster)
 app.get("/api/runners", async (req, res) => {
   try {
+    const actor = await actorFromRequest(req);
+    if (!actor) return res.status(401).json({ success: false, error: "Not signed in" });
     const q = (req.query.q || "").trim();
     const eventId = req.query.eventId ? parseInt(req.query.eventId) : null;
     const eventName = (req.query.eventName || "").trim();
