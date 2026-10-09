@@ -2437,42 +2437,20 @@ if (action !== "reject") {
   }
 }
 
-    let layerBids = Array.isArray(bet.layerBids) ? [...bet.layerBids] : [];
-
-    if (action === "reject") {
-      const existing = layerBids.findIndex(b => b.layerId === parseInt(layerId));
-      if (existing !== -1) {
-        layerBids[existing] = { ...layerBids[existing], rejected: true, amount: 0, bidAt: new Date().toISOString() };
-      } else {
-        layerBids.push({
-          layerId: parseInt(layerId),
-          layerName,
-          amount: 0,
-          rejected: true,
-          bidAt: new Date().toISOString()
-        });
-      }
-    } else {
-      const existing = layerBids.findIndex(b => b.layerId === parseInt(layerId));
-      if (existing !== -1) {
-        layerBids[existing] = {
-          ...layerBids[existing],
-          amount: parseFloat(amount),
-          rejected: false,
-          bidAt: new Date().toISOString()
-        };
-      } else {
-        layerBids.push({
-          layerId: parseInt(layerId),
-          layerName,
-          amount: parseFloat(amount),
-          rejected: false,
-          bidAt: new Date().toISOString()
-        });
-      }
-    }
-
-    let updated = await prisma.bet.update({ where: { id }, data: { layerBids } });
+    let updated = await prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw`SELECT "layerBids" FROM "Bet" WHERE id = ${id} FOR UPDATE`;
+      const freshBids = locked[0] && locked[0].layerBids;
+      let layerBids = Array.isArray(freshBids) ? [...freshBids] : [];
+      const mine = parseInt(layerId);
+      const existing = layerBids.findIndex(b => parseInt(b.layerId) === mine);
+      const next = action === "reject"
+        ? { layerId: mine, layerName, amount: 0, rejected: true, bidAt: new Date().toISOString() }
+        : { layerId: mine, layerName, amount: parseFloat(amount), rejected: false, bidAt: new Date().toISOString() };
+      if (existing !== -1) layerBids[existing] = { ...layerBids[existing], ...next };
+      else layerBids.push(next);
+      return tx.bet.update({ where: { id }, data: { layerBids } });
+    });
+    let layerBids = Array.isArray(updated.layerBids) ? updated.layerBids : [];
     console.log(`Layer ${action} on bet ${id}`, layerBids);
     await writeLedger({
       betId: id,
