@@ -2,6 +2,29 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 
+const LANGS = {
+  en: { email:'Email', password:'Password', code:'Authenticator code', codePh:'6-digit code', signIn:'Sign in', signing:'Signing in…', host:'Please contact your host for login details', contact:'Contact us on Telegram', balance:'Balance', openLays:'Open lays', slip:'Betting Slip', bets:'My Bets', lays:'My Lays', showSlip:'Show/Hide Betting Slip', details:'Enter bet details', event:'Event', selection:'Selection', odds:'Odds', stake:'Stake', win:'Win', eachWay:'Each way', place:'Place bet', account:'Account' },
+  es: { email:'Correo', password:'Contraseña', code:'Código de autenticación', codePh:'Código de 6 dígitos', signIn:'Entrar', signing:'Entrando…', host:'Contacta con tu anfitrión para los datos de acceso', contact:'Contáctanos en Telegram', balance:'Saldo', openLays:'Apuestas abiertas', slip:'Boleto', bets:'Mis apuestas', lays:'Mis lays', showSlip:'Mostrar/ocultar boleto', details:'Introduce la apuesta', event:'Evento', selection:'Selección', odds:'Cuota', stake:'Importe', win:'Ganador', eachWay:'Each way', place:'Apostar', account:'Cuenta' },
+  pt: { email:'Email', password:'Palavra-passe', code:'Código de autenticação', codePh:'Código de 6 dígitos', signIn:'Entrar', signing:'A entrar…', host:'Contacte o anfitrião para os dados de acesso', contact:'Contacte-nos no Telegram', balance:'Saldo', openLays:'Lays em aberto', slip:'Boletim', bets:'As minhas apostas', lays:'Os meus lays', showSlip:'Mostrar/ocultar boletim', details:'Introduza a aposta', event:'Evento', selection:'Seleção', odds:'Odd', stake:'Valor', win:'Vitória', eachWay:'Each way', place:'Apostar', account:'Conta' },
+  fr: { email:'E-mail', password:'Mot de passe', code:"Code d'authentification", codePh:'Code à 6 chiffres', signIn:'Connexion', signing:'Connexion…', host:"Contactez votre hôte pour les identifiants", contact:'Contactez-nous sur Telegram', balance:'Solde', openLays:'Lays ouverts', slip:'Ticket', bets:'Mes paris', lays:'Mes lays', showSlip:'Afficher/masquer le ticket', details:'Saisissez le pari', event:'Événement', selection:'Sélection', odds:'Cote', stake:'Mise', win:'Gagnant', eachWay:'Each way', place:'Parier', account:'Compte' },
+};
+function useLang() {
+  const [lang, setLang] = useState(() => localStorage.getItem('btm_lang') || ((['es','pt','fr'].includes((navigator.language||'en').slice(0,2))) ? navigator.language.slice(0,2) : 'en'));
+  const copy = LANGS[lang] || LANGS.en;
+  const chooseLang = (code) => { setLang(code); localStorage.setItem('btm_lang', code); };
+  return { lang, copy, chooseLang };
+}
+function LangSwitch({ lang, chooseLang }) {
+  return (
+    <div style={{ display:'flex', justifyContent:'center', gap:8, marginBottom:16 }}>
+      {['en','es','pt','fr'].map(code => (
+        <button key={code} type="button" onClick={() => chooseLang(code)} style={{ padding:'4px 8px', borderRadius:999, border:'1px solid rgba(255,255,255,0.25)', background: lang===code ? '#e7edf3' : 'transparent', color: lang===code ? '#1a212b' : '#d7e3ee', fontSize:12, fontWeight:700, cursor:'pointer' }}>{code.toUpperCase()}</button>
+      ))}
+    </div>
+  );
+}
+
+
 const API = (typeof window !== 'undefined' && /betorlay\.uk$/.test(window.location.hostname)) ? '' : 'http://localhost:3001';
 
 
