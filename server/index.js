@@ -9,8 +9,19 @@ const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 const webpush = require("web-push");
 const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 
 const AUTH_SECRET = process.env.AUTH_SECRET || "";
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT || 587),
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 function passwordProblem(password) {
   const p = String(password || "");
@@ -3217,8 +3228,23 @@ app.post("/api/beta-register", async (req, res) => {
 
   console.log("BETA REGISTER:", { name, email, day, at: new Date().toISOString() });
 
-  // Optional: store permanently with Prisma
-  // await prisma.betaRegistration.create({ data: { name, email, day } });
+  try {
+    if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || "noreply@betorlay.uk",
+        to: "admin@betorlay.uk",
+        subject: "New Beta Registration",
+        text: `New beta registration:\n\nName: ${name}\nEmail: ${email}\nDay: ${day}\nTime: ${new Date().toISOString()}`,
+        html: `<p><strong>New beta registration</strong></p>
+               <p>Name: ${name}<br>
+               Email: ${email}<br>
+               Day: ${day}<br>
+               Time: ${new Date().toISOString()}</p>`,
+      });
+    }
+  } catch (err) {
+    console.error("Email send failed:", err.message);
+  }
 
   res.json({ success: true });
 });

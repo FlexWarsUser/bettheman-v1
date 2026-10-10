@@ -28,8 +28,13 @@ export default function Beta() {
     return (
       <div style={styles.wrap}>
         <div style={styles.card}>
-          <h1 style={styles.h1}>You’re registered</h1>
-          <p style={styles.sub}>We’ll send your login details on the morning of the day you selected.</p>
+          <h1 style={styles.h1}>Thanks for registering</h1>
+          <p style={styles.sub}>
+            Your login details will be sent to your registered email address on the morning of the day you selected.
+          </p>
+          <p style={styles.sub}>
+            You can drop in any time between 12 noon and 8pm UK time.
+          </p>
         </div>
       </div>
     );
@@ -116,7 +121,7 @@ const styles = {
   logoWrap: { textAlign: "center", marginBottom: 20 },
   logo: { height: 48 },
   h1: { textAlign: "center", fontSize: "1.5rem", marginBottom: 8, color: "#fff" },
-  sub: { textAlign: "center", color: "#aaa", fontSize: "0.9rem", marginBottom: 24, lineHeight: 1.4 },
+  sub: { textAlign: "center", color: "#aaa", fontSize: "0.9rem", marginBottom: 16, lineHeight: 1.4 },
   label: { display: "block", fontSize: "0.85rem", color: "#ccc", marginBottom: 6 },
   input: {
     width: "100%",
