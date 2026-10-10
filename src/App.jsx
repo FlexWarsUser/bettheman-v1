@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Ops from './Ops';
 import UserHome from './UserHome';
-
+import Beta from './Beta';
 function getStoredUser() {
   try {
     const raw = localStorage.getItem('btm_user');
@@ -40,6 +40,8 @@ export default function App() {
           </RequireAuth>
         }
       />
+      <Route path="/beta" element={<Beta />} />
+<Route path="*" element={<Navigate to="/" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

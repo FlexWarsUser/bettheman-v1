@@ -3209,6 +3209,19 @@ app.post("/api/notes", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+app.post("/api/beta-register", async (req, res) => {
+  const { name, email, day } = req.body || {};
+  if (!name || !email || !day) {
+    return res.status(400).json({ success: false, error: "Missing fields" });
+  }
+
+  console.log("BETA REGISTER:", { name, email, day, at: new Date().toISOString() });
+
+  // Optional: store permanently with Prisma
+  // await prisma.betaRegistration.create({ data: { name, email, day } });
+
+  res.json({ success: true });
+});
 function emitBetUpdated(payload) {
   io.emit("betUpdated", payload);
 }
