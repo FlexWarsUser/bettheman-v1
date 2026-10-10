@@ -1237,7 +1237,7 @@ function validHexColor(v) {
 
 app.get("/api/houses/branding", async (req, res) => {
   try {
-    const actor = req.query.actorId ? await getUserRow(parseInt(req.query.actorId, 10)) : null;
+    const actor = await actorFromRequest(req);
     if (!actor || !actor.houseId) {
       return res.status(403).json({ success: false, error: "House only" });
     }
@@ -1263,7 +1263,7 @@ app.get("/api/houses/branding", async (req, res) => {
 
 app.post("/api/houses/branding", async (req, res) => {
   try {
-    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    const actor = await actorFromRequest(req);
     if (!isHouseOps(actor) || !actor.houseId) {
       return res.status(403).json({ success: false, error: "House only" });
     }
@@ -1570,9 +1570,11 @@ io.to("user:" + String(to)).emit("chat:message", payload);
 // End chat — delete all messages between punter and House (images go too)
 app.delete("/api/chat/:otherUserId", async (req, res) => {
   try {
-    const me = parseInt(req.query.userId, 10);
+    const actor = await actorFromRequest(req);
+    if (!actor) return res.status(401).json({ success: false, error: "Not signed in" });
+    const me = Number(actor.id);
     const other = parseInt(req.params.otherUserId, 10);
-    if (!me || !other) {
+    if (!other) {
       return res.status(400).json({ success: false, error: "userId required" });
     }
     if (!(await houseCanManageThread(me, other)) && !(await chatAllowed(me, other))) {
@@ -1890,13 +1892,17 @@ app.post("/api/auth/2fa/disable", async (req, res) => {
 });
 app.post("/api/auth/set-password", async (req, res) => {
   try {
+    const actor = await actorFromRequest(req);
+    if (!isHouseOps(actor)) return res.status(403).json({ success: false, error: "House only" });
     const userId = parseInt(req.body.userId);
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
-    const role = String(req.body.role || "punter");
+    const role = isPlatformAdmin(actor) ? String(req.body.role || "punter") : "punter";
     if (!userId || !email || !password) {
       return res.status(400).json({ success: false, error: "userId, email and password required" });
     }
+    const target = await getUserRow(userId);
+    if (!target || !sameHouse(actor, target)) return res.status(403).json({ success: false, error: "Not allowed" });
     const pwErr = passwordProblem(password);
     if (pwErr) return res.status(400).json({ success: false, error: pwErr });
     const hash = await bcrypt.hash(password, 10);
@@ -2026,8 +2032,7 @@ app.post("/api/users", async (req, res) => {
     const name = String(req.body.name || "").trim();
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
-    let actor = await actorFromRequest(req);
-    if (!actor && req.body.actorId) actor = await getUserRow(req.body.actorId);
+    const actor = await actorFromRequest(req);
     if (!isHouseOps(actor)) return res.status(403).json({ success: false, error: "House only" });
     if (actor.role !== "admin") {
       const live = await assertHouseLive(actor.houseId);
@@ -2188,7 +2193,7 @@ status: "pending",
 
 app.get("/api/bets", async (req, res) => {
   try {
-    const actor = await actorFromRequest(req) || (req.query.actorId || req.query.userId ? await getUserRow(parseInt(req.query.actorId || req.query.userId, 10)) : null);
+    const actor = await actorFromRequest(req);
     if (!actor) return res.status(401).json({ error: "Not signed in" });
     const where = {};
     if (!(isPlatformAdmin(actor) && req.query.all === "1")) {
@@ -2678,7 +2683,8 @@ async function readAvatar(houseId, userId) {
 app.get("/api/users/:id/avatar", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const actor = req.query.actorId ? await getUserRow(parseInt(req.query.actorId, 10)) : null;
+    const actor = await actorFromRequest(req);
+    if (!actor) return res.status(401).json({ success: false, error: "Not signed in" });
     const target = await getUserRow(id);
     if (!target) return res.status(404).json({ success: false, error: "Not found" });
     if (actor && actor.houseId && target.houseId && Number(actor.houseId) !== Number(target.houseId)) {
@@ -2694,7 +2700,7 @@ app.get("/api/users/:id/avatar", async (req, res) => {
 app.post("/api/users/:id/avatar", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    const actor = await actorFromRequest(req);
     if (!actor || Number(actor.id) !== id) {
       return res.status(403).json({ success: false, error: "You can only change your own avatar" });
     }
@@ -2841,7 +2847,9 @@ app.post("/api/push/subscribe", async (req, res) => {
 });
 app.post("/api/push/unsubscribe", async (req, res) => {
   try {
-    const userId = parseInt(req.body.userId, 10);
+    const actor = await actorFromRequest(req);
+    if (!actor) return res.status(401).json({ success: false, error: "Not signed in" });
+    const userId = Number(actor.id);
     if (!userId) return res.status(400).json({ success: false, error: "Missing userId" });
     await prisma.pushSubscription.deleteMany({ where: { userId } });
     res.json({ success: true });
@@ -2852,8 +2860,8 @@ app.post("/api/push/unsubscribe", async (req, res) => {
 app.post("/api/settings", async (req, res) => {
   try {
 const { skipHouseFirstLook, skipHouseResidual, layerTimerSeconds, fcfsAllocation, partyMode } = req.body;
-    let actor = await actorFromRequest(req);
-    if (!actor && req.body.actorId) actor = await getUserRow(req.body.actorId);
+    const actor = await actorFromRequest(req);
+    if (!actor) return res.status(401).json({ success: false, error: "Not signed in" });
     if (!isHouseOps(actor)) return res.status(403).json({ success: false, error: "House only" });
     const houseId = actor && actor.houseId ? Number(actor.houseId) : null;
     if (typeof skipHouseFirstLook === "boolean") {
@@ -2952,7 +2960,10 @@ app.post("/api/events/bulk", async (req, res) => {
     if (!rows.length) {
       return res.status(400).json({ success: false, error: "No events provided" });
     }
-    const actor = req.body.actorId ? await getUserRow(req.body.actorId) : null;
+    const actor = await actorFromRequest(req);
+    if (!isPlatformAdmin(actor)) {
+      return res.status(403).json({ success: false, error: "Platform admin only" });
+    }
     if (actor && !isPlatformAdmin(actor) && Number(actor.houseId) !== 1) {
       return res.status(403).json({ success: false, error: "Licensed houses use the main event list" });
     }
@@ -2978,12 +2989,8 @@ const result = await prisma.event.createMany({ data });
 // DELETE /api/events  (all)
 app.delete("/api/events", async (req, res) => {
   try {
-    const actor = req.body?.actorId || req.query.actorId
-      ? await getUserRow(req.body?.actorId || req.query.actorId)
-      : null;
-    if (actor && !isPlatformAdmin(actor) && Number(actor.houseId) !== 1) {
-      return res.status(403).json({ success: false, error: "Licensed houses use the main event list" });
-    }
+    const actor = await actorFromRequest(req);
+    if (!isPlatformAdmin(actor)) return res.status(403).json({ success: false, error: "Platform admin only" });
     const where = { OR: [{ houseId: 1 }, { houseId: null }] };
     const result = await prisma.event.deleteMany({ where });
     res.json({ success: true, count: result.count });
@@ -2994,12 +3001,8 @@ app.delete("/api/events", async (req, res) => {
 // DELETE /api/events/:id
 app.delete("/api/events/:id", async (req, res) => {
   try {
-    const actor = req.body?.actorId || req.query.actorId
-      ? await getUserRow(req.body?.actorId || req.query.actorId)
-      : null;
-    if (actor && !isPlatformAdmin(actor) && Number(actor.houseId) !== 1) {
-      return res.status(403).json({ success: false, error: "Licensed houses use the main event list" });
-    }
+    const actor = await actorFromRequest(req);
+    if (!isPlatformAdmin(actor)) return res.status(403).json({ success: false, error: "Platform admin only" });
     const id = parseInt(req.params.id);
     await prisma.event.delete({ where: { id } });
     res.json({ success: true });
