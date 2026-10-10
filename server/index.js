@@ -1682,6 +1682,13 @@ app.get("/api/users", async (req, res) => {
   try {
     const actor = await actorFromRequest(req);
     if (!actor) return res.status(401).json({ error: "Not signed in" });
+    if (!isHouseOps(actor)) {
+      const me = await prisma.user.findUnique({
+        where: { id: Number(actor.id) },
+        select: { id: true, name: true, canLay: true, canLayAllowed: true, role: true, houseId: true },
+      });
+      return res.json(me ? [me] : []);
+    }
     const where = {};
     const wantAll = isPlatformAdmin(actor) && String(req.query.all || "") === "1";
     if (!wantAll) {
