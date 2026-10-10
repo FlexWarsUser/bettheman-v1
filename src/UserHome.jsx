@@ -471,6 +471,19 @@ export default function UserHome() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [lang, setLang] = useState(() => {
+    const saved = localStorage.getItem('btm_lang');
+    if (saved) return saved;
+    const nav = (navigator.language || 'en').slice(0, 2).toLowerCase();
+    return ['es', 'pt', 'fr'].includes(nav) ? nav : 'en';
+  });
+  const copy = {
+    en: { email: 'Email', password: 'Password', code: 'Authenticator code', codePh: '6-digit code', signIn: 'Sign in', signing: 'Signing in…', host: 'Please contact your host for login details', contact: 'Contact us on Telegram' },
+    es: { email: 'Correo', password: 'Contraseña', code: 'Código de autenticación', codePh: 'Código de 6 dígitos', signIn: 'Entrar', signing: 'Entrando…', host: 'Contacta con tu anfitrión para los datos de acceso', contact: 'Contáctanos en Telegram' },
+    pt: { email: 'Email', password: 'Palavra-passe', code: 'Código de autenticação', codePh: 'Código de 6 dígitos', signIn: 'Entrar', signing: 'A entrar…', host: 'Contacte o anfitrião para os dados de acesso', contact: 'Contacte-nos no Telegram' },
+    fr: { email: 'E-mail', password: 'Mot de passe', code: "Code d'authentification", codePh: 'Code à 6 chiffres', signIn: 'Connexion', signing: 'Connexion…', host: "Contactez votre hôte pour les identifiants", contact: 'Contactez-nous sur Telegram' },
+  }[lang] || { email: 'Email', password: 'Password', code: 'Authenticator code', codePh: '6-digit code', signIn: 'Sign in', signing: 'Signing in…', host: 'Please contact your host for login details', contact: 'Contact us on Telegram' };
+  const chooseLang = (code) => { setLang(code); localStorage.setItem('btm_lang', code); };
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
@@ -569,7 +582,7 @@ if (data.user.role === 'admin' || data.user.role === 'house') {
   return;
 }
     } catch (err) {
-      setError(err.message === 'Failed to fetch' ? 'Please contact your host for login details' : (err.message || 'Please contact your host for login details'));
+      setError(err.message === 'Failed to fetch' ? copy.host : (err.message || copy.host));
     }
     setLoading(false);
   };
@@ -597,15 +610,20 @@ useEffect(() => {
       <h1 style={{ textAlign: 'center', margin: '0 0 22px' }}>
         <img src="/logo-login.png" alt="BetOrLay" style={{ maxWidth: '210px', height: 'auto' }} />
       </h1>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
+        {['en', 'es', 'pt', 'fr'].map(code => (
+          <button key={code} type="button" onClick={() => chooseLang(code)} style={{ padding: '4px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.25)', background: lang === code ? '#e7edf3' : 'transparent', color: lang === code ? '#1a212b' : '#d7e3ee', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{code.toUpperCase()}</button>
+        ))}
+      </div>
       <div>
-        <div style={{ marginBottom: 8, color: '#b7c0cc', fontSize: 13 }}>Email</div>
+        <div style={{ marginBottom: 8, color: '#b7c0cc', fontSize: 13 }}>{copy.email}</div>
         <input type="text" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
-        <div style={{ marginTop: 14, marginBottom: 8, color: '#b7c0cc', fontSize: 13 }}>Password</div>
+        <div style={{ marginTop: 14, marginBottom: 8, color: '#b7c0cc', fontSize: 13 }}>{copy.password}</div>
         <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} />
         {needs2fa && (
           <>
-            <div style={{ marginTop: 14, marginBottom: 8, color: '#b7c0cc', fontSize: 13 }}>Authenticator code</div>
-            <input type="text" inputMode="numeric" autoComplete="one-time-code" value={totpCode} onChange={e => setTotpCode(e.target.value)} placeholder="6-digit code" style={inputStyle} />
+            <div style={{ marginTop: 14, marginBottom: 8, color: '#b7c0cc', fontSize: 13 }}>{copy.code}</div>
+            <input type="text" inputMode="numeric" autoComplete="one-time-code" value={totpCode} onChange={e => setTotpCode(e.target.value)} placeholder={copy.codePh} style={inputStyle} />
           </>
         )}
         {error && <p style={{ color: '#ff8d8d', fontSize: 14 }}>{error}</p>}
@@ -627,7 +645,7 @@ useEffect(() => {
             cursor: loading ? 'default' : 'pointer',
           }}
         >
-          {loading ? 'Signing in…' : 'Sign in'}
+          {loading ? copy.signing : copy.signIn}
         </button>
         </div>
       </div>
@@ -636,7 +654,7 @@ useEffect(() => {
         href="https://t.me/BetOrLayBot"
         target="_blank"
         rel="noreferrer"
-        aria-label="Contact us on Telegram"
+        aria-label={copy.contact}
         style={{
           position: 'fixed',
           left: '50%',
