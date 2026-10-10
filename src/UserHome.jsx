@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 
 const LANGS = {
-  en: { email:'Email', password:'Password', code:'Authenticator code', codePh:'6-digit code', signIn:'Sign in', signing:'Signing in…', host:'Please contact your host for login details', contact:'Contact us on Telegram', balance:'Balance', openLays:'Open lays', slip:'Betting Slip', bets:'My Bets', lays:'My Lays', showSlip:'Show/Hide Betting Slip', details:'Enter bet details', event:'Event', selection:'Selection', odds:'Odds', stake:'Stake', win:'Win', eachWay:'Each way', place:'Place bet', account:'Account' },
-  es: { email:'Correo', password:'Contraseña', code:'Código de autenticación', codePh:'Código de 6 dígitos', signIn:'Entrar', signing:'Entrando…', host:'Contacta con tu anfitrión para los datos de acceso', contact:'Contáctanos en Telegram', balance:'Saldo', openLays:'Apuestas abiertas', slip:'Boleto', bets:'Mis apuestas', lays:'Mis lays', showSlip:'Mostrar/ocultar boleto', details:'Introduce la apuesta', event:'Evento', selection:'Selección', odds:'Cuota', stake:'Importe', win:'Ganador', eachWay:'Each way', place:'Apostar', account:'Cuenta' },
-  pt: { email:'Email', password:'Palavra-passe', code:'Código de autenticação', codePh:'Código de 6 dígitos', signIn:'Entrar', signing:'A entrar…', host:'Contacte o anfitrião para os dados de acesso', contact:'Contacte-nos no Telegram', balance:'Saldo', openLays:'Lays em aberto', slip:'Boletim', bets:'As minhas apostas', lays:'Os meus lays', showSlip:'Mostrar/ocultar boletim', details:'Introduza a aposta', event:'Evento', selection:'Seleção', odds:'Odd', stake:'Valor', win:'Vitória', eachWay:'Each way', place:'Apostar', account:'Conta' },
-  fr: { email:'E-mail', password:'Mot de passe', code:"Code d'authentification", codePh:'Code à 6 chiffres', signIn:'Connexion', signing:'Connexion…', host:"Contactez votre hôte pour les identifiants", contact:'Contactez-nous sur Telegram', balance:'Solde', openLays:'Lays ouverts', slip:'Ticket', bets:'Mes paris', lays:'Mes lays', showSlip:'Afficher/masquer le ticket', details:'Saisissez le pari', event:'Événement', selection:'Sélection', odds:'Cote', stake:'Mise', win:'Gagnant', eachWay:'Each way', place:'Parier', account:'Compte' },
+  en: { email:'Email', password:'Password', code:'Authenticator code', codePh:'6-digit code', signIn:'Sign in', signing:'Signing in…', host:'Please contact your host for login details', contact:'Contact us on Telegram', balance:'Balance', openLays:'Open lays', slip:'Betting Slip', bets:'My Bets', lays:'My Lays', showSlip:'Show/Hide Betting Slip', details:'Enter bet details', event:'Event', selection:'Selection', odds:'Odds', stake:'Stake', win:'Win', eachWay:'Each way', place:'Place bet', account:'Account', activate:'Activate Lays', showBal:'Show balance on home screen', avatar:'Avatar designer', twofa:'Two-factor login', enableN:'Enable notifications', disableN:'Disable notifications', changePw:'Change password', logout:'Log out', logoutAsk:'Log out of BetOrLay?' },
+  es: { email:'Correo', password:'Contraseña', code:'Código de autenticación', codePh:'Código de 6 dígitos', signIn:'Entrar', signing:'Entrando…', host:'Contacta con tu anfitrión para los datos de acceso', contact:'Contáctanos en Telegram', balance:'Saldo', openLays:'Apuestas abiertas', slip:'Boleto', bets:'Mis apuestas', lays:'Mis lays', showSlip:'Mostrar/ocultar boleto', details:'Introduce la apuesta', event:'Evento', selection:'Selección', odds:'Cuota', stake:'Importe', win:'Ganador', eachWay:'Each way', place:'Apostar', account:'Cuenta', activate:'Activar lays', showBal:'Mostrar saldo en inicio', avatar:'Diseñador de avatar', twofa:'Acceso en dos pasos', enableN:'Activar notificaciones', disableN:'Desactivar notificaciones', changePw:'Cambiar contraseña', logout:'Salir', logoutAsk:'¿Salir de BetOrLay?' },
+  pt: { email:'Email', password:'Palavra-passe', code:'Código de autenticação', codePh:'Código de 6 dígitos', signIn:'Entrar', signing:'A entrar…', host:'Contacte o anfitrião para os dados de acesso', contact:'Contacte-nos no Telegram', balance:'Saldo', openLays:'Lays em aberto', slip:'Boletim', bets:'As minhas apostas', lays:'Os meus lays', showSlip:'Mostrar/ocultar boletim', details:'Introduza a aposta', event:'Evento', selection:'Seleção', odds:'Odd', stake:'Valor', win:'Vitória', eachWay:'Each way', place:'Apostar', account:'Conta', activate:'Ativar lays', showBal:'Mostrar saldo no início', avatar:'Criador de avatar', twofa:'Acesso em dois passos', enableN:'Ativar notificações', disableN:'Desativar notificações', changePw:'Alterar palavra-passe', logout:'Sair', logoutAsk:'Sair do BetOrLay?' },
+  fr: { email:'E-mail', password:'Mot de passe', code:"Code d'authentification", codePh:'Code à 6 chiffres', signIn:'Connexion', signing:'Connexion…', host:"Contactez votre hôte pour les identifiants", contact:'Contactez-nous sur Telegram', balance:'Solde', openLays:'Lays ouverts', slip:'Ticket', bets:'Mes paris', lays:'Mes lays', showSlip:'Afficher/masquer le ticket', details:'Saisissez le pari', event:'Événement', selection:'Sélection', odds:'Cote', stake:'Mise', win:'Gagnant', eachWay:'Each way', place:'Parier', account:'Compte', activate:'Activer les lays', showBal:'Afficher le solde', avatar:"Créateur d'avatar", twofa:'Connexion à deux facteurs', enableN:'Activer les notifications', disableN:'Désactiver les notifications', changePw:'Changer le mot de passe', logout:'Déconnexion', logoutAsk:'Se déconnecter de BetOrLay ?' },
 };
 function useLang() {
   const [lang, setLang] = useState(() => localStorage.getItem('btm_lang') || ((['es','pt','fr'].includes((navigator.language||'en').slice(0,2))) ? navigator.language.slice(0,2) : 'en'));
@@ -2697,13 +2697,13 @@ style={{
         </div>
       </div>
       <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
-        <div style={{ color: '#00ff88', fontWeight: 700, marginBottom: 6 }}>Balance: £{Number(user.balance || 0).toFixed(2)}</div>
-        <div style={{ color: '#ff6b6b', fontWeight: 600 }}>Open lays: £{Number(openLaysExposure || 0).toFixed(2)}</div>
+        <div style={{ color: '#00ff88', fontWeight: 700, marginBottom: 6 }}>{copy.balance}: £{Number(user.balance || 0).toFixed(2)}</div>
+        <div style={{ color: '#ff6b6b', fontWeight: 600 }}>{copy.openLays}: £{Number(openLaysExposure || 0).toFixed(2)}</div>
       </div>
       {!!user.canLayAllowed && (
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, cursor: 'pointer' }}>
           <input type="checkbox" checked={!!user.canLay} onChange={toggleLayerProfile} />
-          Activate Lays
+          {copy.activate}
         </label>
       )}
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, cursor: 'pointer' }}>
@@ -2718,11 +2718,11 @@ style={{
             });
           }}
         />
-        Show balance on home screen
+        {copy.showBal}
       </label>
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, cursor: 'pointer' }}>
         <input type="checkbox" checked={showDesigner} onChange={e => setShowDesigner(e.target.checked)} />
-        Avatar designer
+        {copy.avatar}
       </label>
       {showDesigner && (
         <div style={{ marginBottom: 14, padding: 12, border: '1px solid #3a3a5c', borderRadius: 8 }}>
@@ -2894,7 +2894,7 @@ style={{
               setTotpOffPending(true);
             }}
           />
-          Two-factor login
+          {copy.twofa}
         </label>
         {!!totpSecret && !user.totpEnabled && (
           <>
@@ -2945,7 +2945,7 @@ style={{
           }}
           style={{ width: '100%', padding: 10, marginBottom: 12, background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}
         >
-          Enable notifications
+          {copy.enableN}
         </button>
       )}
       {pushOn && (
@@ -2968,24 +2968,24 @@ style={{
           }}
           style={{ width: '100%', padding: 10, marginBottom: 12, background: '#3a3a5c', color: '#e8e8e8', border: 'none', borderRadius: 6, cursor: 'pointer' }}
         >
-          Disable notifications
+          {copy.disableN}
         </button>
       )}
 
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, cursor: 'pointer' }}>
         <input type="checkbox" checked={showPassword} onChange={e => setShowPassword(e.target.checked)} />
-        Change password
+        {copy.changePw}
       </label>
       {showPassword && (
         <div style={{ marginBottom: 12 }}>
           <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Current password" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
           <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="New password (8+, upper, lower, number)" style={{ width: '100%', padding: 8, marginBottom: 8, background: '#252540', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6 }} />
-          <button type="button" onClick={changePassword} style={{ width: '100%', padding: 8, background: 'transparent', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6, cursor: 'pointer' }}>Change password</button>
+          <button type="button" onClick={changePassword} style={{ width: '100%', padding: 8, background: 'transparent', color: '#e8e8e8', border: '1px solid #3a3a5c', borderRadius: 6, cursor: 'pointer' }}>{copy.changePw}</button>
           {pwMessage && <div style={{ marginTop: 8, fontSize: 13 }}>{pwMessage}</div>}
         </div>
       )}
-      <button type="button" onClick={() => { if (window.confirm('Log out of BetOrLay?')) onLogout(); }} style={{ width: '100%', padding: '7px 10px', marginTop: 4, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
-        Log out
+      <button type="button" onClick={() => { if (window.confirm(copy.logoutAsk)) onLogout(); }} style={{ width: '100%', padding: '7px 10px', marginTop: 4, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+        {copy.logout}
       </button>
     </div>
   </div>
