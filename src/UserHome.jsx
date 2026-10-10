@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 
 const LANGS = {
-  en: { email:'Email', password:'Password', code:'Authenticator code', codePh:'6-digit code', signIn:'Sign in', signing:'Signing in…', host:'Please contact your host for login details', contact:'Contact us on Telegram', balance:'Balance', openLays:'Open lays', slip:'Betting Slip', bets:'My Bets', lays:'My Lays', showSlip:'Show/Hide Betting Slip', details:'Enter bet details', event:'Event', selection:'Selection', odds:'Odds', stake:'Stake', win:'Win', eachWay:'Each way', place:'Place bet', account:'Account', activate:'Activate Lays', showBal:'Show balance on home screen', avatar:'Avatar designer', twofa:'Two-factor login', enableN:'Enable notifications', disableN:'Disable notifications', changePw:'Change password', logout:'Log out', logoutAsk:'Log out of BetOrLay?' },
-  es: { email:'Correo', password:'Contraseña', code:'Código de autenticación', codePh:'Código de 6 dígitos', signIn:'Entrar', signing:'Entrando…', host:'Contacta con tu anfitrión para los datos de acceso', contact:'Contáctanos en Telegram', balance:'Saldo', openLays:'Apuestas abiertas', slip:'Boleto', bets:'Mis apuestas', lays:'Mis lays', showSlip:'Mostrar/ocultar boleto', details:'Introduce la apuesta', event:'Evento', selection:'Selección', odds:'Cuota', stake:'Importe', win:'Ganador', eachWay:'Each way', place:'Apostar', account:'Cuenta', activate:'Activar lays', showBal:'Mostrar saldo en inicio', avatar:'Diseñador de avatar', twofa:'Acceso en dos pasos', enableN:'Activar notificaciones', disableN:'Desactivar notificaciones', changePw:'Cambiar contraseña', logout:'Salir', logoutAsk:'¿Salir de BetOrLay?' },
-  pt: { email:'Email', password:'Palavra-passe', code:'Código de autenticação', codePh:'Código de 6 dígitos', signIn:'Entrar', signing:'A entrar…', host:'Contacte o anfitrião para os dados de acesso', contact:'Contacte-nos no Telegram', balance:'Saldo', openLays:'Lays em aberto', slip:'Boletim', bets:'As minhas apostas', lays:'Os meus lays', showSlip:'Mostrar/ocultar boletim', details:'Introduza a aposta', event:'Evento', selection:'Seleção', odds:'Odd', stake:'Valor', win:'Vitória', eachWay:'Each way', place:'Apostar', account:'Conta', activate:'Ativar lays', showBal:'Mostrar saldo no início', avatar:'Criador de avatar', twofa:'Acesso em dois passos', enableN:'Ativar notificações', disableN:'Desativar notificações', changePw:'Alterar palavra-passe', logout:'Sair', logoutAsk:'Sair do BetOrLay?' },
-  fr: { email:'E-mail', password:'Mot de passe', code:"Code d'authentification", codePh:'Code à 6 chiffres', signIn:'Connexion', signing:'Connexion…', host:"Contactez votre hôte pour les identifiants", contact:'Contactez-nous sur Telegram', balance:'Solde', openLays:'Lays ouverts', slip:'Ticket', bets:'Mes paris', lays:'Mes lays', showSlip:'Afficher/masquer le ticket', details:'Saisissez le pari', event:'Événement', selection:'Sélection', odds:'Cote', stake:'Mise', win:'Gagnant', eachWay:'Each way', place:'Parier', account:'Compte', activate:'Activer les lays', showBal:'Afficher le solde', avatar:"Créateur d'avatar", twofa:'Connexion à deux facteurs', enableN:'Activer les notifications', disableN:'Désactiver les notifications', changePw:'Changer le mot de passe', logout:'Déconnexion', logoutAsk:'Se déconnecter de BetOrLay ?' },
+  en: { email:'Email', password:'Password', code:'Authenticator code', codePh:'6-digit code', signIn:'Sign in', signing:'Signing in…', host:'Please contact your host for login details', contact:'Contact us on Telegram', balance:'Balance', openLays:'Open lays', slip:'Betting Slip', bets:'My Bets', lays:'My Lays', showSlip:'Show/Hide Betting Slip', details:'Enter bet details', event:'Event', selection:'Selection', odds:'Odds', stake:'Stake', win:'Win', eachWay:'Each way', place:'Place bet', account:'Account', activate:'Activate Lays', showBal:'Show balance on home screen', avatar:'Avatar designer', twofa:'Two-factor login', enableN:'Enable notifications', disableN:'Disable notifications', changePw:'Change password', logout:'Log out', logoutAsk:'Log out of BetOrLay?', active:'Active Bets', settled:'Settled Bets', notAccepted:'Not Accepted', noSettled:'No settled bets.', openLaysTitle:'Open Lays', settledLays:'Settled Lays', noLays:'No settled lays yet.', yourLay:'Your lay', liability:'Liability', by:'by', full:'fully laid', partial:'partially laid', submitted:'Submitted', accepted:'Accepted', awaiting:' (awaiting apportioning)', rejected:' — Bid rejected, bet filled by other layers', winWord:'Win', sex:'Sex', female:'female', male:'male', skin:'Skin', hairColour:'Hair colour', hair:'Hair', face:'Face shape', brows:'Brows', marks:'Facial hair & marks', eyes:'Eyes', mouth:'Mouth', glasses:'Glasses', saveAvatar:'Save avatar' },
+  es: { email:'Correo', password:'Contraseña', code:'Código de autenticación', codePh:'Código de 6 dígitos', signIn:'Entrar', signing:'Entrando…', host:'Contacta con tu anfitrión para los datos de acceso', contact:'Contáctanos en Telegram', balance:'Saldo', openLays:'Apuestas abiertas', slip:'Cupón', bets:'Mis apuestas', lays:'Mis lays', showSlip:'Mostrar/ocultar boleto', details:'Introduce la apuesta', event:'Evento', selection:'Selección', odds:'Cuota', stake:'Importe', win:'Ganador', eachWay:'Ganador y colocado', place:'Apostar', account:'Cuenta', activate:'Activar lays', showBal:'Mostrar saldo en inicio', avatar:'Diseñador de avatar', twofa:'Acceso en dos pasos', enableN:'Activar notificaciones', disableN:'Desactivar notificaciones', changePw:'Cambiar contraseña', logout:'Salir', logoutAsk:'¿Salir de BetOrLay?', active:'Apuestas activas', settled:'Apuestas liquidadas', notAccepted:'No aceptada', noSettled:'No hay apuestas liquidadas.', openLaysTitle:'Lays abiertos', settledLays:'Lays liquidados', noLays:'Aún no hay lays liquidados.', yourLay:'Tu lay', liability:'Responsabilidad', by:'por', full:'lay igualado', partial:'lay parcial', submitted:'Enviada', accepted:'Aceptada', awaiting:' (pendiente de reparto)', rejected:' — Puja rechazada, cubierta por otros', winWord:'Ganador', sex:'Sexo', female:'mujer', male:'hombre', skin:'Piel', hairColour:'Color de pelo', hair:'Pelo', face:'Forma de cara', brows:'Cejas', marks:'Vello y marcas', eyes:'Ojos', mouth:'Boca', glasses:'Gafas', saveAvatar:'Guardar avatar', opt:{'Long A':'Largo A','Long B':'Largo B','Long C':'Largo C','Long D':'Largo D','Long E':'Largo E','Long F':'Largo F','Long G':'Largo G','Long H':'Largo H','Balding':'Entradas','Bald':'Calvo','Crop A':'Corto A','Crop B':'Corto B','Crop C':'Corto C','Crop D':'Corto D','Crop E':'Corto E','Crop F':'Corto F','Crop G':'Corto G','Open':'Abiertos','Soft':'Suave','Keen':'Atentos','Calm':'Calma','Bright':'Brillantes','Sharp':'Marcados','Warm':'Cálidos','Deep':'Profundos','Smile':'Sonrisa','Grin':'Amplia','Neutral':'Neutra','Wide':'Ancha','Small':'Pequeña','Set':'Fija','None':'Ninguno','Round':'Redondo','Square':'Cuadrado','Narrow':'Estrecho','Thick':'Grueso','Oval':'Ovalado','Slim':'Delgado','Straight':'Rectas','Arched':'Arqueadas','Heavy':'Pobladas','Moustache':'Bigote','Freckles':'Pecas','Blush':'Rubor','Birthmark':'Marca'} },
+  pt: { email:'Email', password:'Palavra-passe', code:'Código de autenticação', codePh:'Código de 6 dígitos', signIn:'Entrar', signing:'A entrar…', host:'Contacte o anfitrião para os dados de acesso', contact:'Contacte-nos no Telegram', balance:'Saldo', openLays:'Lays em aberto', slip:'Boletim', bets:'As minhas apostas', lays:'Os meus lays', showSlip:'Mostrar/ocultar boletim', details:'Introduza a aposta', event:'Evento', selection:'Seleção', odds:'Odd', stake:'Valor', win:'Vencedor', eachWay:'Vencedor e colocado', place:'Apostar', account:'Conta', activate:'Ativar lays', showBal:'Mostrar saldo no início', avatar:'Criador de avatar', twofa:'Acesso em dois passos', enableN:'Ativar notificações', disableN:'Desativar notificações', changePw:'Alterar palavra-passe', logout:'Sair', logoutAsk:'Sair do BetOrLay?', active:'Apostas ativas', settled:'Apostas liquidadas', notAccepted:'Não aceite', noSettled:'Sem apostas liquidadas.', openLaysTitle:'Lays em aberto', settledLays:'Lays liquidados', noLays:'Ainda sem lays liquidados.', yourLay:'O seu lay', liability:'Responsabilidade', by:'por', full:'lay igualado', partial:'lay parcial', submitted:'Enviada', accepted:'Aceite', awaiting:' (a aguardar repartição)', rejected:' — Licitação rejeitada, coberta por outros', winWord:'Vencedor', sex:'Sexo', female:'mulher', male:'homem', skin:'Pele', hairColour:'Cor do cabelo', hair:'Cabelo', face:'Formato do rosto', brows:'Sobrancelhas', marks:'Pelos e marcas', eyes:'Olhos', mouth:'Boca', glasses:'Óculos', saveAvatar:'Guardar avatar', opt:{'Long A':'Largo A','Long B':'Largo B','Long C':'Largo C','Long D':'Largo D','Long E':'Largo E','Long F':'Largo F','Long G':'Largo G','Long H':'Largo H','Balding':'Entradas','Bald':'Calvo','Crop A':'Corto A','Crop B':'Corto B','Crop C':'Corto C','Crop D':'Corto D','Crop E':'Corto E','Crop F':'Corto F','Crop G':'Corto G','Open':'Abiertos','Soft':'Suave','Keen':'Atentos','Calm':'Calma','Bright':'Brillantes','Sharp':'Marcados','Warm':'Cálidos','Deep':'Profundos','Smile':'Sonrisa','Grin':'Amplia','Neutral':'Neutra','Wide':'Ancha','Small':'Pequeña','Set':'Fija','None':'Ninguno','Round':'Redondo','Square':'Cuadrado','Narrow':'Estrecho','Thick':'Grueso','Oval':'Ovalado','Slim':'Delgado','Straight':'Rectas','Arched':'Arqueadas','Heavy':'Pobladas','Moustache':'Bigote','Freckles':'Pecas','Blush':'Rubor','Birthmark':'Marca'} },
+  fr: { email:'E-mail', password:'Mot de passe', code:"Code d'authentification", codePh:'Code à 6 chiffres', signIn:'Connexion', signing:'Connexion…', host:"Contactez votre hôte pour les identifiants", contact:'Contactez-nous sur Telegram', balance:'Solde', openLays:'Lays ouverts', slip:'Ticket', bets:'Mes paris', lays:'Mes lays', showSlip:'Afficher/masquer le ticket', details:'Saisissez le pari', event:'Événement', selection:'Sélection', odds:'Cote', stake:'Mise', win:'Gagnant', eachWay:'Gagnant et placé', place:'Parier', account:'Compte', activate:'Activer les lays', showBal:'Afficher le solde', avatar:"Créateur d'avatar", twofa:'Connexion à deux facteurs', enableN:'Activer les notifications', disableN:'Désactiver les notifications', changePw:'Changer le mot de passe', logout:'Déconnexion', logoutAsk:'Se déconnecter de BetOrLay ?', active:'Paris actifs', settled:'Paris réglés', notAccepted:'Non accepté', noSettled:'Aucun pari réglé.', openLaysTitle:'Lays ouverts', settledLays:'Lays réglés', noLays:'Pas encore de lays réglés.', yourLay:'Votre lay', liability:'Responsabilité', by:'par', full:'lay apparié', partial:'lay partiel', submitted:'Envoyé', accepted:'Accepté', awaiting:' (en attente de répartition)', rejected:' — Offre refusée, couverte par d\'autres', winWord:'Gagnant', sex:'Sexe', female:'femme', male:'homme', skin:'Peau', hairColour:'Couleur de cheveux', hair:'Cheveux', face:'Forme du visage', brows:'Sourcils', marks:'Poils et marques', eyes:'Yeux', mouth:'Bouche', glasses:'Lunettes', saveAvatar:'Enregistrer l\'avatar', opt:{'Long A':'Long A','Long B':'Long B','Long C':'Long C','Long D':'Long D','Long E':'Long E','Long F':'Long F','Long G':'Long G','Long H':'Long H','Balding':'Dégarni','Bald':'Chauve','Crop A':'Court A','Crop B':'Court B','Crop C':'Court C','Crop D':'Court D','Crop E':'Court E','Crop F':'Court F','Crop G':'Court G','Open':'Ouverts','Soft':'Doux','Keen':'Vifs','Calm':'Calmes','Bright':'Brillants','Sharp':'Marqués','Warm':'Chauds','Deep':'Profonds','Smile':'Sourire','Grin':'Large','Neutral':'Neutre','Wide':'Grand','Small':'Petite','Set':'Fixe','None':'Aucun','Round':'Rond','Square':'Carré','Narrow':'Étroit','Thick':'Épais','Oval':'Ovale','Slim':'Fin','Straight':'Droits','Arched':'Arqués','Heavy':'Fournis','Moustache':'Moustache','Freckles':'Taches','Blush':'Rougeur','Birthmark':'Marque'} },
 };
 function useLang() {
   const [lang, setLang] = useState(() => localStorage.getItem('btm_lang') || ((['es','pt','fr'].includes((navigator.language||'en').slice(0,2))) ? navigator.language.slice(0,2) : 'en'));
@@ -2082,7 +2082,7 @@ In Process
     </div>
     <div style={{ marginTop: 6, color: '#ffb347' }}>Pending</div>
     <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>
-      Submitted: {b.createdAt
+      {copy.submitted}: {b.createdAt
         ? new Date(b.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC'
         : '—'}
     </div>
@@ -2119,7 +2119,7 @@ In Process
       {customerTab === 'bets' && (
         <>
   
-          <CollapsibleSection title="Active Bets" defaultOpen={false}>
+          <CollapsibleSection title={copy.active} defaultOpen={false}>
             {activeBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No active bets.</p>}
             {activeBets.map(b => {
               const matched = getMatched(b);
@@ -2134,20 +2134,20 @@ In Process
               const perSide = b.eachWay ? (Number(b.originalStake) || total / 2) : total;
               const matchedSide = b.eachWay ? matched / 2 : matched;
               const isFull = matched >= total - 0.01;
-              const unit = b.eachWay ? 'each way' : 'Win';
+              const unit = b.eachWay ? copy.eachWay : copy.winWord;
               if (isFull) {
-                return `£${Number(perSide).toFixed(0)} ${unit} — fully laid`;
+                return `£${Number(perSide).toFixed(0)} ${unit} — ${copy.full}`;
               }
-              return `£${Number(perSide).toFixed(0)} ${unit} — partially laid (£${matchedSide.toFixed(2)} ${unit})`;
+              return `£${Number(perSide).toFixed(0)} ${unit} — ${copy.partial} (£${matchedSide.toFixed(2)} ${unit})`;
             })()}
           </div>
           <div style={{ fontSize: 13, color: '#999', marginTop: 6 }}>
-            Submitted: {b.createdAt
+            {copy.submitted}: {b.createdAt
               ? new Date(b.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC'
               : '—'}
           </div>
           <div style={{ fontSize: 13, color: '#999', marginTop: 2 }}>
-            Accepted: {(b.acceptedAt || b.houseActedAt)
+            {copy.accepted}: {(b.acceptedAt || b.houseActedAt)
               ? new Date(b.acceptedAt || b.houseActedAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC'
               : '—'}
           </div>
@@ -2156,8 +2156,8 @@ In Process
             })}
           </CollapsibleSection>
 
-          <CollapsibleSection title="Settled Bets" defaultOpen={false}>
-            {settledBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No settled bets.</p>}
+          <CollapsibleSection title={copy.settled} defaultOpen={false}>
+            {settledBets.length === 0 && <p style={{ color: '#b0b0b0' }}>{copy.noSettled}</p>}
             {settledBets.map(b => {
               const matched = getMatched(b);
 const originalStake = b.eachWay
@@ -2233,7 +2233,7 @@ const originalStake = b.eachWay
             {(isWon || isPlaced) && returns > 0 ? ` — Returns £${returns.toFixed(2)}` : ''}
           </div>
           <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>
-            Submitted: {b.createdAt ? new Date(b.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '—'}
+            {copy.submitted}: {b.createdAt ? new Date(b.createdAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '—'}
           </div>
           <div style={{ fontSize: 13, color: '#999', marginTop: 2 }}>
             Settled: {b.settledAt ? new Date(b.settledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '—'}
@@ -2243,7 +2243,7 @@ const originalStake = b.eachWay
             })}
           </CollapsibleSection>
 
-          <CollapsibleSection title="Not Accepted" defaultOpen={false}>
+          <CollapsibleSection title={copy.notAccepted} defaultOpen={false}>
             {rejectedBets.length === 0 && <p style={{ color: '#b0b0b0' }}>No rejected bets.</p>}
             {rejectedBets.map(b => (
                 <div key={b.id} style={{ background: theme.panel, border: '1px solid #3a3a5c', borderRadius: 8, padding: 12, marginBottom: 10 }}>
@@ -2253,7 +2253,7 @@ const originalStake = b.eachWay
                     {b.eachWay ? (b.originalStake || b.stake / 2) : b.stake}
                     {b.eachWay ? ' each way' : ''}
                   </div>
-                  <div style={{ marginTop: 6, color: '#ff6b6b' }}>Not Accepted</div>
+                  <div style={{ marginTop: 6, color: '#ff6b6b' }}>{copy.notAccepted}</div>
                                     {b.settlementNotes && (
                     <div style={{ marginTop: 4, fontSize: 13, color: '#ffb347' }}>
                       Note: {b.settlementNotes}
@@ -2268,7 +2268,7 @@ const originalStake = b.eachWay
        {/* ===== TAB: My Lays ===== */}
       {customerTab === 'lays' && user.canLay && (
         <>
-          <CollapsibleSection title="Open Lays" defaultOpen={false}>
+          <CollapsibleSection title={copy.openLaysTitle} defaultOpen={false}>
             {openLays.length === 0 && <p style={{ color: '#b0b0b0' }}>No open lays.</p>}
             {openLays.map(b => {
               const myBid = (b.layerBids || []).find(l => Number(l.layerId) === Number(user.id));
@@ -2284,9 +2284,9 @@ const liability = calcLiability(laid, b.odds, {
               const actual = Number(myBid?.actualLaid);
               const wasCut = hasActual && actual > 0 && actual < bidAmt - 0.01;
               const layStatus = !hasActual
-                ? ' (awaiting apportioning)'
+                ? copy.awaiting
                 : actual === 0
-                  ? ' — Bid rejected, bet filled by other layers'
+                  ? copy.rejected
                   : wasCut
                     ? ' (apportioned)'
                     : '';
@@ -2299,7 +2299,7 @@ const liability = calcLiability(laid, b.odds, {
                     {b.eachWay ? ' each way' : ''}
                   </div>
                                   <div style={{ color: '#999', fontSize: 13, marginTop: 2 }}>
-by{' '}
+{copy.by}{' '}
 <span
   onClick={() => openPunterNote(b.punterId, b.punterName)}
   style={{ color: '#00ff88', cursor: 'pointer', textDecoration: 'underline' }}
@@ -2308,18 +2308,18 @@ by{' '}
 </span> 
                 </div>
                   <div style={{ marginTop: 6, color: '#00ff88' }}>
-                    Your lay: £{b.eachWay ? (laid / 2).toFixed(2) : laid.toFixed(2)}
+                    {copy.yourLay}: £{b.eachWay ? (laid / 2).toFixed(2) : laid.toFixed(2)}
                     {b.eachWay ? ' each way' : ''}
                     {layStatus}
                   </div>
-                  <div style={{ marginTop: 4, color: '#ff6b6b', fontWeight: 600 }}>Liability: £{liability.toFixed(2)}</div>
+                  <div style={{ marginTop: 4, color: '#ff6b6b', fontWeight: 600 }}>{copy.liability}: £{liability.toFixed(2)}</div>
                 </div>
               );
             })}
           </CollapsibleSection>
 
-          <CollapsibleSection title="Settled Lays" defaultOpen={false}>
-            {settledLays.length === 0 && <p style={{ color: '#b0b0b0' }}>No settled lays yet.</p>}
+          <CollapsibleSection title={copy.settledLays} defaultOpen={false}>
+            {settledLays.length === 0 && <p style={{ color: '#b0b0b0' }}>{copy.noLays}</p>}
             {settledLays.map(b => {
               const myBid = (b.layerBids || []).find(l => Number(l.layerId) === Number(user.id));
               const laid = parseFloat(myBid?.actualLaid ?? myBid?.amount) || 0;
@@ -2347,7 +2347,7 @@ const resultColor = isManual || isPlaced
                     {b.eachWay ? ' each way' : ''}
                   </div>
                                     <div style={{ color: '#999', fontSize: 13, marginTop: 2 }}>
-by{' '}
+{copy.by}{' '}
 <span
   onClick={() => openPunterNote(b.punterId, b.punterName)}
   style={{ color: '#00ff88', cursor: 'pointer', textDecoration: 'underline' }}
@@ -2355,7 +2355,7 @@ by{' '}
   {b.punterName}
 </span>
                   </div>
-                  <div style={{ marginTop: 6 }}>Your lay: £{laid.toFixed(2)}</div>
+                  <div style={{ marginTop: 6 }}>{copy.yourLay}: £{laid.toFixed(2)}</div>
 <div style={{ marginTop: 4, fontWeight: 600, color: resultColor }}>
   {isManual
     ? 'SETTLED (Manual)'
@@ -2414,7 +2414,7 @@ const liability = currentBid > 0
                   {b.eachWay ? ' each way' : ' Win'}
                 </div>
                 <div style={{ color: '#999', fontSize: 13, marginTop: 12 }}>
-by{' '}
+{copy.by}{' '}
 <span
   onClick={() => openPunterNote(b.punterId, b.punterName)}
   style={{ color: '#00ff88', cursor: 'pointer', textDecoration: 'underline' }}
@@ -2438,7 +2438,7 @@ by{' '}
                   <input type="number" placeholder="Your lay amount" value={bidAmount[b.id] || ''} onChange={e => setBidAmount(prev => ({ ...prev, [b.id]: e.target.value }))} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
                   <button type="button" onClick={() => submitLay(b)} style={{ padding: '12px 12px', fontSize: 14, background: '#0066cc', color: 'white', border: 'none', borderRadius: 5, cursor: 'pointer' }}>Lay</button>
                 </div>
-                {currentBid > 0 && <div style={{ marginTop: 8, color: '#ff6b6b', fontWeight: 600 }}>Liability: £{liability}</div>}
+                {currentBid > 0 && <div style={{ marginTop: 8, color: '#ff6b6b', fontWeight: 600 }}>{copy.liability}: £{liability}</div>}
                 <button
                   type="button"
                   onClick={() => {
@@ -2784,38 +2784,38 @@ style={{
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
             <MiiFace mii={miiDraft} size={110} />
           </div>
-          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Sex</div>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{copy.sex}</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
             {['female', 'male'].map(s => (
               <button key={s} type="button" onClick={() => setMiiDraft(d => ({ ...d, sex: s, style: s === 'female' ? 'long16' : 'short16', glasses: 'none' }))} style={{ flex: 1, padding: 6, borderRadius: 6, border: miiDraft.sex === s ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer' }}>{s}</button>
             ))}
           </div>
-          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Skin</div>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{copy.skin}</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
             {MII_SKIN.map(c => (
               <button key={c} type="button" onClick={() => setMiiDraft(d => ({ ...d, skin: c }))} style={{ width: 22, height: 22, borderRadius: '50%', background: c, border: miiDraft.skin === c ? '2px solid #fff' : '1px solid #555', cursor: 'pointer' }} />
             ))}
           </div>
-          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Hair colour</div>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{copy.hairColour}</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
             {MII_HAIR.map(c => (
               <button key={c} type="button" onClick={() => setMiiDraft(d => ({ ...d, hair: c }))} style={{ width: 22, height: 22, borderRadius: '50%', background: c, border: miiDraft.hair === c ? '2px solid #fff' : '1px solid #555', cursor: 'pointer' }} />
             ))}
           </div>
           {[
-            ['style', 'Hair', miiDraft.sex === 'male' ? MII_HAIR_M : MII_HAIR_F],
-            ['face', 'Face shape', MII_FACE],
-            ['brows', 'Brows', MII_BROWS],
-            ['feature', 'Facial hair & marks', MII_FEATURE],
-            ['eyes', 'Eyes', MII_EYES],
-            ['mouth', 'Mouth', MII_MOUTH],
-            ['glasses', 'Glasses', MII_GLASSES],
+            ['style', copy.hair, miiDraft.sex === 'male' ? MII_HAIR_M : MII_HAIR_F],
+            ['face', copy.face, MII_FACE],
+            ['brows', copy.brows, MII_BROWS],
+            ['feature', copy.marks, MII_FEATURE],
+            ['eyes', copy.eyes, MII_EYES],
+            ['mouth', copy.mouth, MII_MOUTH],
+            ['glasses', copy.glasses, MII_GLASSES],
           ].map(([key, label, opts]) => (
             <div key={key} style={{ marginBottom: 8 }}>
               <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{label}</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {opts.map(([name, val]) => (
-                  <button key={val} type="button" onClick={() => setMiiDraft(d => ({ ...d, [key]: val }))} style={{ padding: '4px 8px', borderRadius: 6, border: miiDraft[key] === val ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer', fontSize: 12 }}>{name}</button>
+                  <button key={val} type="button" onClick={() => setMiiDraft(d => ({ ...d, [key]: val }))} style={{ padding: '4px 8px', borderRadius: 6, border: miiDraft[key] === val ? '1px solid #00ff88' : '1px solid #3a3a5c', background: 'transparent', color: theme.text, cursor: 'pointer', fontSize: 12 }}>{(copy.opt && copy.opt[name]) || name}</button>
                 ))}
               </div>
             </div>
@@ -2838,7 +2838,7 @@ style={{
             }}
             style={{ width: '100%', padding: 8, background: theme.btnBg, color: theme.btnText, border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
           >
-            Save avatar
+            {copy.saveAvatar}
           </button>
           {!!user.avatar && (
             <button
