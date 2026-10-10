@@ -471,19 +471,7 @@ export default function UserHome() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [lang, setLang] = useState(() => {
-    const saved = localStorage.getItem('btm_lang');
-    if (saved) return saved;
-    const nav = (navigator.language || 'en').slice(0, 2).toLowerCase();
-    return ['es', 'pt', 'fr'].includes(nav) ? nav : 'en';
-  });
-  const copy = {
-    en: { email: 'Email', password: 'Password', code: 'Authenticator code', codePh: '6-digit code', signIn: 'Sign in', signing: 'Signing in…', host: 'Please contact your host for login details', contact: 'Contact us on Telegram' },
-    es: { email: 'Correo', password: 'Contraseña', code: 'Código de autenticación', codePh: 'Código de 6 dígitos', signIn: 'Entrar', signing: 'Entrando…', host: 'Contacta con tu anfitrión para los datos de acceso', contact: 'Contáctanos en Telegram' },
-    pt: { email: 'Email', password: 'Palavra-passe', code: 'Código de autenticação', codePh: 'Código de 6 dígitos', signIn: 'Entrar', signing: 'A entrar…', host: 'Contacte o anfitrião para os dados de acesso', contact: 'Contacte-nos no Telegram' },
-    fr: { email: 'E-mail', password: 'Mot de passe', code: "Code d'authentification", codePh: 'Code à 6 chiffres', signIn: 'Connexion', signing: 'Connexion…', host: "Contactez votre hôte pour les identifiants", contact: 'Contactez-nous sur Telegram' },
-  }[lang] || { email: 'Email', password: 'Password', code: 'Authenticator code', codePh: '6-digit code', signIn: 'Sign in', signing: 'Signing in…', host: 'Please contact your host for login details', contact: 'Contact us on Telegram' };
-  const chooseLang = (code) => { setLang(code); localStorage.setItem('btm_lang', code); };
+  const { lang, copy, chooseLang } = useLang();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
@@ -610,11 +598,7 @@ useEffect(() => {
       <h1 style={{ textAlign: 'center', margin: '0 0 22px' }}>
         <img src="/logo-login.png" alt="BetOrLay" style={{ maxWidth: '210px', height: 'auto' }} />
       </h1>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
-        {['en', 'es', 'pt', 'fr'].map(code => (
-          <button key={code} type="button" onClick={() => chooseLang(code)} style={{ padding: '4px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.25)', background: lang === code ? '#e7edf3' : 'transparent', color: lang === code ? '#1a212b' : '#d7e3ee', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{code.toUpperCase()}</button>
-        ))}
-      </div>
+      <LangSwitch lang={lang} chooseLang={chooseLang} />
       <div>
         <div style={{ marginBottom: 8, color: '#b7c0cc', fontSize: 13 }}>{copy.email}</div>
         <input type="text" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
@@ -683,6 +667,7 @@ useEffect(() => {
 }
 
 function UserDashboard({ user, onLogout, onUserUpdate }) {
+  const { lang, copy, chooseLang } = useLang();
   const theme = applyHouseTheme(user);
   const [bets, setBets] = useState([]);
 const [bet, setBet] = useState({ event: '', selection: '', odds: '', stake: '', eachWay: false });
@@ -1587,7 +1572,7 @@ const sendLay = async () => {
         <button
           type="button"
           onClick={() => setAccountOpen(true)}
-          aria-label="Account settings"
+          aria-label={copy.account}
           style={{
             width: 42,
             height: 42,
@@ -1606,6 +1591,7 @@ const sendLay = async () => {
           <AvatarView avatar={user.avatar} size={42} />
         </button>
       </div>
+      <LangSwitch lang={lang} chooseLang={chooseLang} />
       {showMoney && (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px', alignItems: 'center' }}>
@@ -1617,7 +1603,7 @@ const sendLay = async () => {
                 letterSpacing: '0.2px',
               }}
             >
-              Balance: £{Number(user.balance || 0).toFixed(2)}
+              {copy.balance}: £{Number(user.balance || 0).toFixed(2)}
             </span>
             {user.canLay && openLaysExposure > 0 && (
               <span
@@ -1627,7 +1613,7 @@ const sendLay = async () => {
                   fontSize: 14,
                 }}
               >
-                Open lays: £{openLaysExposure.toFixed(2)}
+                {copy.openLays}: £{openLaysExposure.toFixed(2)}
               </span>
             )}
           </div>
@@ -1669,7 +1655,7 @@ const sendLay = async () => {
         customerTab === 'slip' ? '0 4px 14px rgba(0, 255, 136, 0.25)' : 'none',
     }}
   >
-    Betting Slip
+    {copy.slip}
   </button>
   <button
     type="button"
@@ -1692,7 +1678,7 @@ const sendLay = async () => {
         customerTab === 'bets' ? '0 4px 14px rgba(0, 255, 136, 0.25)' : 'none',
     }}
   >
-    My Bets
+    {copy.bets}
   </button>
   {user.canLay && (
     <button
@@ -1716,7 +1702,7 @@ const sendLay = async () => {
           customerTab === 'lays' ? '0 4px 14px rgba(0, 255, 136, 0.25)' : 'none',
       }}
     >
-      My Lays
+      {copy.lays}
     </button>
   )}
 </div>
@@ -1724,12 +1710,12 @@ const sendLay = async () => {
       {/* ===== TAB: Betting Slip ===== */}
       {customerTab === 'slip' && (
         <>
-<CollapsibleSection title="Show/Hide Betting Slip" open={slipOpen} onToggle={setSlipOpen}>
+<CollapsibleSection title={copy.showSlip} open={slipOpen} onToggle={setSlipOpen}>
             <form onSubmit={placeBet}>
-              <p style={{ color: '#00ff88', margin: '0 0 0 0', fontSize: 14 }}>Enter bet details</p>
+              <p style={{ color: '#00ff88', margin: '0 0 0 0', fontSize: 14 }}>{copy.details}</p>
 <div style={{ position: 'relative' }}>
   <input
-    placeholder="Event"
+    placeholder={copy.event}
     value={bet.event}
     onChange={e => {
       const v = e.target.value;
@@ -1784,7 +1770,7 @@ const sendLay = async () => {
 </div>
 <div style={{ position: 'relative' }}>
   <input
-    placeholder="Selection"
+    placeholder={copy.selection}
     value={bet.selection}
     onChange={e => {
       const v = e.target.value;
@@ -1838,7 +1824,7 @@ const sendLay = async () => {
         )}
               </div>
 <input
-  placeholder="Odds - e.g 2.5, 6/4 or 6-4"
+  placeholder={copy.odds}
 inputMode="decimal"
   autoComplete="off"
   spellCheck={false}
@@ -1893,7 +1879,7 @@ inputMode="decimal"
                         ))}
                       </div>
                     )}
-              <input placeholder="Stake" type="number" value={bet.stake} onChange={e => setBet({ ...bet, stake: e.target.value })} required style={inputStyle} />
+              <input placeholder={copy.stake} type="number" value={bet.stake} onChange={e => setBet({ ...bet, stake: e.target.value })} required style={inputStyle} />
 <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 0, color: '#ccc', fontSize: 14, cursor: 'pointer' }}>
   <input
     type="checkbox"
@@ -1901,7 +1887,7 @@ inputMode="decimal"
     onChange={e => setBet({ ...bet, eachWay: e.target.checked })}
     style={{ width: 14, height: 14, accentColor: '#00ff88' }}
   />
-  Tick for each way
+  {copy.eachWay}
 </label>
 <button
   type="submit"
@@ -1920,7 +1906,7 @@ inputMode="decimal"
     letterSpacing: '0.3px',
   }}
 >
-  {placing ? 'Submitting…' : 'Submit bet'}
+  {placing ? copy.signing : copy.place}
 </button>
             </form>
             {message && <p style={{ color: '#00ff88' }}>{message}</p>}
