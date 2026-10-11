@@ -3227,6 +3227,12 @@ app.post("/api/beta-register", async (req, res) => {
   }
 
   console.log("BETA REGISTER:", { name, email, day, at: new Date().toISOString() });
+  console.log("SMTP CHECK:", {
+    host: process.env.SMTP_HOST ? "set" : "MISSING",
+    user: process.env.SMTP_USER ? "set" : "MISSING",
+    pass: process.env.SMTP_PASS ? "set" : "MISSING",
+    from: process.env.SMTP_FROM || "not set"
+  });
 
   // Send email in background so the response is not blocked
   if (process.env.SMTP_HOST && process.env.SMTP_USER) {
