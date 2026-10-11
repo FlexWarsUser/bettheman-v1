@@ -3228,22 +3228,19 @@ app.post("/api/beta-register", async (req, res) => {
 
   console.log("BETA REGISTER:", { name, email, day, at: new Date().toISOString() });
 
-  try {
-    if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || "noreply@betorlay.uk",
-        to: "admin@betorlay.uk",
-        subject: "New Beta Registration",
-        text: `New beta registration:\n\nName: ${name}\nEmail: ${email}\nDay: ${day}\nTime: ${new Date().toISOString()}`,
-        html: `<p><strong>New beta registration</strong></p>
-               <p>Name: ${name}<br>
-               Email: ${email}<br>
-               Day: ${day}<br>
-               Time: ${new Date().toISOString()}</p>`,
-      });
-    }
-  } catch (err) {
-    console.error("Email send failed:", err.message);
+  // Send email in background so the response is not blocked
+  if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+    transporter.sendMail({
+      from: process.env.SMTP_FROM || "noreply@betorlay.uk",
+      to: "admin@betorlay.uk",
+      subject: "New Beta Registration",
+      text: `New beta registration:\n\nName: ${name}\nEmail: ${email}\nDay: ${day}\nTime: ${new Date().toISOString()}`,
+      html: `<p><strong>New beta registration</strong></p>
+             <p>Name: ${name}<br>
+             Email: ${email}<br>
+             Day: ${day}<br>
+             Time: ${new Date().toISOString()}</p>`,
+    }).catch(err => console.error("Email send failed:", err.message));
   }
 
   res.json({ success: true });
