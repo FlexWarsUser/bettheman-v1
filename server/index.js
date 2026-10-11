@@ -9,19 +9,9 @@ const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 const webpush = require("web-push");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
 
 const AUTH_SECRET = process.env.AUTH_SECRET || "";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT || 587),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
 
 function passwordProblem(password) {
   const p = String(password || "");
@@ -3227,31 +3217,27 @@ app.post("/api/beta-register", async (req, res) => {
   }
 
   console.log("BETA REGISTER:", { name, email, day, at: new Date().toISOString() });
-  console.log("SMTP CHECK:", {
-    host: process.env.SMTP_HOST ? "set" : "MISSING",
-    user: process.env.SMTP_USER ? "set" : "MISSING",
-    pass: process.env.SMTP_PASS ? "set" : "MISSING",
-    from: process.env.SMTP_FROM || "not set"
-  });
 
-  // Send email in background so the response is not blocked
-  if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-    console.log("Attempting email send...");
-    transporter.sendMail({
-      from: process.env.SMTP_FROM || "noreply@betorlay.uk",
+  // Send via Resend (non-blocking)
+  if (process.env.RESEND_API_KEY) {
+    const { Resend } = require("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    resend.emails.send({
+      from: "onboarding@resend.dev",
       to: "admin@betorlay.uk",
       subject: "New Beta Registration",
-      text: `New beta registration:\n\nName: ${name}\nEmail: ${email}\nDay: ${day}\nTime: ${new Date().toISOString()}`,
       html: `<p><strong>New beta registration</strong></p>
              <p>Name: ${name}<br>
              Email: ${email}<br>
              Day: ${day}<br>
              Time: ${new Date().toISOString()}</p>`,
-    }).then(info => {
-      console.log("Email sent OK:", info.messageId || info.response || "done");
+    }).then(data => {
+      console.log("Email sent OK:", data);
     }).catch(err => {
-      console.error("Email send failed:", err.message);
+      console.error("Email send failed:", err.message || err);
     });
+  } else {
+    console.log("RESEND_API_KEY not set — email skipped");
   }
 
   res.json({ success: true });
