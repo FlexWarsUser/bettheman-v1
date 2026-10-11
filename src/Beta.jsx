@@ -6,6 +6,7 @@ export default function Beta() {
   const [day, setDay] = useState("");
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   async function submit(e) {
     e.preventDefault();
@@ -92,9 +93,23 @@ export default function Beta() {
 
         <p style={styles.privacy}>
           Your details will not be stored after the event and will only be used on the day of the beta launch to send your login details.{" "}
-          <a href="/privacy" style={{ color: "#00ff88" }}>Privacy</a>
+          <button type="button" onClick={() => setShowPrivacy(true)} style={styles.privacyLink}>
+            Privacy
+          </button>
         </p>
       </div>
+
+      {showPrivacy && (
+        <div style={styles.overlay} onClick={() => setShowPrivacy(false)}>
+          <div style={styles.popup} onClick={(e) => e.stopPropagation()}>
+            <button type="button" onClick={() => setShowPrivacy(false)} style={styles.close}>×</button>
+            <h2 style={styles.popupTitle}>Privacy</h2>
+            <p style={styles.popupText}>
+              Your details will not be stored after the event and will only be used on the day of the beta launch to send your login details.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -147,4 +162,43 @@ const styles = {
     marginTop: 8,
   },
   privacy: { textAlign: "center", fontSize: "0.75rem", color: "#888", marginTop: 16 },
+  privacyLink: {
+    background: "none",
+    border: "none",
+    color: "#00ff88",
+    cursor: "pointer",
+    fontSize: "0.75rem",
+    padding: 0,
+    textDecoration: "underline",
+  },
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.6)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  popup: {
+    background: "#1a1a2e",
+    borderRadius: 12,
+    padding: 24,
+    maxWidth: 360,
+    width: "90%",
+    position: "relative",
+    color: "#e8e8e8",
+  },
+  close: {
+    position: "absolute",
+    top: 8,
+    right: 12,
+    background: "none",
+    border: "none",
+    color: "#aaa",
+    fontSize: 24,
+    cursor: "pointer",
+  },
+  popupTitle: { margin: "0 0 12px", fontSize: "1.1rem", color: "#fff" },
+  popupText: { margin: 0, fontSize: "0.9rem", lineHeight: 1.5, color: "#ccc" },
 };
