@@ -3236,6 +3236,7 @@ app.post("/api/beta-register", async (req, res) => {
 
   // Send email in background so the response is not blocked
   if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+    console.log("Attempting email send...");
     transporter.sendMail({
       from: process.env.SMTP_FROM || "noreply@betorlay.uk",
       to: "admin@betorlay.uk",
@@ -3246,7 +3247,11 @@ app.post("/api/beta-register", async (req, res) => {
              Email: ${email}<br>
              Day: ${day}<br>
              Time: ${new Date().toISOString()}</p>`,
-    }).catch(err => console.error("Email send failed:", err.message));
+    }).then(info => {
+      console.log("Email sent OK:", info.messageId || info.response || "done");
+    }).catch(err => {
+      console.error("Email send failed:", err.message);
+    });
   }
 
   res.json({ success: true });
