@@ -527,15 +527,6 @@ return () => {
   socket.disconnect();
 };
   }, [currentUser?.id]);
-
-  // Polling fallback so new bets appear even if socket is down
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (typeof fetchBets === "function") fetchBets();
-    }, 3000);
-    return () => clearInterval(id);
-  }, []);
-
   const addEvent = async () => {
     if (!eventForm.name || !eventForm.date) return alert('Name and date required');
     try {
@@ -2436,6 +2427,8 @@ const exposure = getExposure(b.stake, b.odds, {
     const myHouse = currentUser?.houseId != null ? Number(currentUser.houseId) : 1;
     const theirHouse = u.houseId != null ? Number(u.houseId) : 1;
     if (theirHouse !== myHouse) return false;
+    // Always include the current user so house can adjust its own balance
+    if (Number(u.id) === Number(currentUser?.id)) return true;
     if (role === 'admin') return false;
     return true;
   })
