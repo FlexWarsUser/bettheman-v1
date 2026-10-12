@@ -527,6 +527,15 @@ return () => {
   socket.disconnect();
 };
   }, [currentUser?.id]);
+
+  // Polling fallback so new bets appear even if socket is down
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (typeof fetchBets === "function") fetchBets();
+    }, 3000);
+    return () => clearInterval(id);
+  }, []);
+
   const addEvent = async () => {
     if (!eventForm.name || !eventForm.date) return alert('Name and date required');
     try {
