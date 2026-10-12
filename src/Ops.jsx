@@ -491,7 +491,14 @@ const fetchEvents = async () => {
     }
   }, []);
   useEffect(() => {
-    const socket = io(API, { transports: ["websocket", "polling"], withCredentials: true });
+    const raw = localStorage.getItem('btm_user');
+    let token = '';
+    try { token = raw ? (JSON.parse(raw).token || '') : ''; } catch (e) {}
+    const socket = io(API, {
+      transports: ["websocket", "polling"],
+      withCredentials: true,
+      auth: { token }
+    });
 
     socket.on("bet:notify", (payload) => {
       if (payload.houseId != null && currentUser?.houseId != null && Number(payload.houseId) !== Number(currentUser.houseId)) return;
@@ -581,7 +588,14 @@ return () => {
   }, [activeTab, chatOtherId]);
 
   useEffect(() => {
-const socket = io(API, { transports: ["websocket", "polling"], withCredentials: true });
+const raw2 = localStorage.getItem('btm_user');
+let token2 = '';
+try { token2 = raw2 ? (JSON.parse(raw2).token || '') : ''; } catch (e) {}
+const socket = io(API, {
+  transports: ["websocket", "polling"],
+  withCredentials: true,
+  auth: { token: token2 }
+});
 socket.emit('chat:join', HOUSE_ID);
     socket.on('chat:message', (msg) => {
   if (Number(msg.fromUserId) !== HOUSE_ID && Number(msg.toUserId) !== HOUSE_ID) return;
@@ -1144,7 +1158,7 @@ useEffect(() => {
       if (d && Array.isArray(d.houses)) setHouses(d.houses);
     }).catch(() => {});
   }
-  const interval = setInterval(fetchBets, 60000);
+  const interval = setInterval(fetchBets, 2000);
   return () => clearInterval(interval);
 }, []);
 
