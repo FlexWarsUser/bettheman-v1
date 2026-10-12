@@ -503,6 +503,15 @@ export default function UserHome() {
 
   useEffect(() => {
     const raw = localStorage.getItem('btm_user');
+    if (raw) {
+      try {
+        const u = JSON.parse(raw);
+        if (u && (u.role === 'admin' || u.role === 'house')) {
+          window.location.href = '/ops';
+          return;
+        }
+      } catch (e) {}
+    }
     let parsed = null;
     if (raw) {
       try {

@@ -23,7 +23,8 @@ function RequireAuth({ children }) {
 function Home() {
   const user = getStoredUser();
   if (user && (user.role === 'admin' || user.role === 'house')) {
-    return <Navigate to="/ops" replace />;
+    window.location.href = '/ops';
+    return null;
   }
   return <UserHome />;
 }

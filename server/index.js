@@ -2093,6 +2093,10 @@ app.post("/api/users", async (req, res) => {
 });
 app.post("/api/bets", async (req, res) => {
   try {
+        const actor = await actorFromRequest(req);
+        if (actor && (actor.role === "admin" || actor.role === "house")) {
+          return res.status(403).json({ success: false, error: "House cannot place bets" });
+        }
         const punterId = parseInt(req.body.punterId);
         const punterLive = await getUserRow(punterId);
         if (punterLive && punterLive.role !== "admin") {
