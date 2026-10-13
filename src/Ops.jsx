@@ -2072,7 +2072,7 @@ const exposure = getExposure(b.stake, b.odds, {
               onClick={() => handleHouseAction(b.id, 'Rejected')}
               style={{ background: '#7f1d1d', color: 'white', flex: 1, padding: '9px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: 13 }}
             >
-              Reject → layers
+              Send to layers
             </button>
             <button
               type="button"
@@ -2084,7 +2084,7 @@ const exposure = getExposure(b.stake, b.odds, {
           </div>
           <input
             type="text"
-            placeholder="Reject note (shown to punter if stop)"
+            placeholder="Optional note for punter if bet process stopped"
             value={rejectNote[b.id] || ''}
             onChange={(e) => setRejectNote({ ...rejectNote, [b.id]: e.target.value })}
             style={{
