@@ -1158,7 +1158,7 @@ useEffect(() => {
       if (d && Array.isArray(d.houses)) setHouses(d.houses);
     }).catch(() => {});
   }
-  const interval = setInterval(fetchBets, 2000);
+  const interval = setInterval(() => { fetchBets(); fetchUsers(); }, 3000);
   return () => clearInterval(interval);
 }, []);
 
@@ -1172,6 +1172,14 @@ useEffect(() => {
         console.log('USERS FROM API', data);
         if (Array.isArray(data)) {
           setUsers(data);
+          // Keep house/current user balance live
+          if (currentUser?.id) {
+            const me = data.find(u => Number(u.id) === Number(currentUser.id));
+            if (me && Number(me.balance) !== Number(currentUser.balance)) {
+              setCurrentUser(prev => prev ? { ...prev, balance: me.balance } : prev);
+              try { localStorage.setItem('btm_user', JSON.stringify({ ...currentUser, balance: me.balance })); } catch(e) {}
+            }
+          }
           setBalanceUserId((prev) => {
             if (prev && data.some((u) => Number(u.id) === Number(prev))) return prev;
             const hid = currentUser?.houseId != null ? Number(currentUser.houseId) : 1;
